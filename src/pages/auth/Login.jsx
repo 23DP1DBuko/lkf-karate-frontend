@@ -37,8 +37,11 @@ export default function Login() {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+            <label className="block text-sm font-medium mb-1" htmlFor="email">
+              Email
+            </label>
             <input
+              id="email"
               type="email"
               className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={form.identifier}
@@ -47,8 +50,11 @@ export default function Login() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
+            <label className="block text-sm font-medium mb-1" htmlFor="password">
+              Password
+            </label>
             <input
+              id="password"
               type="password"
               className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={form.password}
