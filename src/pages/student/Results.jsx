@@ -43,11 +43,21 @@ export default function Results() {
             <div className="text-right">
               {attempt.submittedAt ? (
                 <>
-                  <div className={`text-3xl font-bold ${attempt.passed ? 'text-green-600' : 'text-red-600'}`}>
-                    {attempt.score}%
+                  <div className="text-3xl font-bold text-gray-700">
+                    {attempt.exam?.showResults === false ? '?' : (
+                      <span className={attempt.passed ? 'text-green-600' : 'text-red-600'}>
+                        {attempt.score}%
+                      </span>
+                    )}
                   </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${attempt.passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                    {attempt.passed ? 'Passed' : 'Failed'}
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                    attempt.exam?.showResults === false
+                      ? 'bg-gray-100 text-gray-500'
+                      : attempt.passed
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-red-100 text-red-700'
+                  }`}>
+                    {attempt.exam?.showResults === false ? '?' : attempt.passed ? 'Passed' : 'Failed'}
                   </span>
                 </>
               ) : (

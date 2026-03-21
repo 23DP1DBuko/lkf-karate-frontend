@@ -13,6 +13,7 @@ export default function ExamPage() {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [showResults, setShowResults] = useState(true)
 
   useEffect(() => {
     api.post('/exams/start', { examId: documentId })
@@ -20,7 +21,8 @@ export default function ExamPage() {
         console.log('API response:', res.data)
         setAttempt(res.data.attemptId)
         setQuestions(res.data.questions || [])
-        setTimeLeft(res.data.duration * 60)
+        setTimeLeft(res.data.remainingSeconds || res.data.duration * 60)
+        setShowResults(res.data.showResults === true)
         setLoading(false)
         })
       .catch(err => {
@@ -44,9 +46,11 @@ export default function ExamPage() {
     setSubmitting(true)
     try {
       const res = await api.post('/exams/submit', { attemptId: attempt, answers })
+      console.log('Submit response:', res.data)
       navigate('/exam-result', { state: res.data })
     } catch (err) {
-      setError('Failed to submit exam')
+      console.log('Submit error:', err.response?.data)
+      setError('Failed to submit exam: ' + JSON.stringify(err.response?.data?.error))
       setSubmitting(false)
     }
   }

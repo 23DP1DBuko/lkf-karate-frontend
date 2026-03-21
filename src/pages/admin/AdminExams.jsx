@@ -8,7 +8,7 @@ export default function AdminExams() {
   const [editingExam, setEditingExam] = useState(null)
   const [form, setForm] = useState({
     title: '', duration: 30, questionCount: 10, passingScore: 70,
-    openAt: '', closeAt: '', course: ''
+    openAt: '', closeAt: '', course: '', showResults: true
   })
 
   const { data: exams, isLoading } = useQuery({
@@ -58,6 +58,7 @@ export default function AdminExams() {
       openAt: exam.openAt ? exam.openAt.slice(0, 16) : '',
       closeAt: exam.closeAt ? exam.closeAt.slice(0, 16) : '',
       course: exam.course?.documentId || '',
+      showResults: exam.showResults ?? true,
     })
     setShowForm(true)
   }
@@ -173,6 +174,18 @@ export default function AdminExams() {
                   max={100}
                   required
                 />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="showResults"
+                  checked={form.showResults}
+                  onChange={e => setForm({ ...form, showResults: e.target.checked })}
+                  className="w-4 h-4 accent-blue-600"
+                />
+                <label htmlFor="showResults" className="text-sm font-medium">
+                  Show results to students after submission
+                </label>
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4">

@@ -9,8 +9,28 @@ export default function ExamResult() {
     return null
   }
 
-  const { score, passed, correct, total } = state
-
+  const { score, passed, correct, total, showResults } = state
+  console.log('showResults value:', showResults, typeof showResults)
+  if (!showResults) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100 p-8">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
+          <div className="text-6xl mb-4">📋</div>
+          <h1 className="text-2xl font-bold mb-2">Exam Submitted</h1>
+          <p className="text-gray-500 mb-6">
+            Your answers have been recorded. Results will be announced by the administrator.
+          </p>
+          <button
+            onClick={() => navigate('/courses')}
+            className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 w-full"
+          >
+            Back to Courses
+          </button>
+        </div>
+        {console.log('Results are hidden by admin settings')}
+      </div>
+    )
+  }
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-8">
       <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">

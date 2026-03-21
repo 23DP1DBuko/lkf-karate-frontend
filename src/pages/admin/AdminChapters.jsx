@@ -6,6 +6,7 @@ export default function AdminChapters() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editingChapter, setEditingChapter] = useState(null)
+  const [filterCourse, setFilterCourse] = useState('all')
   const [form, setForm] = useState({
     title: '', content: '', order: 1, videoUrl: '', course: ''
   })
@@ -80,6 +81,10 @@ export default function AdminChapters() {
       deleteMutation.mutate(documentId)
     }
   }
+
+  const filtered = chapters?.filter(q =>
+    filterCourse === 'all' || q.course?.documentId === filterCourse
+  )
 
   if (isLoading) return <p className="text-gray-500">Loading...</p>
 
@@ -181,6 +186,20 @@ export default function AdminChapters() {
         </div>
       )}
 
+      {/* Filter */}
+      <div className="mb-4">
+        <select
+          className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          value={filterCourse}
+          onChange={e => setFilterCourse(e.target.value)}
+        >
+          <option value="all">All Courses</option>
+          {courses?.map(course => (
+            <option key={course.id} value={course.documentId}>{course.title}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50 border-b">
@@ -193,16 +212,18 @@ export default function AdminChapters() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {chapters?.map(chapter => (
+            {filtered?.map(chapter => (
               <tr key={chapter.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 font-medium">{chapter.title}</td>
-                <td className="px-6 py-4 text-sm text-gray-500">{chapter.course?.title || '—'}</td>
-                <td className="px-6 py-4 text-sm text-gray-500">{chapter.order}</td>
-                <td className="px-6 py-4">
-                  {chapter.videoUrl
-                    ? <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">📹 Yes</span>
-                    : <span className="text-xs text-gray-400">—</span>}
+                <td className="px-6 py-4 max-w-xs">
+                  <p className="truncate text-sm">{chapter.title}</p>
                 </td>
+                <td className="px-6 py-4">
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${chapter.type === 'multiple_choice' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
+                    {chapter.type === 'multiple_choice' ? 'Multiple Choice' : 'Yes / No'}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500">{chapter.course?.title || '—'}</td>
+                <td className="px-6 py-4 text-sm text-green-600 font-medium">{chapter.correctAnswer}</td>
                 <td className="px-6 py-4">
                   <div className="flex gap-2">
                     <button onClick={() => handleEdit(chapter)} className="text-blue-600 hover:underline text-sm">Edit</button>
