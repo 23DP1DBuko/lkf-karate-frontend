@@ -15,6 +15,11 @@ export default function CourseDetail() {
     queryFn: () => api.get(`/chapters?filters[course][documentId][$eq]=${documentId}&sort=order:asc`).then(r => r.data.data)
   })
 
+  const { data: progressData } = useQuery({
+    queryKey: ['chapter-progress'],
+    queryFn: () => api.get('/chapter-progress').then(r => r.data.data)
+  })
+
   const { data: exams } = useQuery({
     queryKey: ['exams', documentId],
     queryFn: () => api.get(`/exams?filters[course][documentId][$eq]=${documentId}`).then(r => r.data.data)
@@ -42,23 +47,29 @@ export default function CourseDetail() {
         )}
 
         <div className="space-y-3">
-          {chapters?.map((chapter, index) => (
-            <Link
-              key={chapter.id}
-              to={`/courses/${documentId}/chapters/${chapter.documentId}`}
-              className="bg-white rounded-xl shadow hover:shadow-md transition p-5 flex items-center gap-4 block"
-            >
-              <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                {index + 1}
-              </div>
-              <div>
-                <h3 className="font-semibold">{chapter.title}</h3>
-                {chapter.videoUrl && (
-                  <span className="text-xs text-gray-400">📹 Includes video</span>
+          {chapters?.map((chapter, index) => {
+            const seen = progressData?.some(p => p.chapter?.documentId === chapter.documentId)
+            return (
+              <Link
+                key={chapter.id}
+                to={`/courses/${documentId}/chapters/${chapter.documentId}`}
+                className="bg-white rounded-xl shadow hover:shadow-md transition p-5 flex items-center gap-4 block"
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${seen ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {seen ? '✓' : index + 1}
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold">{chapter.title}</h3>
+                  {chapter.videoUrl && (
+                    <span className="text-xs text-gray-400">📹 Includes video</span>
+                  )}
+                </div>
+                {seen && (
+                  <span className="text-xs text-green-600 font-medium">Completed</span>
                 )}
-              </div>
-            </Link>
-          ))}
+              </Link>
+            )
+          })}
         </div>
 
         {exams?.length > 0 && (

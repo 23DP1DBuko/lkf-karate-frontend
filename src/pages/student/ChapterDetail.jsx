@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
-import { useParams, Link } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useEffect } from 'react'
 import api from '../../api/strapi'
 
 function RichText({ content }) {
@@ -45,34 +46,60 @@ function YouTubeEmbed({ url }) {
 
 export default function ChapterDetail() {
   const { documentId, chapterDocumentId } = useParams()
+  const queryClient = useQueryClient()
 
   const { data: chapter, isLoading } = useQuery({
     queryKey: ['chapter', chapterDocumentId],
     queryFn: () => api.get(`/chapters/${chapterDocumentId}`).then(r => r.data.data)
   })
 
+  const { data: progressData } = useQuery({
+    queryKey: ['chapter-progress'],
+    queryFn: () => api.get('/chapter-progress').then(r => r.data.data)
+  })
+
+  const markSeenMutation = useMutation({
+    mutationFn: (chapterId) => api.post('/chapter-progress/mark-seen', { chapterId }),
+    onSuccess: () => queryClient.invalidateQueries(['chapter-progress'])
+  })
+
+  useEffect(() => {
+    if (chapter?.documentId) {
+      markSeenMutation.mutate(chapter.documentId)
+    }
+  }, [chapter?.documentId])
+
+  const isSeen = progressData?.some(p => p.chapter?.documentId === chapter?.documentId)
+
   if (isLoading) return (
-    <div className="flex items-center justify-center min-h-screen">
+    <div className="flex items-center justify-center py-20">
       <p className="text-gray-500">Loading chapter...</p>
     </div>
   )
 
   return (
     <div>
-        <Link
-          to={`/courses/${documentId}`}
-          className="text-blue-600 hover:underline text-sm mb-4 block"
-        >
-          ← Back to Course
-        </Link>
+      <Link
+        to={`/courses/${documentId}`}
+        className="text-blue-600 hover:underline text-sm mb-4 block"
+      >
+        ← Back to Course
+      </Link>
 
-        <h1 className="text-3xl font-bold text-blue-700 mb-6">{chapter?.title}</h1>
+      <div className="flex items-center gap-3 mb-6">
+        <h1 className="text-3xl font-bold text-blue-700">{chapter?.title}</h1>
+        {isSeen && (
+          <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">
+            ✓ Completed
+          </span>
+        )}
+      </div>
 
-        <YouTubeEmbed url={chapter?.videoUrl} />
+      <YouTubeEmbed url={chapter?.videoUrl} />
 
-        <div className="bg-white rounded-xl shadow p-6">
-          <RichText content={chapter?.content} />
-        </div>
+      <div className="bg-white rounded-xl shadow p-6">
+        <RichText content={chapter?.content} />
+      </div>
     </div>
   )
 }
