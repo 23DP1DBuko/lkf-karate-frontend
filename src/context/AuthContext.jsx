@@ -26,15 +26,33 @@ export function AuthProvider({ children }) {
   const login = async (identifier, password) => {
     const res = await api.post('/auth/local', { identifier, password })
     localStorage.setItem('token', res.data.jwt)
-    setUser(res.data.user)
-    return res.data.user
+    const userRes = await api.get('/users/me?populate=role')
+    setUser(userRes.data)
+    return userRes.data
   }
 
-  const register = async (username, email, password) => {
-    const res = await api.post('/auth/local/register', { username, email, password })
+  const register = async (username, email, password, firstName, lastName) => {
+    const res = await api.post('/auth/local/register', {
+      username,
+      email,
+      password,
+    })
     localStorage.setItem('token', res.data.jwt)
-    setUser(res.data.user)
-    return res.data.user
+
+    await api.put(`/users/${res.data.user.id}`, {
+      firstName,
+      lastName,
+      verification: 'pending',
+    })
+
+    const updatedUser = {
+      ...res.data.user,
+      firstName,
+      lastName,
+      verification: 'pending',
+    }
+    setUser(updatedUser)
+    return updatedUser
   }
 
   const logout = () => {

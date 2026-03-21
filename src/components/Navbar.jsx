@@ -39,10 +39,15 @@ export default function Navbar() {
                 <Link to="/admin/exams" className="text-gray-600 hover:text-blue-600 text-sm font-medium">
                 📝 Exams
                 </Link>
+                <Link to="/admin/users" className="text-gray-600 hover:text-blue-600 text-sm font-medium">
+                  👥 Users
+                </Link>
             </div>
             )}
             <div className="flex items-center gap-3 ml-4">
-              <span className="text-sm text-gray-500">{user.username}</span>
+              <span className="text-sm text-gray-500">
+                {user.firstName ? `${user.firstName} ${user.lastName}` : user.username}
+              </span>
               <button
                 onClick={handleLogout}
                 className="bg-red-500 text-white text-sm px-3 py-1.5 rounded-lg hover:bg-red-600"

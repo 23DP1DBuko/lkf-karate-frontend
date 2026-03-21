@@ -13,6 +13,8 @@ import AdminCourses from './pages/admin/AdminCourses'
 import AdminChapters from './pages/admin/AdminChapters'
 import AdminQuestions from './pages/admin/AdminQuestions'
 import AdminExams from './pages/admin/AdminExams'
+import PendingApproval from './pages/auth/PendingApproval'
+import AdminUsers from './pages/admin/AdminUsers'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -22,6 +24,9 @@ function ProtectedRoute({ children }) {
     </div>
   )
   if (!user) return <Navigate to="/login" />
+  if (user.verification === 'pending' || user.verification === 'rejected') {
+    return <PendingApproval />
+  }
   return <Layout>{children}</Layout>
 }
 
@@ -42,7 +47,7 @@ function Dashboard() {
   return (
     <div className="bg-white rounded-xl shadow p-6">
       <h1 className="text-2xl font-bold text-blue-700 mb-2">
-        Welcome, {user?.username}! 👋
+        Welcome, {user?.firstName ? `${user.firstName} ${user.lastName}` : user?.username}! 👋
       </h1>
       <p className="text-gray-500 mb-6">
         You are logged in as <span className="font-medium">{user?.email}</span>
@@ -106,6 +111,9 @@ export default function App() {
       } />
       <Route path="/admin/exams" element={
         <AdminRoute><AdminExams /></AdminRoute>
+      } />
+      <Route path="/admin/users" element={
+        <AdminRoute><AdminUsers /></AdminRoute>
       } />
     </Routes>
   )
