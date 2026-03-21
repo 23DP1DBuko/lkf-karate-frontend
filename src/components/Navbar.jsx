@@ -42,6 +42,9 @@ export default function Navbar() {
                 <Link to="/admin/users" className="text-gray-600 hover:text-blue-600 text-sm font-medium">
                   👥 Users
                 </Link>
+                <Link to="/admin/results" className="text-gray-600 hover:text-blue-600 text-sm font-medium">
+                  📊 Results
+                </Link>
             </div>
             )}
             <div className="flex items-center gap-3 ml-4">

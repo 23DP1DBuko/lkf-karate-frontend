@@ -56,7 +56,7 @@ export default function AdminQuestions() {
       options: question.type === 'multiple_choice'
         ? (question.options || ['', '', '', ''])
         : ['true', 'false'],
-      correctAnswer: question.correctAnswer,
+      correctAnswer: question.correctAnswer || '',
       course: question.course?.documentId || '',
     })
     setShowForm(true)
@@ -67,8 +67,8 @@ export default function AdminQuestions() {
     const data = {
       text: form.text,
       type: form.type,
-      options: form.type === 'yes_no' ? ['true', 'false'] : form.options.filter(o => o.trim()),
-      correctAnswer: form.correctAnswer,
+      options: form.type === 'yes_no' ? ['true', 'false'] : form.type === 'open_text' ? [] : form.options.filter(o => o.trim()),
+      correctAnswer: form.type === 'open_text' ? null : form.correctAnswer,
       course: form.course,
     }
     if (editingQuestion) {
@@ -149,6 +149,7 @@ export default function AdminQuestions() {
               >
                 <option value="multiple_choice">Multiple Choice</option>
                 <option value="yes_no">Yes / No</option>
+                <option value="open_text">Open Text</option>
               </select>
             </div>
 
@@ -174,6 +175,44 @@ export default function AdminQuestions() {
               </div>
             )}
 
+            {form.type !== 'open_text' && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Correct Answer</label>
+                {form.type === 'yes_no' ? (
+                  <select
+                    className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    value={form.correctAnswer}
+                    onChange={e => setForm({ ...form, correctAnswer: e.target.value })}
+                    required
+                  >
+                    <option value="">Select correct answer</option>
+                    <option value="true">Yes (true)</option>
+                    <option value="false">No (false)</option>
+                  </select>
+                ) : (
+                  <select
+                    className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    value={form.correctAnswer}
+                    onChange={e => setForm({ ...form, correctAnswer: e.target.value })}
+                    required
+                  >
+                    <option value="">Select correct answer</option>
+                    {form.options.filter(o => o.trim()).map((opt, i) => (
+                      <option key={i} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
+
+            {form.type === 'open_text' && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                <p className="text-sm text-yellow-700">
+                  ⚠️ Open text questions require manual grading by the head judge after exam submission.
+                </p>
+              </div>
+            )}
+
             <div>
               <label className="block text-sm font-medium mb-1">Correct Answer</label>
               {form.type === 'yes_no' ? (
@@ -181,7 +220,6 @@ export default function AdminQuestions() {
                   className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   value={form.correctAnswer}
                   onChange={e => setForm({ ...form, correctAnswer: e.target.value })}
-                  required
                 >
                   <option value="">Select correct answer</option>
                   <option value="true">Yes (true)</option>
@@ -192,7 +230,6 @@ export default function AdminQuestions() {
                   className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   value={form.correctAnswer}
                   onChange={e => setForm({ ...form, correctAnswer: e.target.value })}
-                  required
                 >
                   <option value="">Select correct answer</option>
                   {form.options.filter(o => o.trim()).map((opt, i) => (
@@ -250,8 +287,14 @@ export default function AdminQuestions() {
                   <p className="truncate text-sm">{question.text}</p>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${question.type === 'multiple_choice' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                    {question.type === 'multiple_choice' ? 'Multiple Choice' : 'Yes / No'}
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                    question.type === 'multiple_choice' ? 'bg-blue-100 text-blue-700' 
+                    : question.type === 'yes_no' ? 'bg-purple-100 text-purple-700'
+                    : 'bg-orange-100 text-orange-700'
+                  }`}>
+                    {question.type === 'multiple_choice' ? 'Multiple Choice' 
+                    : question.type === 'yes_no' ? 'Yes / No' 
+                    : 'Open Text'}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-500">{question.course?.title || '—'}</td>
