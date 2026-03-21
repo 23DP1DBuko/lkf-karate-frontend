@@ -71,7 +71,16 @@ export default function CourseDetail() {
             )
           })}
         </div>
-
+          {chapters?.length > 0 && (
+            <div className="mt-6">
+              <Link
+                to={`/courses/${documentId}/quiz`}
+                className="bg-green-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-green-700 inline-flex items-center gap-2"
+              >
+                🎯 Quick Quiz
+              </Link>
+            </div>
+          )}
         {exams?.length > 0 && (
         <div className="mt-8">
             <h2 className="text-xl font-semibold mb-4">Exams</h2>

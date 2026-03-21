@@ -15,6 +15,7 @@ import AdminQuestions from './pages/admin/AdminQuestions'
 import AdminExams from './pages/admin/AdminExams'
 import PendingApproval from './pages/auth/PendingApproval'
 import AdminUsers from './pages/admin/AdminUsers'
+import QuickQuiz from './pages/student/QuickQuiz'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -114,6 +115,9 @@ export default function App() {
       } />
       <Route path="/admin/users" element={
         <AdminRoute><AdminUsers /></AdminRoute>
+      } />
+      <Route path="/courses/:documentId/quiz" element={
+        <ProtectedRoute><QuickQuiz /></ProtectedRoute>
       } />
     </Routes>
   )
