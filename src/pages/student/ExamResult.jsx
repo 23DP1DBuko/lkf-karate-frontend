@@ -9,9 +9,9 @@ export default function ExamResult() {
     return null
   }
 
-  const { score, passed, correct, total, showResults } = state
+  const { score, passed, correct, total, showResults, resultsReleased } = state
   console.log('showResults value:', showResults, typeof showResults)
-  if (!showResults) {
+  if (!showResults && !resultsReleased) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100 p-8">
         <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
@@ -27,7 +27,6 @@ export default function ExamResult() {
             Back to Courses
           </button>
         </div>
-        {console.log('Results are hidden by admin settings')}
       </div>
     )
   }

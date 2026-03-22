@@ -29,45 +29,49 @@ export default function Results() {
       )}
 
       <div className="space-y-4">
-        {attempts?.map(attempt => (
-          <div key={attempt.id} className="bg-white rounded-xl shadow p-6 flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-lg">{attempt.exam?.title || 'Exam'}</h3>
-              <p className="text-sm text-gray-400">
-                {attempt.submittedAt
-                  ? new Date(attempt.submittedAt).toLocaleDateString()
-                  : 'In progress'}
-              </p>
-            </div>
-
-            <div className="text-right">
-              {attempt.submittedAt ? (
-                <>
-                  <div className="text-3xl font-bold text-gray-700">
-                    {attempt.exam?.showResults === false ? '?' : (
-                      <span className={attempt.passed ? 'text-green-600' : 'text-red-600'}>
-                        {attempt.score}%
-                      </span>
-                    )}
-                  </div>
-                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                    attempt.exam?.showResults === false
-                      ? 'bg-gray-100 text-gray-500'
-                      : attempt.passed
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
-                  }`}>
-                    {attempt.exam?.showResults === false ? '?' : attempt.passed ? 'Passed' : 'Failed'}
+        {attempts?.map(attempt => {
+          const released = attempt.exam?.showResults === true || attempt.exam?.resultsReleased === true
+          return (
+            <div key={attempt.id} className="bg-white rounded-xl shadow p-6 flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-lg">{attempt.exam?.title || 'Exam'}</h3>
+                <p className="text-sm text-gray-400">
+                  {attempt.submittedAt
+                    ? new Date(attempt.submittedAt).toLocaleDateString()
+                    : 'In progress'}
+                </p>
+              </div>
+              <div className="text-right">
+                {attempt.submittedAt ? (
+                  <>
+                    <div className="text-3xl font-bold">
+                      {released ? (
+                        <span className={attempt.passed ? 'text-green-600' : 'text-red-600'}>
+                          {attempt.score}%
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">?</span>
+                      )}
+                    </div>
+                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                      released
+                        ? attempt.passed
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-red-100 text-red-700'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {released ? (attempt.passed ? 'Passed' : 'Failed') : 'Pending'}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">
+                    In Progress
                   </span>
-                </>
-              ) : (
-                <span className="text-xs font-medium px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">
-                  In Progress
-                </span>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

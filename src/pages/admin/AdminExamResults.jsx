@@ -22,6 +22,12 @@ export default function AdminExamResults() {
     }
   })
 
+  const releaseMutation = useMutation({
+    mutationFn: (examDocumentId) =>
+      api.put(`/exams/${examDocumentId}`, { data: { resultsReleased: true } }),
+    onSuccess: () => queryClient.invalidateQueries(['admin-attempts'])
+  })
+
   const handleGrade = (attempt) => {
     const questions = attempt.questions || []
     const answers = attempt.answers || {}
@@ -161,8 +167,36 @@ export default function AdminExamResults() {
   return (
     <div>
       <h1 className="text-3xl font-bold text-blue-700 mb-2">Exam Results</h1>
-      <p className="text-gray-500 mb-8">{attempts?.length} total attempts</p>
+      <p className="text-gray-500 mb-4">{attempts?.length} total attempts</p>
 
+      {/* Release Results per exam */}
+      {(() => {
+        const exams = {}
+        attempts?.forEach(a => {
+          if (a.exam && !exams[a.exam.documentId]) {
+            exams[a.exam.documentId] = a.exam
+          }
+        })
+        return Object.values(exams).map(exam => (
+          <div key={exam.documentId} className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex items-center justify-between">
+            <div>
+              <p className="font-semibold">{exam.title}</p>
+              <p className="text-sm text-gray-500">
+                Results: {exam.resultsReleased ? '✅ Released to students' : '⏳ Not released yet'}
+              </p>
+            </div>
+            {!exam.resultsReleased && (
+              <button
+                onClick={() => releaseMutation.mutate(exam.documentId)}
+                disabled={releaseMutation.isPending}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
+              >
+                Release Results
+              </button>
+            )}
+          </div>
+        ))
+      })()}
       <div className="bg-white rounded-xl shadow overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50 border-b">

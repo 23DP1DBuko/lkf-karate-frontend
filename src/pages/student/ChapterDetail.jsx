@@ -54,10 +54,20 @@ function MediaDisplay({ media }) {
   return null
 }
 
-function RichText({ content }) {
+function ChapterContent({ content }) {
   if (!content) return null
+  
+  if (typeof content === 'string') {
+    return (
+      <div
+        className="prose prose-slate max-w-none"
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
+    )
+  }
+
   return (
-    <div className="prose max-w-none">
+    <div className="prose prose-slate max-w-none">
       {content.map((block, i) => {
         if (block.type === 'paragraph') {
           return (
@@ -149,7 +159,7 @@ export default function ChapterDetail() {
       <YouTubeEmbed url={chapter?.videoUrl} />
       <MediaDisplay media={chapter?.media} />
       <div className="bg-white rounded-xl shadow p-6">
-        <RichText content={chapter?.content} />
+        <ChapterContent content={chapter?.content} />
       </div>
     </div>
   )

@@ -158,7 +158,11 @@ export default function AdminUsers() {
                   )}
                   {user.verification === 'approved' && (
                     <button
-                      onClick={() => setRejectingUser(user)}
+                      onClick={() => updateMutation.mutate({
+                        id: user.id,
+                        data: { verification: 'rejected', rejectionReason: 'Access revoked by administrator' }
+                      })}
+                      disabled={updateMutation.isPending}
                       className="text-red-500 hover:underline text-sm"
                     >
                       Revoke

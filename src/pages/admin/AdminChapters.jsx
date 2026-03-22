@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import api from '../../api/strapi'
 import MediaUpload from '../../components/MediaUpload'
+import RichTextEditor from '../../components/RichTextEditor'
 
 export default function AdminChapters() {
   const queryClient = useQueryClient()
@@ -57,7 +58,7 @@ export default function AdminChapters() {
       order: chapter.order,
       videoUrl: chapter.videoUrl || '',
       course: chapter.course?.documentId || '',
-      media: chapter.media || null
+      media: chapter.media || null,
     })
     setShowForm(true)
   }
@@ -66,11 +67,11 @@ export default function AdminChapters() {
     e.preventDefault()
     const data = {
       title: form.title,
-      content: [{ type: 'paragraph', children: [{ type: 'text', text: form.content }] }],
+      content: form.content,
       order: Number(form.order),
       videoUrl: form.videoUrl,
       course: form.course,
-      media: form.media ? form.media.id : null
+      media: form.media ? form.media.id : null,
     }
     if (editingChapter) {
       updateMutation.mutate({ documentId: editingChapter.documentId, data })
@@ -140,11 +141,10 @@ export default function AdminChapters() {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Content</label>
-              <textarea
-                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={5}
+              <RichTextEditor
+                label="Content"
                 value={form.content}
-                onChange={e => setForm({ ...form, content: e.target.value })}
+                onChange={(val) => setForm({ ...form, content: val })}
               />
             </div>
             <div className="flex gap-4">
