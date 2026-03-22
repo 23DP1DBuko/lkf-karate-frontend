@@ -15,6 +15,39 @@ export default function QuickQuiz() {
   const [error, setError] = useState('')
   const [courseTitle, setCourseTitle] = useState('')
 
+    function QuestionMedia({ media }) {
+  if (!media) return null
+  
+  // Handle both array and single object
+  const items = Array.isArray(media) ? media : [media]
+  if (items.length === 0) return null
+
+  return (
+    <div className="mb-4 space-y-2">
+      {items.map((item, i) => {
+        if (item.mime?.startsWith('image/')) {
+          return (
+            <img
+              key={i}
+              src={`http://localhost:1337${item.url}`}
+              alt={item.alternativeText || 'Question media'}
+              className="w-full rounded-lg max-h-64 object-cover"
+            />
+          )
+        }
+        if (item.mime?.startsWith('video/')) {
+          return (
+            <video key={i} controls className="w-full rounded-lg max-h-64">
+              <source src={`http://localhost:1337${item.url}`} type={item.mime} />
+            </video>
+          )
+        }
+        return null
+      })}
+    </div>
+  )
+}
+
   const handleStart = async () => {
     setLoading(true)
     setError('')
@@ -155,6 +188,7 @@ export default function QuickQuiz() {
               <span className="text-blue-600 mr-2">{index + 1}.</span>
               {q.text}
             </p>
+            <QuestionMedia media={q.media} />
 
             {q.type === 'multiple_choice' && (
               <div className="space-y-2">

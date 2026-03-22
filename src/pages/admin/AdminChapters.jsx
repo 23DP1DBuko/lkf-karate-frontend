@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import api from '../../api/strapi'
+import MediaUpload from '../../components/MediaUpload'
 
 export default function AdminChapters() {
   const queryClient = useQueryClient()
@@ -8,12 +9,12 @@ export default function AdminChapters() {
   const [editingChapter, setEditingChapter] = useState(null)
   const [filterCourse, setFilterCourse] = useState('all')
   const [form, setForm] = useState({
-    title: '', content: '', order: 1, videoUrl: '', course: ''
+    title: '', content: '', order: 1, videoUrl: '', course: '', media: null
   })
-
+  
   const { data: chapters, isLoading } = useQuery({
     queryKey: ['admin-chapters'],
-    queryFn: () => api.get('/chapters?populate=course&sort=course.title:asc').then(r => r.data.data)
+    queryFn: () => api.get('/chapters?populate[0]=course&populate[1]=media&sort=course.title:asc').then(r => r.data.data)
   })
 
   const { data: courses } = useQuery({
@@ -56,6 +57,7 @@ export default function AdminChapters() {
       order: chapter.order,
       videoUrl: chapter.videoUrl || '',
       course: chapter.course?.documentId || '',
+      media: chapter.media || null
     })
     setShowForm(true)
   }
@@ -68,6 +70,7 @@ export default function AdminChapters() {
       order: Number(form.order),
       videoUrl: form.videoUrl,
       course: form.course,
+      media: form.media ? form.media.id : null
     }
     if (editingChapter) {
       updateMutation.mutate({ documentId: editingChapter.documentId, data })
@@ -165,6 +168,12 @@ export default function AdminChapters() {
                   placeholder="https://youtube.com/watch?v=..."
                 />
               </div>
+              <MediaUpload
+                label="Chapter Media (images/videos)"
+                multiple={false}
+                current={form.media}
+                onUpload={(file) => setForm({ ...form, media: file })}
+              />
             </div>
             <div className="flex gap-3">
               <button

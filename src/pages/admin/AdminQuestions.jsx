@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import api from '../../api/strapi'
+import MediaUpload from '../../components/MediaUpload'
 
 export default function AdminQuestions() {
   const queryClient = useQueryClient()
@@ -8,12 +9,12 @@ export default function AdminQuestions() {
   const [editingQuestion, setEditingQuestion] = useState(null)
   const [filterCourse, setFilterCourse] = useState('all')
   const [form, setForm] = useState({
-    text: '', type: 'multiple_choice', options: ['', '', '', ''], correctAnswer: '', course: ''
+    text: '', type: 'multiple_choice', options: ['', '', '', ''], correctAnswer: '', course: '', media: null
   })
 
   const { data: questions, isLoading } = useQuery({
     queryKey: ['admin-questions'],
-    queryFn: () => api.get('/questions?populate=course&sort=createdAt:desc').then(r => r.data.data)
+    queryFn: () => api.get('/questions?populate[0]=course&populate[1]=media&sort=createdAt:desc').then(r => r.data.data)
   })
 
   const { data: courses } = useQuery({
@@ -58,6 +59,7 @@ export default function AdminQuestions() {
         : ['true', 'false'],
       correctAnswer: question.correctAnswer || '',
       course: question.course?.documentId || '',
+      media: question.media || null,
     })
     setShowForm(true)
   }
@@ -70,6 +72,7 @@ export default function AdminQuestions() {
       options: form.type === 'yes_no' ? ['true', 'false'] : form.type === 'open_text' ? [] : form.options.filter(o => o.trim()),
       correctAnswer: form.type === 'open_text' ? null : form.correctAnswer,
       course: form.course,
+      media: form.media ? form.media.id : null
     }
     if (editingQuestion) {
       updateMutation.mutate({ documentId: editingQuestion.documentId, data })
@@ -135,6 +138,12 @@ export default function AdminQuestions() {
                 required
               />
             </div>
+            <MediaUpload
+              label="Question Media (optional image/video)"
+              multiple={false}
+              current={form.media}
+              onUpload={(file) => setForm({ ...form, media: file })}
+            />
             <div>
               <label className="block text-sm font-medium mb-1">Type</label>
               <select
@@ -212,32 +221,6 @@ export default function AdminQuestions() {
                 </p>
               </div>
             )}
-
-            <div>
-              <label className="block text-sm font-medium mb-1">Correct Answer</label>
-              {form.type === 'yes_no' ? (
-                <select
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  value={form.correctAnswer}
-                  onChange={e => setForm({ ...form, correctAnswer: e.target.value })}
-                >
-                  <option value="">Select correct answer</option>
-                  <option value="true">Yes (true)</option>
-                  <option value="false">No (false)</option>
-                </select>
-              ) : (
-                <select
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  value={form.correctAnswer}
-                  onChange={e => setForm({ ...form, correctAnswer: e.target.value })}
-                >
-                  <option value="">Select correct answer</option>
-                  {form.options.filter(o => o.trim()).map((opt, i) => (
-                    <option key={i} value={opt}>{opt}</option>
-                  ))}
-                </select>
-              )}
-            </div>
 
             <div className="flex gap-3">
               <button

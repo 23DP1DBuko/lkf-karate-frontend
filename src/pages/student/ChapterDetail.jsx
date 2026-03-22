@@ -3,6 +3,57 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import api from '../../api/strapi'
 
+function MediaDisplay({ media }) {
+  if (!media) return null
+  
+  if (Array.isArray(media)) {
+    return (
+      <div className="space-y-4 mb-6">
+        {media.map((item, i) => {
+          if (item.mime?.startsWith('video/')) {
+            return (
+              <video key={i} controls className="w-full rounded-xl shadow">
+                <source src={`http://localhost:1337${item.url}`} type={item.mime} />
+              </video>
+            )
+          }
+          if (item.mime?.startsWith('image/')) {
+            return (
+              <img
+                key={i}
+                src={`http://localhost:1337${item.url}`}
+                alt={item.alternativeText || 'Chapter media'}
+                className="w-full rounded-xl shadow object-cover"
+              />
+            )
+          }
+          return null
+        })}
+      </div>
+    )
+  }
+
+  if (media.mime?.startsWith('video/')) {
+    return (
+      <video controls className="w-full rounded-xl shadow mb-6">
+        <source src={`http://localhost:1337${media.url}`} type={media.mime} />
+      </video>
+    )
+  }
+
+  if (media.mime?.startsWith('image/')) {
+    return (
+      <img
+        src={`http://localhost:1337${media.url}`}
+        alt={media.alternativeText || 'Chapter media'}
+        className="w-full rounded-xl shadow object-cover mb-6"
+      />
+    )
+  }
+
+  return null
+}
+
 function RichText({ content }) {
   if (!content) return null
   return (
@@ -50,7 +101,7 @@ export default function ChapterDetail() {
 
   const { data: chapter, isLoading } = useQuery({
     queryKey: ['chapter', chapterDocumentId],
-    queryFn: () => api.get(`/chapters/${chapterDocumentId}`).then(r => r.data.data)
+    queryFn: () => api.get(`/chapters/${chapterDocumentId}?populate=media`).then(r => r.data.data)
   })
 
   const { data: progressData } = useQuery({
@@ -96,7 +147,7 @@ export default function ChapterDetail() {
       </div>
 
       <YouTubeEmbed url={chapter?.videoUrl} />
-
+      <MediaDisplay media={chapter?.media} />
       <div className="bg-white rounded-xl shadow p-6">
         <RichText content={chapter?.content} />
       </div>

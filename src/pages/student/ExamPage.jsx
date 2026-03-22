@@ -15,10 +15,43 @@ export default function ExamPage() {
   const [error, setError] = useState('')
   const [showResults, setShowResults] = useState(true)
 
+  function QuestionMedia({ media }) {
+  if (!media) return null
+  
+  // Handle both array and single object
+  const items = Array.isArray(media) ? media : [media]
+  if (items.length === 0) return null
+
+  return (
+    <div className="mb-4 space-y-2">
+      {items.map((item, i) => {
+        if (item.mime?.startsWith('image/')) {
+          return (
+            <img
+              key={i}
+              src={`http://localhost:1337${item.url}`}
+              alt={item.alternativeText || 'Question media'}
+              className="w-full rounded-lg max-h-64 object-cover"
+            />
+          )
+        }
+        if (item.mime?.startsWith('video/')) {
+          return (
+            <video key={i} controls className="w-full rounded-lg max-h-64">
+              <source src={`http://localhost:1337${item.url}`} type={item.mime} />
+            </video>
+          )
+        }
+        return null
+      })}
+    </div>
+  )
+}
+
   useEffect(() => {
     api.post('/exams/start', { examId: documentId })
       .then(res => {
-        console.log('API response:', res.data)
+        console.log('Questions:', JSON.stringify(res.data.questions))
         setAttempt(res.data.attemptId)
         setQuestions(res.data.questions || [])
         setTimeLeft(res.data.remainingSeconds || res.data.duration * 60)
@@ -93,6 +126,7 @@ export default function ExamPage() {
                 <span className="text-blue-600 mr-2">{index + 1}.</span>
                 {q.text}
               </p>
+              <QuestionMedia media={q.media} />
 
               {q.type === 'multiple_choice' && (
                 <div className="space-y-2">
