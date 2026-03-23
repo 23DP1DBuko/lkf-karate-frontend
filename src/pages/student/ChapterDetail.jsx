@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import api from '../../api/strapi'
+import { mediaUrl } from '../../api/media'
 
 function MediaDisplay({ media }) {
   if (!media) return null
@@ -13,7 +14,7 @@ function MediaDisplay({ media }) {
           if (item.mime?.startsWith('video/')) {
             return (
               <video key={i} controls className="w-full rounded-xl shadow">
-                <source src={`http://localhost:1337${item.url}`} type={item.mime} />
+                <source src={mediaUrl(item.url)} type={item.mime} />
               </video>
             )
           }
@@ -21,7 +22,7 @@ function MediaDisplay({ media }) {
             return (
               <img
                 key={i}
-                src={`http://localhost:1337${item.url}`}
+                src={mediaUrl(item.url)}
                 alt={item.alternativeText || 'Chapter media'}
                 className="w-full rounded-xl shadow object-cover"
               />
@@ -36,7 +37,7 @@ function MediaDisplay({ media }) {
   if (media.mime?.startsWith('video/')) {
     return (
       <video controls className="w-full rounded-xl shadow mb-6">
-        <source src={`http://localhost:1337${media.url}`} type={media.mime} />
+        <source src={mediaUrl(media.url)} type={media.mime} />
       </video>
     )
   }
@@ -44,7 +45,7 @@ function MediaDisplay({ media }) {
   if (media.mime?.startsWith('image/')) {
     return (
       <img
-        src={`http://localhost:1337${media.url}`}
+        src={mediaUrl(media.url)}
         alt={media.alternativeText || 'Chapter media'}
         className="w-full rounded-xl shadow object-cover mb-6"
       />

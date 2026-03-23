@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import api from '../api/strapi'
+import { mediaUrl } from '../../api/media'
 
 export default function MediaUpload({ onUpload, label = 'Upload Media', multiple = false, current = null }) {
   const [uploading, setUploading] = useState(false)

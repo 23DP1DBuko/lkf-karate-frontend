@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../../api/strapi'
+import { mediaUrl } from '../../api/media'
 
 export default function ExamPage() {
   const { documentId } = useParams()
@@ -29,7 +30,7 @@ export default function ExamPage() {
           return (
             <img
               key={i}
-              src={`http://localhost:1337${item.url}`}
+              src={mediaUrl(item.url)}
               alt={item.alternativeText || 'Question media'}
               className="w-full rounded-lg max-h-64 object-cover"
             />
@@ -38,7 +39,7 @@ export default function ExamPage() {
         if (item.mime?.startsWith('video/')) {
           return (
             <video key={i} controls className="w-full rounded-lg max-h-64">
-              <source src={`http://localhost:1337${item.url}`} type={item.mime} />
+              <source src={mediaUrl(item.url)} type={item.mime} />
             </video>
           )
         }

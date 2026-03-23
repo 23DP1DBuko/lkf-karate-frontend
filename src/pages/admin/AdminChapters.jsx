@@ -3,6 +3,7 @@ import { useState } from 'react'
 import api from '../../api/strapi'
 import MediaUpload from '../../components/MediaUpload'
 import RichTextEditor from '../../components/RichTextEditor'
+import { mediaUrl } from '../../api/media'
 
 export default function AdminChapters() {
   const queryClient = useQueryClient()
