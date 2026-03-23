@@ -7,10 +7,20 @@ export default function AdminExamResults() {
   const queryClient = useQueryClient()
   const [selectedAttempt, setSelectedAttempt] = useState(null)
   const [manualScores, setManualScores] = useState({})
+  const [search, setSearch] = useState('')
 
   const { data: attempts, isLoading } = useQuery({
     queryKey: ['admin-attempts'],
     queryFn: () => api.get('/exam-attempts/all').then(r => r.data.data)
+  })
+
+  const filteredAttempts = attempts?.filter(attempt => {
+    if (!search.trim()) return true
+    const fullName = `${attempt.user?.firstName} ${attempt.user?.lastName}`.toLowerCase()
+    const username = attempt.user?.username?.toLowerCase() || ''
+    const examTitle = attempt.exam?.title?.toLowerCase() || ''
+    const query = search.toLowerCase()
+    return fullName.includes(query) || username.includes(query) || examTitle.includes(query)
   })
 
   const gradeMutation = useMutation({
@@ -167,7 +177,18 @@ export default function AdminExamResults() {
   return (
     <div>
       <h1 className="text-3xl font-bold text-blue-700 mb-2">Exam Results</h1>
-      <p className="text-gray-500 mb-4">{attempts?.length} total attempts</p>
+      <p className="text-gray-500 mb-4">
+        {filteredAttempts?.length} of {attempts?.length} attempts
+      </p>
+      <div className="mb-6">
+        <input
+          type="text"
+          placeholder="Search by name, username or exam..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full md:w-96 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
 
       {/* Release Results per exam */}
       {(() => {
@@ -214,7 +235,7 @@ export default function AdminExamResults() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {attempts?.map(attempt => (
+            {filteredAttempts?.map(attempt => (
               <tr key={attempt.id} className="hover:bg-gray-50">
                 <td className="px-6 py-4">
                   <p className="font-medium">{attempt.user?.firstName} {attempt.user?.lastName}</p>

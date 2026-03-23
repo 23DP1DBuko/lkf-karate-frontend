@@ -17,6 +17,9 @@ import PendingApproval from './pages/auth/PendingApproval'
 import AdminUsers from './pages/admin/AdminUsers'
 import QuickQuiz from './pages/student/QuickQuiz'
 import AdminExamResults from './pages/admin/AdminExamResults'
+import ForgotPassword from './pages/auth/ForgotPassword'
+import ResetPassword from './pages/auth/ResetPassword'
+import Profile from './pages/student/Profile'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -80,8 +83,13 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/dashboard" element={
         <ProtectedRoute><Dashboard /></ProtectedRoute>
+      } />
+      <Route path="/profile" element={
+        <ProtectedRoute><Profile /></ProtectedRoute>
       } />
       <Route path="/courses" element={
         <ProtectedRoute><Courses /></ProtectedRoute>

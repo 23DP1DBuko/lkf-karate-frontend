@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import { useNavigate, Link, useLocation } from 'react-router-dom'
 
 export default function Login() {
   const { login } = useAuth()
@@ -8,6 +8,8 @@ export default function Login() {
   const [form, setForm] = useState({ identifier: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const { state } = useLocation()
+  const [showPassword, setShowPassword] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -29,6 +31,11 @@ export default function Login() {
         <h1 className="text-2xl font-bold text-center text-blue-700 mb-6">LKF Karate LMS</h1>
         <h2 className="text-xl font-semibold mb-4">Sign In</h2>
 
+        {state?.message && (
+          <div className="bg-green-100 text-green-700 px-4 py-2 rounded mb-4 text-sm">
+            {state.message}
+          </div>
+        )}
         {error && (
           <div className="bg-red-100 text-red-700 px-4 py-2 rounded mb-4 text-sm">
             {error}
@@ -50,18 +57,30 @@ export default function Login() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1" htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={form.password}
-              onChange={e => setForm({ ...form, password: e.target.value })}
-              required
-            />
+            <label className="block text-sm font-medium mb-1" htmlFor="password">Password</label>
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                className="w-full border rounded-lg px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                value={form.password}
+                onChange={e => setForm({ ...form, password: e.target.value })}
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
+          <p className="text-right">
+            <Link to="/forgot-password" className="text-xs text-blue-600 hover:underline">
+              Forgot password?
+            </Link>
+          </p>
           <button
             type="submit"
             disabled={loading}
@@ -70,7 +89,6 @@ export default function Login() {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
-
         <p className="text-sm text-center mt-4">
           Don't have an account?{' '}
           <Link to="/register" className="text-blue-600 hover:underline">Register</Link>

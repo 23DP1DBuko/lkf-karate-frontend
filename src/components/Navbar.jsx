@@ -25,6 +25,9 @@ export default function Navbar() {
             <Link to="/results" className="text-gray-600 hover:text-blue-600 text-sm font-medium">
               My Results
             </Link>
+            <Link to="/profile" className="text-gray-600 hover:text-blue-600 text-sm font-medium">
+              👤 {user?.firstName || user?.username}
+            </Link>
             {user.isAdmin && (
             <div className="flex gap-4">
                 <Link to="/admin/courses" className="text-gray-600 hover:text-blue-600 text-sm font-medium">

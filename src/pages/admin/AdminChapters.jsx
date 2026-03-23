@@ -221,18 +221,16 @@ export default function AdminChapters() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filtered?.map(chapter => (
+            {chapters?.map(chapter => (
               <tr key={chapter.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 max-w-xs">
-                  <p className="truncate text-sm">{chapter.title}</p>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${chapter.type === 'multiple_choice' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}`}>
-                    {chapter.type === 'multiple_choice' ? 'Multiple Choice' : 'Yes / No'}
-                  </span>
-                </td>
+                <td className="px-6 py-4 font-medium">{chapter.title}</td>
                 <td className="px-6 py-4 text-sm text-gray-500">{chapter.course?.title || '—'}</td>
-                <td className="px-6 py-4 text-sm text-green-600 font-medium">{chapter.correctAnswer}</td>
+                <td className="px-6 py-4 text-sm text-gray-500">{chapter.order}</td>
+                <td className="px-6 py-4">
+                  {chapter.videoUrl
+                    ? <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">📹 Yes</span>
+                    : <span className="text-xs text-gray-400">—</span>}
+                </td>
                 <td className="px-6 py-4">
                   <div className="flex gap-2">
                     <button onClick={() => handleEdit(chapter)} className="text-blue-600 hover:underline text-sm">Edit</button>
