@@ -182,10 +182,14 @@ export default function AdminExamResults() {
             <div>
               <p className="font-semibold">{exam.title}</p>
               <p className="text-sm text-gray-500">
-                Results: {exam.resultsReleased ? '✅ Released to students' : '⏳ Not released yet'}
+                Results: {exam.showResults
+                  ? '✅ Shown immediately'
+                  : exam.resultsReleased
+                    ? '✅ Released to students'
+                    : '⏳ Not released yet'}
               </p>
             </div>
-            {!exam.resultsReleased && (
+            {!exam.resultsReleased && !exam.showResults && (
               <button
                 onClick={() => releaseMutation.mutate(exam.documentId)}
                 disabled={releaseMutation.isPending}

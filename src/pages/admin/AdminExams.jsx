@@ -8,7 +8,8 @@ export default function AdminExams() {
   const [editingExam, setEditingExam] = useState(null)
   const [form, setForm] = useState({
     title: '', duration: 30, questionCount: 10, passingScore: 70,
-    openAt: '', closeAt: '', course: '', showResults: true
+    openAt: '', closeAt: '', course: '', showResults: true,
+    resultsReleased: false, selectedQuestions: []
   })
 
   const { data: exams, isLoading } = useQuery({
@@ -19,6 +20,12 @@ export default function AdminExams() {
   const { data: courses } = useQuery({
     queryKey: ['courses-list'],
     queryFn: () => api.get('/courses?sort=title:asc').then(r => r.data.data)
+  })
+
+  const { data: courseQuestions } = useQuery({
+    queryKey: ['course-questions', form.course],
+    queryFn: () => api.get(`/questions?filters[course][documentId][$eq]=${form.course}&populate[0]=media&sort=createdAt:asc`).then(r => r.data.data),
+    enabled: !!form.course
   })
 
   const createMutation = useMutation({
@@ -43,7 +50,11 @@ export default function AdminExams() {
   })
 
   const resetForm = () => {
-    setForm({ title: '', duration: 30, questionCount: 10, passingScore: 70, openAt: '', closeAt: '', course: '' })
+    setForm({
+      title: '', duration: 30, questionCount: 10, passingScore: 70,
+      openAt: '', closeAt: '', course: '', showResults: true,
+      resultsReleased: false, selectedQuestions: []
+    })
     setShowForm(false)
     setEditingExam(null)
   }
@@ -59,6 +70,8 @@ export default function AdminExams() {
       closeAt: exam.closeAt ? exam.closeAt.slice(0, 16) : '',
       course: exam.course?.documentId || '',
       showResults: exam.showResults ?? true,
+      resultsReleased: exam.resultsReleased ?? false,
+      selectedQuestions: exam.questions?.map(q => q.documentId) || []
     })
     setShowForm(true)
   }
@@ -66,12 +79,18 @@ export default function AdminExams() {
   const handleSubmit = (e) => {
     e.preventDefault()
     const data = {
-      ...form,
+      title: form.title,
       duration: Number(form.duration),
-      questionCount: Number(form.questionCount),
+      questionCount: form.selectedQuestions.length > 0
+        ? form.selectedQuestions.length
+        : Number(form.questionCount),
       passingScore: Number(form.passingScore),
       openAt: form.openAt || null,
       closeAt: form.closeAt || null,
+      course: form.course,
+      showResults: form.showResults,
+      resultsReleased: form.resultsReleased,
+      questions: form.selectedQuestions,
     }
     if (editingExam) {
       updateMutation.mutate({ documentId: editingExam.documentId, data })
@@ -84,6 +103,26 @@ export default function AdminExams() {
     if (window.confirm('Delete this exam?')) {
       deleteMutation.mutate(documentId)
     }
+  }
+
+  const toggleQuestion = (documentId) => {
+    setForm(prev => ({
+      ...prev,
+      selectedQuestions: prev.selectedQuestions.includes(documentId)
+        ? prev.selectedQuestions.filter(id => id !== documentId)
+        : [...prev.selectedQuestions, documentId]
+    }))
+  }
+
+  const selectAll = () => {
+    setForm(prev => ({
+      ...prev,
+      selectedQuestions: courseQuestions?.map(q => q.documentId) || []
+    }))
+  }
+
+  const deselectAll = () => {
+    setForm(prev => ({ ...prev, selectedQuestions: [] }))
   }
 
   const getExamStatus = (exam) => {
@@ -121,7 +160,7 @@ export default function AdminExams() {
               <select
                 className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 value={form.course}
-                onChange={e => setForm({ ...form, course: e.target.value })}
+                onChange={e => setForm({ ...form, course: e.target.value, selectedQuestions: [] })}
                 required
               >
                 <option value="">Select a course</option>
@@ -130,6 +169,7 @@ export default function AdminExams() {
                 ))}
               </select>
             </div>
+
             <div>
               <label className="block text-sm font-medium mb-1">Title</label>
               <input
@@ -140,6 +180,7 @@ export default function AdminExams() {
                 required
               />
             </div>
+
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Duration (minutes)</label>
@@ -148,19 +189,7 @@ export default function AdminExams() {
                   className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={form.duration}
                   onChange={e => setForm({ ...form, duration: e.target.value })}
-                  min={1}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Questions to Pick</label>
-                <input
-                  type="number"
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={form.questionCount}
-                  onChange={e => setForm({ ...form, questionCount: e.target.value })}
-                  min={1}
-                  required
+                  min={1} required
                 />
               </div>
               <div>
@@ -170,24 +199,22 @@ export default function AdminExams() {
                   className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={form.passingScore}
                   onChange={e => setForm({ ...form, passingScore: e.target.value })}
-                  min={1}
-                  max={100}
-                  required
+                  min={1} max={100} required
                 />
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="showResults"
-                  checked={form.showResults}
-                  onChange={e => setForm({ ...form, showResults: e.target.checked })}
-                  className="w-4 h-4 accent-blue-600"
-                />
-                <label htmlFor="showResults" className="text-sm font-medium">
-                  Show results to students after submission
+              <div className="flex items-end pb-2 gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form.showResults}
+                    onChange={e => setForm({ ...form, showResults: e.target.checked })}
+                    className="w-4 h-4 accent-blue-600"
+                  />
+                  <span className="text-sm font-medium">Show results</span>
                 </label>
               </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1">Open At (optional)</label>
@@ -208,6 +235,86 @@ export default function AdminExams() {
                 />
               </div>
             </div>
+
+            {/* Question selector */}
+            {form.course && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium">
+                    Select Questions
+                    <span className="ml-2 text-blue-600 font-bold">
+                      ({form.selectedQuestions.length} selected)
+                    </span>
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={selectAll}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      Select all
+                    </button>
+                    <button
+                      type="button"
+                      onClick={deselectAll}
+                      className="text-xs text-red-500 hover:underline"
+                    >
+                      Deselect all
+                    </button>
+                  </div>
+                </div>
+
+                {!courseQuestions?.length ? (
+                  <p className="text-sm text-gray-400 border rounded-lg p-4">
+                    No questions found for this course. Add questions first.
+                  </p>
+                ) : (
+                  <div className="border rounded-lg divide-y max-h-96 overflow-y-auto">
+                    {courseQuestions?.map((question, i) => {
+                      const selected = form.selectedQuestions.includes(question.documentId)
+                      return (
+                        <label
+                          key={question.id}
+                          className={`flex items-start gap-3 p-3 cursor-pointer transition ${
+                            selected ? 'bg-blue-50' : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            onChange={() => toggleQuestion(question.documentId)}
+                            className="mt-1 accent-blue-600"
+                          />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">
+                              <span className="text-gray-400 mr-1">{i + 1}.</span>
+                              {question.text}
+                            </p>
+                            <div className="flex gap-2 mt-1">
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                question.type === 'multiple_choice' ? 'bg-blue-100 text-blue-700'
+                                : question.type === 'yes_no' ? 'bg-purple-100 text-purple-700'
+                                : 'bg-orange-100 text-orange-700'
+                              }`}>
+                                {question.type === 'multiple_choice' ? 'Multiple Choice'
+                                : question.type === 'yes_no' ? 'Yes/No'
+                                : 'Open Text'}
+                              </span>
+                              {question.media?.length > 0 && (
+                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                                  📎 Media
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </label>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="flex gap-3">
               <button
                 type="submit"
