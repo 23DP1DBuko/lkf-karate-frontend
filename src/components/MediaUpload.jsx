@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import api from '../api/strapi'
-import { mediaUrl } from '../../api/media'
+import { mediaUrl } from '../api/media'
 
 export default function MediaUpload({ onUpload, label = 'Upload Media', multiple = false, current = null }) {
   const [uploading, setUploading] = useState(false)
@@ -33,7 +33,7 @@ export default function MediaUpload({ onUpload, label = 'Upload Media', multiple
   }
 
   const currentUrl = current?.url
-    ? `http://localhost:1337${current.url}`
+    ? mediaUrl(current.url)
     : null
 
   return (
