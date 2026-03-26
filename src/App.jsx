@@ -57,7 +57,7 @@ function Dashboard() {
       <p className="text-gray-500 mb-6">
         You are logged in as <span className="font-medium">{user?.email}</span>
       </p>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6">
         <a href="/courses" className="bg-blue-50 border border-blue-200 rounded-xl p-5 hover:bg-blue-100 transition">
           <div className="text-3xl mb-2">📚</div>
           <h3 className="font-semibold text-blue-700">Courses</h3>

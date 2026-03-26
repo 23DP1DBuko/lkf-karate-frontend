@@ -87,17 +87,17 @@ export default function CourseDetail() {
             <div className="space-y-3">
             {exams.map(exam => (
                 <Link
-                key={exam.id}
-                to={`/exam/${exam.documentId}`}
-                className="bg-white rounded-xl shadow hover:shadow-md transition p-5 flex items-center justify-between block"
+                  key={exam.id}
+                  to={`/exam/${exam.documentId}`}
+                  className="bg-white rounded-xl shadow hover:shadow-md transition p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 block"
                 >
-                <div>
+                  <div>
                     <h3 className="font-semibold">{exam.title}</h3>
                     <p className="text-sm text-gray-400">{exam.duration} minutes • {exam.questionCount} questions</p>
-                </div>
-                <span className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                  </div>
+                  <span className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium w-full sm:w-auto text-center">
                     Start Exam
-                </span>
+                  </span>
                 </Link>
             ))}
             </div>

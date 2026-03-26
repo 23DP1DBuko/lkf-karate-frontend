@@ -112,8 +112,8 @@ export default function ExamPage() {
       <div className="max-w-3xl mx-auto">
 
         {/* Header */}
-        <div className="bg-white rounded-xl shadow p-4 mb-6 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-blue-700">Exam in Progress</h1>
+        <div className="bg-white rounded-xl shadow p-4 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+          <h1 className="text-lg font-bold text-blue-700">Exam in Progress</h1>
           <div className={`text-2xl font-mono font-bold ${timeLeft < 60 ? 'text-red-600' : 'text-gray-700'}`}>
             ⏱ {formatTime(timeLeft)}
           </div>

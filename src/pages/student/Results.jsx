@@ -32,7 +32,7 @@ export default function Results() {
         {attempts?.map(attempt => {
           const released = attempt.exam?.showResults === true || attempt.exam?.resultsReleased === true
           return (
-            <div key={attempt.id} className="bg-white rounded-xl shadow p-6 flex items-center justify-between">
+            <div className="flex flex-wrap gap-3 justify-center">
               <div>
                 <h3 className="font-semibold text-lg">{attempt.exam?.title || 'Exam'}</h3>
                 <p className="text-sm text-gray-400">
