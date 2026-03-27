@@ -74,10 +74,16 @@ export default function QuickQuiz() {
   const getScore = () => {
     let correct = 0
     questions.forEach(q => {
-      if (String(answers[q.id]).toLowerCase() === String(q.correctAnswer).toLowerCase()) {
-        correct++
+      const userAnswer = answers[q.id] || answers[String(q.id)]
+      const correctAnswer = q.correctAnswer
+      if (userAnswer !== undefined && userAnswer !== null) {
+        if (String(userAnswer).toLowerCase() === String(correctAnswer).toLowerCase()) {
+          correct++
+        }
       }
     })
+    console.log('Answers:', answers)
+    console.log('Questions:', questions.map(q => ({ id: q.id, correctAnswer: q.correctAnswer })))
     return { correct, total: questions.length, score: Math.round((correct / questions.length) * 100) }
   }
 
