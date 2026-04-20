@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
 
 export default function Navbar() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
+  const { theme, toggleTheme } = useTheme()
 
   const handleLogout = () => {
     logout()
@@ -45,6 +47,13 @@ export default function Navbar() {
                 <Link to="/profile" className="text-gray-600 hover:text-blue-600 text-sm font-medium">
                   👤 {user?.firstName || user?.username}
                 </Link>
+                <button
+                  onClick={toggleTheme}
+                  className="text-gray-600 hover:text-blue-600 text-xl"
+                  title="Toggle dark mode"
+                >
+                  {theme === 'dark' ? '☀️' : '🌙'}
+                </button>
                 <button
                   onClick={handleLogout}
                   className="bg-red-500 text-white text-sm px-3 py-1.5 rounded-lg hover:bg-red-600"
@@ -95,7 +104,6 @@ export default function Navbar() {
                 </div>
               </>
             )}
-
             <div className="border-t pt-2">
               <button
                 onClick={handleLogout}

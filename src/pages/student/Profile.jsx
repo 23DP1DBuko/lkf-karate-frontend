@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../api/strapi'
+import { useTheme } from '../../context/ThemeContext'
 
 export default function Profile() {
   const { user, setUser } = useAuth()
@@ -22,6 +23,7 @@ export default function Profile() {
   const [passwordError, setPasswordError] = useState('')
   const [profileLoading, setProfileLoading] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
+  const { theme, setTheme } = useTheme()
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault()
@@ -237,6 +239,48 @@ export default function Profile() {
           </button>
         </form>
       </div>
+      {/* Theme Settings */}
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
+            <h2 className="text-lg font-semibold mb-4 dark:text-white">Appearance</h2>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium dark:text-white">Theme</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Choose your preferred appearance</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setTheme('light')}
+                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
+                    theme === 'light'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'border-gray-300 dark:border-gray-600 dark:text-gray-300 hover:border-blue-400'
+                  }`}
+                >
+                  ☀️ Light
+                </button>
+                <button
+                  onClick={() => setTheme('dark')}
+                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
+                    theme === 'dark'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'border-gray-300 dark:border-gray-600 dark:text-gray-300 hover:border-blue-400'
+                  }`}
+                >
+                  🌙 Dark
+                </button>
+                <button
+                  onClick={() => setTheme('system')}
+                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
+                    theme === 'system'
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'border-gray-300 dark:border-gray-600 dark:text-gray-300 hover:border-blue-400'
+                  }`}
+                >
+                  💻 System
+                </button>
+              </div>
+            </div>
+          </div>
     </div>
   )
 }

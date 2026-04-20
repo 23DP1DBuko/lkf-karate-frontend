@@ -9,17 +9,22 @@ export default function AdminQuestions() {
   const [editingQuestion, setEditingQuestion] = useState(null)
   const [filterCourse, setFilterCourse] = useState('all')
   const [form, setForm] = useState({
-    text: '', type: 'multiple_choice', options: ['', '', '', ''], correctAnswer: '', course: '', media: null
+    text: '', type: 'multiple_choice', options: ['', '', '', ''], correctAnswer: '', course: '', media: null, chapter: ''
   })
 
   const { data: questions, isLoading } = useQuery({
     queryKey: ['admin-questions'],
-    queryFn: () => api.get('/questions?populate[0]=course&populate[1]=media&sort=createdAt:desc').then(r => r.data.data)
+    queryFn: () => api.get('/questions?populate[0]=course&populate[1]=media&populate[2]=chapter&sort=createdAt:desc').then(r => r.data.data)
   })
 
   const { data: courses } = useQuery({
     queryKey: ['courses-list'],
     queryFn: () => api.get('/courses?sort=title:asc').then(r => r.data.data)
+  })
+  const { data: chapters } = useQuery({
+    queryKey: ['chapters-list', form.course],
+    queryFn: () => api.get(`/chapters?filters[course][documentId][$eq]=${form.course}&sort=order:asc`).then(r => r.data.data),
+    enabled: !!form.course
   })
 
   const createMutation = useMutation({
@@ -60,6 +65,7 @@ export default function AdminQuestions() {
       correctAnswer: question.correctAnswer || '',
       course: question.course?.documentId || '',
       media: question.media || null,
+      chapter: question.chapter?.documentId || '',
     })
     setShowForm(true)
   }
@@ -72,7 +78,8 @@ export default function AdminQuestions() {
       options: form.type === 'yes_no' ? ['true', 'false'] : form.type === 'open_text' ? [] : form.options.filter(o => o.trim()),
       correctAnswer: form.type === 'open_text' ? null : form.correctAnswer,
       course: form.course,
-      media: form.media ? form.media.id : null
+      media: form.media ? form.media.id : null,
+      chapter: form.chapter || null,
     }
     if (editingQuestion) {
       updateMutation.mutate({ documentId: editingQuestion.documentId, data })
@@ -219,6 +226,26 @@ export default function AdminQuestions() {
                 <p className="text-sm text-yellow-700">
                   ⚠️ Open text questions require manual grading by the head judge after exam submission.
                 </p>
+              </div>
+            )}
+
+            {form.course && (
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Chapter (optional — for chapter quiz)
+                </label>
+                <select
+                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800"
+                  value={form.chapter}
+                  onChange={e => setForm({ ...form, chapter: e.target.value })}
+                >
+                  <option value="">No specific chapter (exam only)</option>
+                  {chapters?.map(chapter => (
+                    <option key={chapter.id} value={chapter.documentId}>
+                      {chapter.order}. {chapter.title}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
 
