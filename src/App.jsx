@@ -20,6 +20,7 @@ import AdminExamResults from './pages/admin/AdminExamResults'
 import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
 import Profile from './pages/student/Profile'
+import Landing from './pages/Landing'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -81,6 +82,8 @@ function Dashboard() {
 export default function App() {
   return (
     <Routes>
+      <Route path="/" element={<Landing />} />
+      <Route path="*" element={<Navigate to="/" />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
