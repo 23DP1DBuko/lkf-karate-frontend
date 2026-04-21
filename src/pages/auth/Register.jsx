@@ -70,8 +70,8 @@ export default function Register() {
     }
   }
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+return (
+  <div className="min-h-screen bg-gray-100 flex items-center justify-center" role="main">
       <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
         <h1 className="text-2xl font-bold text-center text-blue-700 mb-6">LKF Karate LMS</h1>
         <h2 className="text-xl font-semibold mb-4">Create Account</h2>
@@ -126,6 +126,7 @@ export default function Register() {
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? '🙈' : '👁️'}
               </button>

@@ -20,36 +20,40 @@ export default defineConfig({
         scope: '/',
         start_url: '/',
         icons: [
-          {
-            src: 'pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: 'pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
+          { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' }
         ]
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
         runtimeCaching: [
           {
-            urlPattern: /^http:\/\/localhost:1337\/api\/.*/i,
+            urlPattern: /^https:\/\/lkf-karate-backend-production\.up\.railway\.app\/api\/.*/i,
             handler: 'NetworkFirst',
             options: {
               cacheName: 'api-cache',
-              expiration: {
-                maxEntries: 100,
-                maxAgeSeconds: 60 * 60 * 24
-              }
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 }
             }
           }
         ]
       }
     })
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes('node_modules')) {
+            if (id.includes('@tiptap')) return 'tiptap-vendor'
+            if (id.includes('@tanstack')) return 'query-vendor'
+            if (id.includes('react-dom') || id.includes('react-router')) return 'react-vendor'
+            if (id.includes('axios')) return 'axios'
+            return 'vendor'
+          }
+        }
+      }
+    }
+  },
   test: {
     globals: true,
     environment: 'jsdom',

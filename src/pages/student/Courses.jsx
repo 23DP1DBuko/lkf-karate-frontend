@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import api from '../../api/strapi'
+import { usePageTitle } from '../../hooks/usePageTitle'
+import { useTranslation } from 'react-i18next'
 
 const categoryLabels = {
   kata: 'Kata',
@@ -9,6 +11,7 @@ const categoryLabels = {
   secretary: 'Secretary',
   seminar: 'Seminar',
 }
+
 
 const categoryColors = {
   kata: 'bg-blue-100 text-blue-700',
@@ -25,6 +28,9 @@ export default function Courses() {
     queryKey: ['courses'],
     queryFn: () => api.get('/courses?filters[published][$eq]=true&sort=title:asc').then(r => r.data.data)
   })
+
+  usePageTitle('Courses')
+  const { t } = useTranslation()
 
   const filtered = data?.filter(course => {
     const matchesSearch = course.title.toLowerCase().includes(search.toLowerCase()) ||

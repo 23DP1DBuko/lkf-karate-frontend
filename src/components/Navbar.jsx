@@ -2,12 +2,15 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
+import { useTranslation } from 'react-i18next'
 
 export default function Navbar() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const { theme, toggleTheme } = useTheme()
+
+  const { t } = useTranslation()
 
   const handleLogout = () => {
     logout()
@@ -29,19 +32,19 @@ export default function Navbar() {
               {/* Desktop nav */}
               <div className="hidden md:flex items-center gap-4">
                 <Link to="/courses" className="text-gray-600 hover:text-blue-600 text-sm font-medium">
-                  Courses
+                  {t('nav.courses')}
                 </Link>
                 <Link to="/results" className="text-gray-600 hover:text-blue-600 text-sm font-medium">
-                  Results
+                  {t('nav.results')}
                 </Link>
                 {user.isAdmin && (
                   <>
-                    <Link to="/admin/courses" className="text-gray-600 hover:text-blue-600 text-sm font-medium">📚 Courses</Link>
-                    <Link to="/admin/chapters" className="text-gray-600 hover:text-blue-600 text-sm font-medium">📄 Chapters</Link>
-                    <Link to="/admin/questions" className="text-gray-600 hover:text-blue-600 text-sm font-medium">❓ Questions</Link>
-                    <Link to="/admin/exams" className="text-gray-600 hover:text-blue-600 text-sm font-medium">📝 Exams</Link>
-                    <Link to="/admin/results" className="text-gray-600 hover:text-blue-600 text-sm font-medium">📊 Results</Link>
-                    <Link to="/admin/users" className="text-gray-600 hover:text-blue-600 text-sm font-medium">👥 Users</Link>
+                    <Link to="/admin/courses" className="text-gray-600 hover:text-blue-600 text-sm font-medium">📚 {t('nav.admin.courses')}</Link>
+                    <Link to="/admin/chapters" className="text-gray-600 hover:text-blue-600 text-sm font-medium">📄 {t('nav.admin.chapters')}</Link>
+                    <Link to="/admin/questions" className="text-gray-600 hover:text-blue-600 text-sm font-medium">❓ {t('nav.admin.questions')}</Link>
+                    <Link to="/admin/exams" className="text-gray-600 hover:text-blue-600 text-sm font-medium">📝 {t('nav.admin.exams')}</Link>
+                    <Link to="/admin/results" className="text-gray-600 hover:text-blue-600 text-sm font-medium">📊 {t('nav.admin.results')}</Link>
+                    <Link to="/admin/users" className="text-gray-600 hover:text-blue-600 text-sm font-medium">👥 {t('nav.admin.users')}</Link>
                   </>
                 )}
                 <Link to="/profile" className="text-gray-600 hover:text-blue-600 text-sm font-medium">
@@ -58,7 +61,7 @@ export default function Navbar() {
                   onClick={handleLogout}
                   className="bg-red-500 text-white text-sm px-3 py-1.5 rounded-lg hover:bg-red-600"
                 >
-                  Logout
+                  {t('nav.logout')}
                 </button>
               </div>
 
@@ -66,6 +69,8 @@ export default function Navbar() {
               <button
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="md:hidden flex flex-col gap-1.5 p-2"
+                aria-label="Toggle navigation menu"
+                aria-expanded={menuOpen}
               >
                 <span className={`block w-6 h-0.5 bg-gray-600 transition-all ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
                 <span className={`block w-6 h-0.5 bg-gray-600 transition-all ${menuOpen ? 'opacity-0' : ''}`} />

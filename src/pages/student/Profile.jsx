@@ -3,6 +3,8 @@ import { useAuth } from '../../context/AuthContext'
 import api from '../../api/strapi'
 import { useTheme } from '../../context/ThemeContext'
 
+import { useTranslation } from 'react-i18next'
+
 export default function Profile() {
   const { user, setUser } = useAuth()
   const [form, setForm] = useState({
@@ -24,6 +26,13 @@ export default function Profile() {
   const [profileLoading, setProfileLoading] = useState(false)
   const [passwordLoading, setPasswordLoading] = useState(false)
   const { theme, setTheme } = useTheme()
+
+  const { t, i18n } = useTranslation()
+
+  const changeLanguage = (lang) => {
+    i18n.changeLanguage(lang)
+    localStorage.setItem('language', lang)
+  }
 
   const handleProfileSubmit = async (e) => {
     e.preventDefault()
@@ -279,6 +288,31 @@ export default function Profile() {
                   💻 System
                 </button>
               </div>
+            </div>
+          </div>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
+            <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+              Language / Valoda / Язык
+            </h2>
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { code: 'lv', label: '🇱🇻 Latviešu' },
+                { code: 'ru', label: '🇷🇺 Русский' },
+                { code: 'en', label: '🇬🇧 English' },
+              ].map(lang => (
+                <button
+                  key={lang.code}
+                  onClick={() => changeLanguage(lang.code)}
+                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
+                    i18n.language === lang.code
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-blue-400'
+                  }`}
+                  style={{ color: i18n.language === lang.code ? 'white' : 'var(--text-primary)' }}
+                >
+                  {lang.label}
+                </button>
+              ))}
             </div>
           </div>
     </div>

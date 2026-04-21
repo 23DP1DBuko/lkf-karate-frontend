@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import './index.css'
 import App from './App.jsx'
+import './i18n'
 
 const queryClient = new QueryClient()
 

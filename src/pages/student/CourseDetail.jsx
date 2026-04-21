@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useParams, Link } from 'react-router-dom'
 import api from '../../api/strapi'
+import { usePageTitle } from '../../hooks/usePageTitle'
 
 export default function CourseDetail() {
   const { documentId } = useParams()
@@ -9,6 +10,8 @@ export default function CourseDetail() {
     queryKey: ['course', documentId],
     queryFn: () => api.get(`/courses/${documentId}`).then(r => r.data.data)
   })
+
+  usePageTitle(course?.title)
 
   const { data: chapters, isLoading: chaptersLoading } = useQuery({
     queryKey: ['chapters', documentId],

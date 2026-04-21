@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /dashboard/
+
+Sitemap: https://lkf-karate-frontend.vercel.app/sitemap.xml
