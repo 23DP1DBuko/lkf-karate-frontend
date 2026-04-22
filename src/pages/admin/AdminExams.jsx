@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import api from '../../api/strapi'
+import IconButton from '../../components/IconButton'
+import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 
 export default function AdminExams() {
   const queryClient = useQueryClient()
@@ -333,36 +335,34 @@ export default function AdminExams() {
 
       <div className="bg-white rounded-xl shadow overflow-hidden overflow-x-auto">
         <table className="w-full min-w-[600px]">
-          <thead className="bg-gray-50 border-b">
+          <thead className="border-b" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
             <tr>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Title</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Course</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Duration</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Questions</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Pass %</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Status</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Actions</th>
+              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Title</th>
+              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Course</th>
+              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Duration</th>
+              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Pass</th>
+              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Status</th>
+              <th className="text-right px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {exams?.map(exam => {
               const status = getExamStatus(exam)
               return (
-                <tr key={exam.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 font-medium">{exam.title}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{exam.course?.title || '—'}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{exam.duration} min</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{exam.questionCount}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{exam.passingScore}%</td>
-                  <td className="px-6 py-4">
+                <tr key={exam.id} className="border-b hover:opacity-80 transition" style={{ borderColor: 'var(--border)' }}>
+                  <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>{exam.title}</td>
+                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{exam.course?.title || '—'}</td>
+                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{exam.duration}m</td>
+                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{exam.passingScore}%</td>
+                  <td className="px-4 py-3">
                     <span className={`text-xs px-2 py-1 rounded-full font-medium ${status.color}`}>
                       {status.label}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2">
-                      <button onClick={() => handleEdit(exam)} className="text-blue-600 hover:underline text-sm">Edit</button>
-                      <button onClick={() => handleDelete(exam.documentId)} className="text-red-500 hover:underline text-sm">Delete</button>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-1 justify-end">
+                      <IconButton icon={PencilIcon} label="Edit exam" onClick={() => handleEdit(exam)} variant="default" size="sm" />
+                      <IconButton icon={TrashIcon} label="Delete exam" onClick={() => handleDelete(exam.documentId)} variant="danger" size="sm" />
                     </div>
                   </td>
                 </tr>

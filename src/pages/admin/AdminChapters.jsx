@@ -4,6 +4,8 @@ import api from '../../api/strapi'
 import MediaUpload from '../../components/MediaUpload'
 import RichTextEditor from '../../components/RichTextEditor'
 import { mediaUrl } from '../../api/media'
+import IconButton from '../../components/IconButton'
+import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 
 export default function AdminChapters() {
   const queryClient = useQueryClient()
@@ -212,30 +214,24 @@ export default function AdminChapters() {
 
       <div className="bg-white rounded-xl shadow overflow-hidden overflow-x-auto">
         <table className="w-full min-w-[600px]">
-          <thead className="bg-gray-50 border-b">
+          <thead className="border-b" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
             <tr>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Title</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Course</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Order</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Video</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Actions</th>
+              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Title</th>
+              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Course</th>
+              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>#</th>
+              <th className="text-right px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {chapters?.map(chapter => (
-              <tr key={chapter.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 font-medium">{chapter.title}</td>
-                <td className="px-6 py-4 text-sm text-gray-500">{chapter.course?.title || '—'}</td>
-                <td className="px-6 py-4 text-sm text-gray-500">{chapter.order}</td>
-                <td className="px-6 py-4">
-                  {chapter.videoUrl
-                    ? <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">📹 Yes</span>
-                    : <span className="text-xs text-gray-400">—</span>}
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex gap-2">
-                    <button onClick={() => handleEdit(chapter)} className="text-blue-600 hover:underline text-sm">Edit</button>
-                    <button onClick={() => handleDelete(chapter.documentId)} className="text-red-500 hover:underline text-sm">Delete</button>
+              <tr key={chapter.id} className="border-b hover:opacity-80 transition" style={{ borderColor: 'var(--border)' }}>
+                <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>{chapter.title}</td>
+                <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{chapter.course?.title || '—'}</td>
+                <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{chapter.order}</td>
+                <td className="px-4 py-3">
+                  <div className="flex gap-1 justify-end">
+                    <IconButton icon={PencilIcon} label="Edit chapter" onClick={() => handleEdit(chapter)} variant="default" size="sm" />
+                    <IconButton icon={TrashIcon} label="Delete chapter" onClick={() => handleDelete(chapter.documentId)} variant="danger" size="sm" />
                   </div>
                 </td>
               </tr>

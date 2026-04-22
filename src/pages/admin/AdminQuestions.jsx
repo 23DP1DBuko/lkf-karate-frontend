@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import api from '../../api/strapi'
 import MediaUpload from '../../components/MediaUpload'
+import IconButton from '../../components/IconButton'
+import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 
 export default function AdminQuestions() {
   const queryClient = useQueryClient()
@@ -297,22 +299,30 @@ export default function AdminQuestions() {
                   <p className="truncate text-sm">{question.text}</p>
                 </td>
                 <td className="px-6 py-4">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                    question.type === 'multiple_choice' ? 'bg-blue-100 text-blue-700' 
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${
+                    question.type === 'multiple_choice' ? 'bg-blue-100 text-blue-700'
                     : question.type === 'yes_no' ? 'bg-purple-100 text-purple-700'
                     : 'bg-orange-100 text-orange-700'
                   }`}>
-                    {question.type === 'multiple_choice' ? 'Multiple Choice' 
-                    : question.type === 'yes_no' ? 'Yes / No' 
-                    : 'Open Text'}
+                    {question.type === 'multiple_choice' ? 'MC' : question.type === 'yes_no' ? 'Y/N' : 'Text'}
                   </span>
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-500">{question.course?.title || '—'}</td>
                 <td className="px-6 py-4 text-sm text-green-600 font-medium">{question.correctAnswer}</td>
-                <td className="px-6 py-4">
-                  <div className="flex gap-2">
-                    <button onClick={() => handleEdit(question)} className="text-blue-600 hover:underline text-sm">Edit</button>
-                    <button onClick={() => handleDelete(question.documentId)} className="text-red-500 hover:underline text-sm">Delete</button>
+                <td className="px-4 py-4">
+                  <div className="flex gap-1">
+                    <IconButton
+                      icon={PencilIcon}
+                      label="Edit question"
+                      onClick={() => handleEdit(question)}
+                      variant="default"
+                    />
+                    <IconButton
+                      icon={TrashIcon}
+                      label="Delete course"
+                      onClick={() => handleDelete(question.documentId)}
+                      variant="danger"
+                    />
                   </div>
                 </td>
               </tr>

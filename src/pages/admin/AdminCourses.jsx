@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import api from '../../api/strapi'
+import IconButton from '../../components/IconButton'
+import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 
 const categoryLabels = {
   kata: 'Kata',
@@ -170,45 +172,49 @@ export default function AdminCourses() {
         </div>
       )}
 
-      {/* Courses Table */}
-      <div className="bg-white rounded-xl shadow overflow-hidden overflow-x-auto">
+      {/* Mobile card view */}
+      <div className="md:hidden space-y-3">
+        {courses?.map(course => (
+          <div key={course.id} className="rounded-xl p-4 shadow" style={{ backgroundColor: 'var(--bg-card)' }}>
+            <div className="flex items-start justify-between mb-2">
+              <div>
+                <h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>{course.title}</h3>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{categoryLabels[course.category]}</p>
+              </div>
+              <div className="flex gap-1">
+                <IconButton icon={PencilIcon} label="Edit" onClick={() => handleEdit(course)} variant="default" size="sm" />
+                <IconButton icon={TrashIcon} label="Delete" onClick={() => handleDelete(course.documentId)} variant="danger" size="sm" />
+              </div>
+            </div>
+            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${course.published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+              {course.published ? 'Published' : 'Draft'}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <div className="hidden md:block bg-white rounded-xl shadow overflow-hidden overflow-x-auto">
         <table className="w-full min-w-[600px]">
-          <thead className="bg-gray-50 border-b">
+          <thead className="border-b" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
             <tr>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Title</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Category</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Status</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Actions</th>
+              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Title</th>
+              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Status</th>
+              <th className="text-right px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {courses?.map(course => (
-              <tr key={course.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 font-medium">{course.title}</td>
-                <td className="px-6 py-4">
-                  <span className="text-sm text-gray-500">
-                    {categoryLabels[course.category]}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
+              <tr key={course.id} className="border-b hover:opacity-80 transition" style={{ borderColor: 'var(--border)' }}>
+                <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>{course.title}</td>
+                <td className="px-4 py-3">
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${course.published ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                     {course.published ? 'Published' : 'Draft'}
                   </span>
                 </td>
-                <td className="px-6 py-4">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleEdit(course)}
-                      className="text-blue-600 hover:underline text-sm"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(course.documentId)}
-                      className="text-red-500 hover:underline text-sm"
-                    >
-                      Delete
-                    </button>
+                <td className="px-4 py-3">
+                  <div className="flex gap-1 justify-end">
+                    <IconButton icon={PencilIcon} label="Edit course" onClick={() => handleEdit(course)} variant="default" size="sm" />
+                    <IconButton icon={TrashIcon} label="Delete course" onClick={() => handleDelete(course.documentId)} variant="danger" size="sm" />
                   </div>
                 </td>
               </tr>

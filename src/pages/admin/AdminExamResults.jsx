@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import api from '../../api/strapi'
+import IconButton from '../../components/IconButton'
+import { EyeIcon } from '@heroicons/react/24/outline'
 
 export default function AdminExamResults() {
   const queryClient = useQueryClient()
@@ -264,12 +266,12 @@ export default function AdminExamResults() {
                     : '—'}
                 </td>
                 <td className="px-6 py-4">
-                  <button
+                  <IconButton
+                    icon={EyeIcon}
+                    label="Review answers"
                     onClick={() => { setSelectedAttempt(attempt); setManualScores({}) }}
-                    className="text-blue-600 hover:underline text-sm"
-                  >
-                    Review
-                  </button>
+                    variant="default"
+                  />
                 </td>
               </tr>
             ))}

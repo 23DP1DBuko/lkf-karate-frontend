@@ -1,6 +1,8 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import api from '../../api/strapi'
+import IconButton from '../../components/IconButton'
+import { CheckCircleIcon, XCircleIcon, ArrowPathIcon } from '@heroicons/react/24/outline'
 
 export default function AdminUsers() {
   const queryClient = useQueryClient()
@@ -73,20 +75,20 @@ export default function AdminUsers() {
                     <p className="text-sm text-gray-500">@{user.username}</p>
                     <p className="text-sm text-gray-400">{user.email}</p>
                   </div>
-                  <div className="flex gap-2">
-                    <button
+                  <div className="flex gap-1">
+                    <IconButton
+                      icon={CheckCircleIcon}
+                      label="Approve user"
                       onClick={() => handleApprove(user)}
+                      variant="success"
                       disabled={updateMutation.isPending}
-                      className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
-                    >
-                      ✓ Approve
-                    </button>
-                    <button
+                    />
+                    <IconButton
+                      icon={XCircleIcon}
+                      label="Reject user"
                       onClick={() => setRejectingUser(user)}
-                      className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600"
-                    >
-                      ✗ Reject
-                    </button>
+                      variant="danger"
+                    />
                   </div>
                 </div>
 
@@ -149,24 +151,24 @@ export default function AdminUsers() {
                 </td>
                 <td className="px-6 py-4">
                   {user.verification === 'rejected' && (
-                    <button
+                    <IconButton
+                      icon={ArrowPathIcon}
+                      label="Re-approve user"
                       onClick={() => handleApprove(user)}
-                      className="text-green-600 hover:underline text-sm"
-                    >
-                      Re-approve
-                    </button>
+                      variant="success"
+                    />
                   )}
                   {user.verification === 'approved' && (
-                    <button
+                    <IconButton
+                      icon={XCircleIcon}
+                      label="Revoke access"
                       onClick={() => updateMutation.mutate({
                         id: user.id,
                         data: { verification: 'rejected', rejectionReason: 'Access revoked by administrator' }
                       })}
+                      variant="danger"
                       disabled={updateMutation.isPending}
-                      className="text-red-500 hover:underline text-sm"
-                    >
-                      Revoke
-                    </button>
+                    />
                   )}
                 </td>
               </tr>
