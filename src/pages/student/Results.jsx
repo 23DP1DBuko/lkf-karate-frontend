@@ -1,30 +1,33 @@
+/* Results.jsx */
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../api/strapi'
+import { useTranslation } from 'react-i18next'
 
 export default function Results() {
   const { user } = useAuth()
+  const { t } = useTranslation()
 
   const { data: attempts, isLoading } = useQuery({
     queryKey: ['attempts', user?.id],
-    queryFn: () => api.get(`/exam-attempts?filters[user][id][$eq]=${user.id}&populate=exam&sort=createdAt:desc`).then(r => r.data.data)
+    queryFn: () => api.get(`/exam-attempts?populate=exam&sort=createdAt:desc`).then(r => r.data.data)
   })
 
   if (isLoading) return (
     <div className="flex items-center justify-center py-20">
-      <p className="text-gray-500">Loading results...</p>
+      <p style={{ color: 'var(--text-secondary)' }}>{t('common.loading')}</p>
     </div>
   )
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-blue-700 mb-2">My Results</h1>
-      <p className="text-gray-500 mb-8">Your exam history</p>
+      <h1 className="text-3xl font-bold text-blue-700 mb-2">{t('results.title')}</h1>
+      <p className="mb-8" style={{ color: 'var(--text-secondary)' }}>{t('results.subtitle')}</p>
 
       {attempts?.length === 0 && (
-        <div className="bg-white rounded-xl shadow p-8 text-center">
+        <div className="rounded-xl shadow p-8 text-center" style={{ backgroundColor: 'var(--bg-card)' }}>
           <div className="text-5xl mb-4">📝</div>
-          <p className="text-gray-400">No exams taken yet. Go take a course!</p>
+          <p style={{ color: 'var(--text-muted)' }}>{t('results.noExams')}</p>
         </div>
       )}
 
@@ -32,13 +35,13 @@ export default function Results() {
         {attempts?.map(attempt => {
           const released = attempt.exam?.showResults === true || attempt.exam?.resultsReleased === true
           return (
-            <div className="flex flex-wrap gap-3 justify-center">
+            <div key={attempt.id} className="rounded-xl shadow p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3" style={{ backgroundColor: 'var(--bg-card)' }}>
               <div>
-                <h3 className="font-semibold text-lg">{attempt.exam?.title || 'Exam'}</h3>
-                <p className="text-sm text-gray-400">
+                <h3 className="font-semibold text-lg" style={{ color: 'var(--text-primary)' }}>{attempt.exam?.title || 'Exam'}</h3>
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
                   {attempt.submittedAt
                     ? new Date(attempt.submittedAt).toLocaleDateString()
-                    : 'In progress'}
+                    : t('results.inProgress')}
                 </p>
               </div>
               <div className="text-right">
@@ -50,22 +53,20 @@ export default function Results() {
                           {attempt.score}%
                         </span>
                       ) : (
-                        <span className="text-gray-400">?</span>
+                        <span style={{ color: 'var(--text-muted)' }}>?</span>
                       )}
                     </div>
                     <span className={`text-xs font-medium px-2 py-1 rounded-full ${
                       released
-                        ? attempt.passed
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-red-100 text-red-700'
+                        ? attempt.passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                         : 'bg-gray-100 text-gray-500'
                     }`}>
-                      {released ? (attempt.passed ? 'Passed' : 'Failed') : 'Pending'}
+                      {released ? (attempt.passed ? t('results.passed') : t('results.failed')) : t('results.pending')}
                     </span>
                   </>
                 ) : (
                   <span className="text-xs font-medium px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">
-                    In Progress
+                    {t('results.inProgress')}
                   </span>
                 )}
               </div>

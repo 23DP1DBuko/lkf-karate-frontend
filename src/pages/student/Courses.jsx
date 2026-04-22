@@ -1,3 +1,4 @@
+/* Courses.jsx */
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
@@ -23,14 +24,13 @@ const categoryColors = {
 export default function Courses() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('all')
+  const { t } = useTranslation()
+  usePageTitle(t('courses.title'))
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['courses'],
     queryFn: () => api.get('/courses?filters[published][$eq]=true&sort=title:asc').then(r => r.data.data)
   })
-
-  usePageTitle('Courses')
-  const { t } = useTranslation()
 
   const filtered = data?.filter(course => {
     const matchesSearch = course.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -41,26 +41,25 @@ export default function Courses() {
 
   if (isLoading) return (
     <div className="flex items-center justify-center py-20">
-      <p className="text-gray-500">Loading courses...</p>
+      <p style={{ color: 'var(--text-secondary)' }}>{t('common.loading')}</p>
     </div>
   )
 
   if (isError) return (
     <div className="flex items-center justify-center py-20">
-      <p className="text-red-500">Failed to load courses.</p>
+      <p className="text-red-500">{t('common.error')}</p>
     </div>
   )
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-blue-700 mb-2">Courses</h1>
-      <p className="text-gray-500 mb-6">Select a course to start learning</p>
+      <h1 className="text-3xl font-bold text-blue-700 mb-2">{t('courses.title')}</h1>
+      <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>{t('courses.subtitle')}</p>
 
-      {/* Search and Filter */}
       <div className="flex flex-col md:flex-row gap-3 mb-8">
         <input
           type="text"
-          placeholder="Search courses..."
+          placeholder={t('courses.search')}
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -68,36 +67,36 @@ export default function Courses() {
         <select
           value={category}
           onChange={e => setCategory(e.target.value)}
-          className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          style={{ backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)' }}
         >
-          <option value="all">All Categories</option>
-          <option value="kata">Kata</option>
-          <option value="kumite">Kumite</option>
-          <option value="secretary">Secretary</option>
-          <option value="seminar">Seminar</option>
+          <option value="all">{t('courses.allCategories')}</option>
+          <option value="kata">{t('courses.categories.kata')}</option>
+          <option value="kumite">{t('courses.categories.kumite')}</option>
+          <option value="secretary">{t('courses.categories.secretary')}</option>
+          <option value="seminar">{t('courses.categories.seminar')}</option>
         </select>
       </div>
 
-      {/* Results count */}
-      <p className="text-sm text-gray-400 mb-4">
-        Showing {filtered?.length || 0} of {data?.length || 0} courses
+      <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+        {t('courses.showing')} {filtered?.length || 0} {t('courses.of')} {data?.length || 0} {t('courses.courses')}
       </p>
 
-      {/* Course Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {filtered?.map(course => (
           <Link
             key={course.id}
             to={`/courses/${course.documentId}`}
-            className="bg-white rounded-xl shadow hover:shadow-md transition p-6 block"
+            className="rounded-xl shadow hover:shadow-md transition p-6 block"
+            style={{ backgroundColor: 'var(--bg-card)' }}
           >
             <div className="flex items-start justify-between mb-3">
-              <h2 className="text-xl font-semibold">{course.title}</h2>
+              <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>{course.title}</h2>
               <span className={`text-xs font-medium px-2 py-1 rounded-full flex-shrink-0 ml-2 ${categoryColors[course.category]}`}>
-                {categoryLabels[course.category]}
+                {t(`courses.categories.${course.category}`)}
               </span>
             </div>
-            <p className="text-gray-500 text-sm">{course.description}</p>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{course.description}</p>
           </Link>
         ))}
       </div>
@@ -105,12 +104,12 @@ export default function Courses() {
       {filtered?.length === 0 && (
         <div className="text-center py-12">
           <div className="text-5xl mb-4">🔍</div>
-          <p className="text-gray-400">No courses match your search.</p>
+          <p style={{ color: 'var(--text-muted)' }}>{t('courses.noMatch')}</p>
           <button
             onClick={() => { setSearch(''); setCategory('all') }}
             className="mt-4 text-blue-600 hover:underline text-sm"
           >
-            Clear filters
+            {t('courses.clearFilters')}
           </button>
         </div>
       )}

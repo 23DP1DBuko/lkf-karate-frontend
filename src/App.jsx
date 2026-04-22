@@ -21,6 +21,8 @@ import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
 import Profile from './pages/student/Profile'
 import Landing from './pages/Landing'
+import { useTranslation } from 'react-i18next'
+
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -50,29 +52,30 @@ function AdminRoute({ children }) {
 
 function Dashboard() {
   const { user } = useAuth()
+  const { t } = useTranslation()
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="rounded-xl shadow p-6" style={{ backgroundColor: 'var(--bg-card)' }}>
       <h1 className="text-2xl font-bold text-blue-700 mb-2">
-        Welcome, {user?.firstName ? `${user.firstName} ${user.lastName}` : user?.username}! 👋
+        {t('dashboard.welcome')}, {user?.firstName ? `${user.firstName} ${user.lastName}` : user?.username}! 👋
       </h1>
-      <p className="text-gray-500 mb-6">
-        You are logged in as <span className="font-medium">{user?.email}</span>
+      <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>
+        {t('dashboard.loggedInAs')} <span className="font-medium">{user?.email}</span>
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6">
-        <a href="/courses" className="bg-blue-50 border border-blue-200 rounded-xl p-5 hover:bg-blue-100 transition">
+        <a href="/courses" className="bg-blue-50 border border-blue-200 rounded-xl p-5 hover:bg-blue-100 transition dark:bg-blue-900/20 dark:border-blue-800">
           <div className="text-3xl mb-2">📚</div>
-          <h3 className="font-semibold text-blue-700">Courses</h3>
-          <p className="text-sm text-gray-500">Browse and study courses</p>
+          <h3 className="font-semibold text-blue-700">{t('dashboard.courses')}</h3>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('dashboard.browseStudy')}</p>
         </a>
-        <a href="/results" className="bg-green-50 border border-green-200 rounded-xl p-5 hover:bg-green-100 transition">
+        <a href="/results" className="bg-green-50 border border-green-200 rounded-xl p-5 hover:bg-green-100 transition dark:bg-green-900/20 dark:border-green-800">
           <div className="text-3xl mb-2">📊</div>
-          <h3 className="font-semibold text-green-700">My Results</h3>
-          <p className="text-sm text-gray-500">View your exam history</p>
+          <h3 className="font-semibold text-green-700">{t('dashboard.myResults')}</h3>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('dashboard.viewHistory')}</p>
         </a>
-        <a href="/profile" className="bg-purple-50 border border-purple-200 rounded-xl p-5 hover:bg-purple-100 transition">
+        <a href="/profile" className="bg-purple-50 border border-purple-200 rounded-xl p-5 hover:bg-purple-100 transition dark:bg-purple-900/20 dark:border-purple-800">
           <div className="text-3xl mb-2">👤</div>
-          <h3 className="font-semibold text-purple-700">Profile</h3>
-          <p className="text-sm text-gray-500">Manage your account</p>
+          <h3 className="font-semibold text-purple-700">{t('dashboard.profile')}</h3>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('dashboard.manageAccount')}</p>
         </a>
       </div>
     </div>
