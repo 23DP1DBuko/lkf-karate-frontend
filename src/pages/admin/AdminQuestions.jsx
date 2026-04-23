@@ -4,6 +4,7 @@ import api from '../../api/strapi'
 import MediaUpload from '../../components/MediaUpload'
 import IconButton from '../../components/IconButton'
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { SkeletonTable } from '../../components/Skeleton'
 
 export default function AdminQuestions() {
   const queryClient = useQueryClient()
@@ -100,8 +101,8 @@ export default function AdminQuestions() {
     filterCourse === 'all' || q.course?.documentId === filterCourse
   )
 
-  if (isLoading) return <p className="text-gray-500">Loading...</p>
-
+  if (isLoading) return <SkeletonTable rows={5} cols={4} />
+  
   return (
     <div>
       <div className="flex items-center justify-between mb-6">

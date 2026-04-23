@@ -6,6 +6,7 @@ import RichTextEditor from '../../components/RichTextEditor'
 import { mediaUrl } from '../../api/media'
 import IconButton from '../../components/IconButton'
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { SkeletonTable } from '../../components/Skeleton'
 
 export default function AdminChapters() {
   const queryClient = useQueryClient()
@@ -93,7 +94,7 @@ export default function AdminChapters() {
     filterCourse === 'all' || q.course?.documentId === filterCourse
   )
 
-  if (isLoading) return <p className="text-gray-500">Loading...</p>
+  if (isLoading) return <SkeletonTable rows={5} cols={4} />
 
   return (
     <div>

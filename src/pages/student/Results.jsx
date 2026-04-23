@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../api/strapi'
 import { useTranslation } from 'react-i18next'
+import { SkeletonList } from '../../components/Skeleton'
 
 export default function Results() {
   const { user } = useAuth()
@@ -14,8 +15,10 @@ export default function Results() {
   })
 
   if (isLoading) return (
-    <div className="flex items-center justify-center py-20">
-      <p style={{ color: 'var(--text-secondary)' }}>{t('common.loading')}</p>
+    <div>
+      <div className="h-8 rounded w-48 mb-2 animate-pulse" style={{ backgroundColor: 'var(--border)' }} />
+      <div className="h-4 rounded w-32 mb-8 animate-pulse" style={{ backgroundColor: 'var(--border)' }} />
+      <SkeletonList count={4} />
     </div>
   )
 

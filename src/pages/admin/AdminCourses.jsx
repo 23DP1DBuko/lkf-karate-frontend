@@ -4,6 +4,7 @@ import { useState } from 'react'
 import api from '../../api/strapi'
 import IconButton from '../../components/IconButton'
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { SkeletonTable } from '../../components/Skeleton'
 
 const categoryLabels = {
   kata: 'Kata',
@@ -83,7 +84,7 @@ export default function AdminCourses() {
     }
   }
 
-  if (isLoading) return <p className="text-gray-500">Loading...</p>
+  if (isLoading) return <SkeletonTable rows={5} cols={4} />
 
   return (
     <div>

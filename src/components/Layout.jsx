@@ -1,14 +1,16 @@
 import Sidebar from './Sidebar'
+import BottomNav from './BottomNav'
 
 export default function Layout({ children }) {
   return (
-    <div className="flex min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
+    <div className="min-h-screen flex flex-col md:flex-row" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <main className="flex-1 p-4 md:p-6 max-w-5xl w-full mx-auto">
+      <main className="flex-1 p-4 md:p-6 pb-24 md:pb-6 w-full overflow-x-hidden">
+        <div className="max-w-4xl mx-auto">
           {children}
-        </main>
-      </div>
+        </div>
+      </main>
+      <BottomNav />
     </div>
   )
 }
