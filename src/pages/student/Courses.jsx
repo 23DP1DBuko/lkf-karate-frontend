@@ -4,6 +4,7 @@ import { useState } from 'react'
 import api from '../../api/strapi'
 import { usePageTitle } from '../../hooks/usePageTitle'
 import { useTranslation } from 'react-i18next'
+import { createRipple } from '../../hooks/useRipple'
 
 const categoryColors = {
   kata: 'from-blue-600 to-blue-800',
@@ -108,7 +109,10 @@ function CourseCard({ course, chapters, progress }) {
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                navigate(`/courses/${course.documentId}/chapters/${nextChapter.documentId}`)
+                createRipple(e)
+                setTimeout(() => {
+                  navigate(`/courses/${course.documentId}/chapters/${nextChapter.documentId}`)
+                }, 150)
               }}
               className={`px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r ${gradient} hover:opacity-90 transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500`}
               aria-label={`Continue ${course.title}`}

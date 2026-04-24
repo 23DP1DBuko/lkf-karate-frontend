@@ -19,6 +19,7 @@ import {
   ChevronDoubleRightIcon,
   ChevronDownIcon,
 } from '@heroicons/react/24/outline'
+import { createRipple } from '../hooks/useRipple'
 
 function NavItem({ to, icon: Icon, label, onClick, active, collapsed }) {
   const [tooltipPos, setTooltipPos] = useState(null)
@@ -35,7 +36,7 @@ function NavItem({ to, icon: Icon, label, onClick, active, collapsed }) {
     <div className="relative">
       <Link
         to={to}
-        onClick={onClick}
+        onClick={(e) => { createRipple(e); onClick?.() }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
