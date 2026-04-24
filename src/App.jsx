@@ -21,6 +21,7 @@ import ForgotPassword from './pages/auth/ForgotPassword'
 import ResetPassword from './pages/auth/ResetPassword'
 import Profile from './pages/student/Profile'
 import Landing from './pages/Landing'
+import AdminImport from './pages/admin/AdminImport'
 import { useTranslation } from 'react-i18next'
 
 
@@ -136,6 +137,9 @@ export default function App() {
       } />
       <Route path="/admin/results" element={
         <AdminRoute><AdminExamResults /></AdminRoute>
+      } />
+      <Route path="/admin/import" element={
+        <AdminRoute><AdminImport /></AdminRoute>
       } />
     </Routes>
   )

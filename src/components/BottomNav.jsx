@@ -7,6 +7,7 @@ import {
   HomeIcon, BookOpenIcon, ChartBarIcon, UserIcon, AcademicCapIcon,
   DocumentTextIcon, QuestionMarkCircleIcon,
   ClipboardDocumentListIcon, UsersIcon, ChevronUpIcon,
+  ArrowUpTrayIcon
 } from '@heroicons/react/24/outline'
 import {
   HomeIcon as HomeSolid, BookOpenIcon as BookSolid,
@@ -30,6 +31,7 @@ export default function BottomNav() {
     { to: '/admin/exams', icon: ClipboardDocumentListIcon, label: t('nav.admin.exams') },
     { to: '/admin/results', icon: ChartBarIcon, label: t('nav.admin.results') },
     { to: '/admin/users', icon: UsersIcon, label: t('nav.admin.users') },
+    { to: '/admin/import', icon: ArrowUpTrayIcon, label: 'Import' },
   ]
 
   const tabs = [

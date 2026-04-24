@@ -18,6 +18,7 @@ import {
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
   ChevronDownIcon,
+  ArrowUpTrayIcon
 } from '@heroicons/react/24/outline'
 import { createRipple } from '../hooks/useRipple'
 
@@ -206,6 +207,7 @@ export default function Sidebar() {
     { to: '/admin/exams', icon: ClipboardDocumentListIcon, label: t('nav.admin.exams') },
     { to: '/admin/results', icon: ChartBarIcon, label: t('nav.admin.results') },
     { to: '/admin/users', icon: UsersIcon, label: t('nav.admin.users') },
+    { to: '/admin/import', icon: ArrowUpTrayIcon, label: 'Import Questions' },
   ]
 
   const SidebarContent = ({ isCollapsed, isMobile }) => (
