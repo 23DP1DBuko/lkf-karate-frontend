@@ -249,73 +249,65 @@ export default function Profile() {
           </button>
         </form>
       </div>
-      {/* Theme Settings */}
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
-            <h2 className="text-lg font-semibold mb-4 dark:text-white">Appearance</h2>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium dark:text-white">Theme</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Choose your preferred appearance</p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setTheme('light')}
-                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
-                    theme === 'light'
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'border-gray-300 dark:border-gray-600 dark:text-gray-300 hover:border-blue-400'
-                  }`}
-                >
-                  ☀️ Light
-                </button>
-                <button
-                  onClick={() => setTheme('dark')}
-                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
-                    theme === 'dark'
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'border-gray-300 dark:border-gray-600 dark:text-gray-300 hover:border-blue-400'
-                  }`}
-                >
-                  🌙 Dark
-                </button>
-                <button
-                  onClick={() => setTheme('system')}
-                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
-                    theme === 'system'
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'border-gray-300 dark:border-gray-600 dark:text-gray-300 hover:border-blue-400'
-                  }`}
-                >
-                  💻 System
-                </button>
-              </div>
-            </div>
+          {/* Theme Settings */}
+      <div className="rounded-xl shadow p-6" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+        <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+          {t('profile.appearance')}
+        </h2>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <p className="font-medium" style={{ color: 'var(--text-primary)' }}>{t('profile.theme')}</p>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('profile.themeDesc')}</p>
           </div>
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
-            <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
-              Language / Valoda / Язык
-            </h2>
-            <div className="flex gap-2 flex-wrap">
-              {[
-                { code: 'lv', label: '🇱🇻 Latviešu' },
-                { code: 'ru', label: '🇷🇺 Русский' },
-                { code: 'en', label: '🇬🇧 English' },
-              ].map(lang => (
-                <button
-                  key={lang.code}
-                  onClick={() => changeLanguage(lang.code)}
-                  className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
-                    i18n.language === lang.code
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'border-gray-300 dark:border-gray-600 hover:border-blue-400'
-                  }`}
-                  style={{ color: i18n.language === lang.code ? 'white' : 'var(--text-primary)' }}
-                >
-                  {lang.label}
-                </button>
-              ))}
-            </div>
+          <div className="flex gap-2">
+            {[
+              { value: 'light', label: `☀️ ${t('profile.light')}` },
+              { value: 'dark', label: `🌙 ${t('profile.dark')}` },
+              { value: 'system', label: `💻 ${t('profile.system')}` },
+            ].map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setTheme(opt.value)}
+                className="px-4 py-2 rounded-lg border text-sm font-medium transition"
+                style={{
+                  backgroundColor: theme === opt.value ? '#2563eb' : 'var(--bg-secondary)',
+                  color: theme === opt.value ? 'white' : 'var(--text-primary)',
+                  borderColor: theme === opt.value ? '#2563eb' : 'var(--border)',
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
           </div>
+        </div>
+      </div>
+
+      {/* Language */}
+      <div className="rounded-xl shadow p-6" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+        <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+          Language / Valoda / Язык
+        </h2>
+        <div className="flex gap-2 flex-wrap">
+          {[
+            { code: 'lv', label: '🇱🇻 Latviešu' },
+            { code: 'ru', label: '🇷🇺 Русский' },
+            { code: 'en', label: '🇬🇧 English' },
+          ].map(lang => (
+            <button
+              key={lang.code}
+              onClick={() => changeLanguage(lang.code)}
+              className="px-4 py-2 rounded-lg border text-sm font-medium transition"
+              style={{
+                backgroundColor: i18n.language === lang.code ? '#2563eb' : 'var(--bg-secondary)',
+                color: i18n.language === lang.code ? 'white' : 'var(--text-primary)',
+                borderColor: i18n.language === lang.code ? '#2563eb' : 'var(--border)',
+              }}
+            >
+              {lang.label}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }

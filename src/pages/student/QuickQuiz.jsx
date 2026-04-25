@@ -1,22 +1,9 @@
 import { useState } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useParams, Link } from 'react-router-dom'
 import api from '../../api/strapi'
 import { mediaUrl } from '../../api/media'
 
-export default function QuickQuiz() {
-  const { documentId } = useParams()
-  const navigate = useNavigate()
-  const [count, setCount] = useState('10')
-  const [started, setStarted] = useState(false)
-  const [questions, setQuestions] = useState([])
-  const [answers, setAnswers] = useState({})
-  const [submitted, setSubmitted] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [courseTitle, setCourseTitle] = useState('')
-
-    function QuestionMedia({ media }) {
+function QuestionMedia({ media }) {
   if (!media) return null
   
   // Handle both array and single object
@@ -48,6 +35,17 @@ export default function QuickQuiz() {
     </div>
   )
 }
+
+export default function QuickQuiz() {
+  const { documentId } = useParams()
+  const [count, setCount] = useState('10')
+  const [started, setStarted] = useState(false)
+  const [questions, setQuestions] = useState([])
+  const [answers, setAnswers] = useState({})
+  const [submitted, setSubmitted] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [courseTitle, setCourseTitle] = useState('')
 
   const handleStart = async () => {
     setLoading(true)
@@ -153,7 +151,11 @@ export default function QuickQuiz() {
               const userAnswer = answers[q.id]
               const isCorrect = String(userAnswer).toLowerCase() === String(q.correctAnswer).toLowerCase()
               return (
-                <div key={q.id} className={`p-4 rounded-lg border ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                <div key={q.id} className={`p-4 rounded-lg border`}
+                  style={{
+                    backgroundColor: isCorrect ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+                    borderColor: isCorrect ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)',
+                  }}>
                   <p className="text-sm font-medium mb-1">{i + 1}. {q.text}</p>
                   <p className="text-xs text-gray-500">Your answer: <span className={isCorrect ? 'text-green-600' : 'text-red-600'}>{userAnswer || 'No answer'}</span></p>
                   {!isCorrect && <p className="text-xs text-green-600">Correct: {q.correctAnswer}</p>}

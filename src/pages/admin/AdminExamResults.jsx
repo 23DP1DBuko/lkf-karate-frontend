@@ -201,15 +201,14 @@ export default function AdminExamResults() {
           }
         })
         return Object.values(exams).map(exam => (
-          <div key={exam.documentId} className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 flex items-center justify-between">
+          <div key={exam.documentId} 
+            className="rounded-xl p-4 mb-4 flex items-center justify-between"
+            style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
+          >
             <div>
-              <p className="font-semibold">{exam.title}</p>
-              <p className="text-sm text-gray-500">
-                Results: {exam.showResults
-                  ? '✅ Shown immediately'
-                  : exam.resultsReleased
-                    ? '✅ Released to students'
-                    : '⏳ Not released yet'}
+              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{exam.title}</p>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                Results: {exam.showResults ? '✅ Shown immediately' : exam.resultsReleased ? '✅ Released to students' : '⏳ Not released yet'}
               </p>
             </div>
             {!exam.resultsReleased && !exam.showResults && (
@@ -224,7 +223,7 @@ export default function AdminExamResults() {
           </div>
         ))
       })()}
-      <div className="bg-white rounded-xl shadow overflow-hidden overflow-x-auto">
+      <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
         <table className="w-full min-w-[600px]">
           <thead className="bg-gray-50 border-b">
             <tr>
