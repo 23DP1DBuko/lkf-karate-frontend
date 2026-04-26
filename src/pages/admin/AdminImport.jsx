@@ -50,6 +50,31 @@ async function parseDocx(file) {
   return questions
 }
 
+async function fetchAllExistingQuestions(courseId, sourceFile) {
+  let page = 1
+  let all = []
+  let pageCount = 1
+
+  do {
+    const res = await api.get('/questions', {
+      params: {
+        'filters[course][documentId][$eq]': courseId,
+        'filters[sourceFile][$containsi]': sourceFile,
+        'pagination[page]': page,
+        'pagination[pageSize]': 100,
+        'sort': 'order:asc',
+      },
+    })
+
+    const data = res.data.data || []
+    all = all.concat(data)
+    pageCount = res.data.meta?.pagination?.pageCount || 1
+    page++
+  } while (page <= pageCount)
+
+  return all
+}
+
 // Extract year from filename e.g. "Kata_2024.docx" → "2024"
 function extractYear(filename) {
   const match = filename.match(/20\d{2}/)
@@ -96,85 +121,99 @@ export default function AdminImport() {
 
     const stats = { created: 0, updated: 0, skipped: 0, failed: 0 }
     const year = extractYear(file?.name || '')
-    const sourceFile = `${file?.name || 'unknown'} (${year})`
+    const sourceFile = file?.name?.replace(/\.[^.]+$/, '') || 'unknown'
     const langField = language === 'lv' ? 'textLv' : language === 'ru' ? 'textRu' : 'textEn'
 
-    // Fetch existing questions for this course
+    // Fetch ALL existing questions for this course + sourceFile
     let existing = []
     try {
-      const res = await api.get(
-        `/questions?filters[course][documentId][$eq]=${selectedCourse}&pagination[limit]=1000&sort=order:asc`
-      )
-      existing = res.data.data || []
+      existing = await fetchAllExistingQuestions(selectedCourse, sourceFile)
     } catch (e) {
       console.error('Failed to fetch existing', e)
     }
 
-    // Build order-based lookup: order → question
+    // Build order map: order number → existing question
     const orderMap = {}
     for (const q of existing) {
-      if (q.order) orderMap[q.order] = q
+      console.log('ORDER MAP KEYS', Object.keys(orderMap).slice(0, 10))
+      console.log('ORDER MAP KEYS TAIL', Object.keys(orderMap).slice(-10))
+      if (q.order != null) {
+        orderMap[Number(q.order)] = q
+      }
     }
 
     for (const q of questions) {
-      const match = orderMap[q.order]
+      const existingQ = orderMap[Number(q.order)]
+
+      console.log('IMPORT ROW', {
+        order: q.order,
+        orderType: typeof q.order,
+        text: q.text.slice(0, 40),
+        exists: !!existingQ,
+        existingOrder: existingQ?.order,
+        existingOrderType: typeof existingQ?.order,
+        existingSourceFile: existingQ?.sourceFile,
+        existingLang: existingQ?.sourceLang,
+      })
 
       try {
-        if (!match) {
-          // Create new question
+        if (!existingQ) {
+          // No question at this order — create new
           await api.post('/questions', {
             data: {
               text: q.text,
-              textLv: language === 'lv' ? q.text : '',
-              textEn: language === 'en' ? q.text : '',
-              textRu: language === 'ru' ? q.text : '',
-              type: q.type,
-              options: q.options,
+              textLv: language === 'lv' ? q.text : null,
+              textEn: language === 'en' ? q.text : null,
+              textRu: language === 'ru' ? q.text : null,
+              type: 'yes_no',
+              options: ['true', 'false'],
               correctAnswer: q.correctAnswer,
               order: q.order,
               course: selectedCourse,
               sourceLang: language,
-              sourceFile,
+              sourceFile: `${sourceFile} (${year})`,
             }
           })
           stats.created++
         } else {
-          // Question exists — check what needs updating
-          const needsLangUpdate = !match[langField] || match[langField] !== q.text
-          const answerChanged = match.correctAnswer !== q.correctAnswer
-          const isNewerFile = match.sourceFile !== sourceFile
+          // Question exists — check what to do
+          const existingLangText = existingQ[langField]
+          const answerChanged = existingQ.correctAnswer !== q.correctAnswer
 
-          if (!needsLangUpdate && !answerChanged && !isNewerFile) {
+          if (!existingLangText) {
+            // This language doesn't exist yet on this question — attach translation
+            const updateData = {
+              [langField]: q.text,
+            }
+            // Also update answer if this is a newer year
+            if (answerChanged) {
+              updateData.correctAnswer = q.correctAnswer
+            }
+            await api.put(`/questions/${existingQ.documentId}`, { data: updateData })
+            stats.updated++
+          } else if (existingLangText === q.text && !answerChanged) {
+            // Same language, same text, same answer — skip
             stats.skipped++
-            continue
+          } else {
+            // Same language but something changed — update
+            const updateData = { [langField]: q.text }
+            if (answerChanged) {
+              updateData.correctAnswer = q.correctAnswer
+            }
+            await api.put(`/questions/${existingQ.documentId}`, { data: updateData })
+            stats.updated++
           }
-
-          const updateData = {
-            [langField]: q.text,
-            sourceFile,
-          }
-
-          // Update primary text if this is the primary language
-          if (language === 'lv' || !match.text) {
-            updateData.text = q.text
-          }
-
-          // Always update answer if changed (newer file wins)
-          if (answerChanged || isNewerFile) {
-            updateData.correctAnswer = q.correctAnswer
-          }
-
-          await api.put(`/questions/${match.documentId}`, { data: updateData })
-          stats.updated++
         }
       } catch (err) {
-        console.error('Import error for q', q.order, err)
+        console.error(`Failed q${q.order}:`, err.response?.data || err.message)
         stats.failed++
       }
     }
 
     setResults(stats)
     setImporting(false)
+    console.log('QUERY SOURCE FILE', sourceFile)
+    console.log('STORED SOURCE FILE', `${sourceFile} (${year})`)
   }
 
   const trueCount = questions.filter(q => q.correctAnswer === 'true').length
