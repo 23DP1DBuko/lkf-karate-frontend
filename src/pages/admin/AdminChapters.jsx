@@ -5,21 +5,23 @@ import MediaUpload from '../../components/MediaUpload'
 import RichTextEditor from '../../components/RichTextEditor'
 import { mediaUrl } from '../../api/media'
 import IconButton from '../../components/IconButton'
-import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { PencilIcon, TrashIcon, EyeIcon } from '@heroicons/react/24/outline'
 import { SkeletonTable } from '../../components/Skeleton'
+import ChapterPreviewModal from '../../components/ChapterPreviewModal'
 
 export default function AdminChapters() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editingChapter, setEditingChapter] = useState(null)
   const [filterCourse, setFilterCourse] = useState('all')
+  const [previewChapter, setPreviewChapter] = useState(null)
   const [form, setForm] = useState({
     title: '', content: '', order: 1, videoUrl: '', course: '', media: null
   })
   
   const { data: chapters, isLoading } = useQuery({
     queryKey: ['admin-chapters'],
-    queryFn: () => api.get('/chapters?populate[0]=course&populate[1]=media&sort=course.title:asc').then(r => r.data.data)
+    queryFn: () => api.get('/chapters?populate[0]=course&populate[1]=media&populate[2]=questions&sort=order:asc&pagination[limit]=200').then(r => r.data.data)
   })
 
   const { data: courses } = useQuery({
@@ -144,7 +146,6 @@ export default function AdminChapters() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Content</label>
               <RichTextEditor
                 label="Content"
                 value={form.content}
@@ -231,6 +232,7 @@ export default function AdminChapters() {
                 <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{chapter.order}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1 justify-end">
+                    <IconButton icon={EyeIcon} label="Preview chapter" onClick={() => setPreviewChapter(chapter)} variant="default" size="sm" />
                     <IconButton icon={PencilIcon} label="Edit chapter" onClick={() => handleEdit(chapter)} variant="default" size="sm" />
                     <IconButton icon={TrashIcon} label="Delete chapter" onClick={() => handleDelete(chapter.documentId)} variant="danger" size="sm" />
                   </div>
@@ -240,6 +242,12 @@ export default function AdminChapters() {
           </tbody>
         </table>
       </div>
+      {previewChapter && (
+        <ChapterPreviewModal
+          chapter={previewChapter}
+          onClose={() => setPreviewChapter(null)}
+        />
+      )}
     </div>
   )
 }

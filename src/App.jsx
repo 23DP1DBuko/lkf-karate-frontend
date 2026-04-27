@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, Link } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import Login from './pages/auth/Login'
 import Register from './pages/auth/Register'
@@ -63,21 +63,21 @@ function Dashboard() {
         {t('dashboard.loggedInAs')} <span className="font-medium">{user?.email}</span>
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6">
-        <a href="/courses" className="bg-blue-50 border border-blue-200 rounded-xl p-5 hover:bg-blue-100 transition dark:bg-blue-900/20 dark:border-blue-800">
+        <Link to="/courses" className="bg-blue-50 border border-blue-200 rounded-xl p-5 hover:bg-blue-100 transition dark:bg-blue-900/20 dark:border-blue-800">
           <div className="text-3xl mb-2">📚</div>
           <h3 className="font-semibold text-blue-700">{t('dashboard.courses')}</h3>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('dashboard.browseStudy')}</p>
-        </a>
-        <a href="/results" className="bg-green-50 border border-green-200 rounded-xl p-5 hover:bg-green-100 transition dark:bg-green-900/20 dark:border-green-800">
+        </Link>
+        <Link to="/results" className="bg-green-50 border border-green-200 rounded-xl p-5 hover:bg-green-100 transition dark:bg-green-900/20 dark:border-green-800">
           <div className="text-3xl mb-2">📊</div>
           <h3 className="font-semibold text-green-700">{t('dashboard.myResults')}</h3>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('dashboard.viewHistory')}</p>
-        </a>
-        <a href="/profile" className="bg-purple-50 border border-purple-200 rounded-xl p-5 hover:bg-purple-100 transition dark:bg-purple-900/20 dark:border-purple-800">
+        </Link>
+        <Link to="/profile" className="bg-purple-50 border border-purple-200 rounded-xl p-5 hover:bg-purple-100 transition dark:bg-purple-900/20 dark:border-purple-800">
           <div className="text-3xl mb-2">👤</div>
           <h3 className="font-semibold text-purple-700">{t('dashboard.profile')}</h3>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('dashboard.manageAccount')}</p>
-        </a>
+        </Link>
       </div>
     </div>
   )

@@ -20,17 +20,15 @@ async function parseDocx(file) {
   for (const para of paragraphs) {
     let text = ''
     let match
-    while ((match = textRegex.exec(para)) !== null) {
-      text += match[1]
-    }
+    while ((match = textRegex.exec(para)) !== null) text += match[1]
     textRegex.lastIndex = 0
 
     text = text.trim()
     if (!text || text.length < 5) continue
 
-    // Extract order number
     const numMatch = text.match(numberRegex)
     if (!numMatch) continue
+
     const order = parseInt(numMatch[1])
     const cleanText = text.replace(numberRegex, '').trim()
 
@@ -43,42 +41,36 @@ async function parseDocx(file) {
     else if (color === 'FF0000') answer = 'false'
 
     if (answer && cleanText) {
-      questions.push({ order, text: cleanText, type: 'yes_no', options: ['true', 'false'], correctAnswer: answer })
+      questions.push({ order, text: cleanText, correctAnswer: answer })
     }
   }
 
   return questions
 }
 
-async function fetchAllExistingQuestions(courseId, sourceFile) {
+async function fetchAllExistingQuestions(courseId) {
   let page = 1
   let all = []
-  let pageCount = 1
 
-  do {
+  while (true) {
     const res = await api.get('/questions', {
       params: {
         'filters[course][documentId][$eq]': courseId,
-        'filters[sourceFile][$containsi]': sourceFile,
         'pagination[page]': page,
         'pagination[pageSize]': 100,
         'sort': 'order:asc',
       },
     })
 
-    const data = res.data.data || []
-    all = all.concat(data)
-    pageCount = res.data.meta?.pagination?.pageCount || 1
+    const items = res.data.data || []
+    all = [...all, ...items]
+
+    const { pagination } = res.data.meta
+    if (page >= pagination.pageCount) break
     page++
-  } while (page <= pageCount)
+  }
 
   return all
-}
-
-// Extract year from filename e.g. "Kata_2024.docx" → "2024"
-function extractYear(filename) {
-  const match = filename.match(/20\d{2}/)
-  return match ? match[0] : new Date().getFullYear().toString()
 }
 
 export default function AdminImport() {
@@ -97,7 +89,7 @@ export default function AdminImport() {
     queryFn: () => api.get('/courses?sort=title:asc').then(r => r.data.data)
   })
 
-  const handleFile = async (e) => {
+  const handleFileChange = async (e) => {
     const f = e.target.files[0]
     if (!f) return
     setFile(f)
@@ -120,45 +112,26 @@ export default function AdminImport() {
     setImporting(true)
 
     const stats = { created: 0, updated: 0, skipped: 0, failed: 0 }
-    const year = extractYear(file?.name || '')
-    const sourceFile = file?.name?.replace(/\.[^.]+$/, '') || 'unknown'
     const langField = language === 'lv' ? 'textLv' : language === 'ru' ? 'textRu' : 'textEn'
+    const sourceFileName = file?.name || 'unknown'
 
-    // Fetch ALL existing questions for this course + sourceFile
     let existing = []
     try {
-      existing = await fetchAllExistingQuestions(selectedCourse, sourceFile)
+      existing = await fetchAllExistingQuestions(selectedCourse)
     } catch (e) {
       console.error('Failed to fetch existing', e)
     }
 
-    // Build order map: order number → existing question
     const orderMap = {}
     for (const q of existing) {
-      console.log('ORDER MAP KEYS', Object.keys(orderMap).slice(0, 10))
-      console.log('ORDER MAP KEYS TAIL', Object.keys(orderMap).slice(-10))
-      if (q.order != null) {
-        orderMap[Number(q.order)] = q
-      }
+      if (q.order != null) orderMap[Number(q.order)] = q
     }
 
     for (const q of questions) {
       const existingQ = orderMap[Number(q.order)]
 
-      console.log('IMPORT ROW', {
-        order: q.order,
-        orderType: typeof q.order,
-        text: q.text.slice(0, 40),
-        exists: !!existingQ,
-        existingOrder: existingQ?.order,
-        existingOrderType: typeof existingQ?.order,
-        existingSourceFile: existingQ?.sourceFile,
-        existingLang: existingQ?.sourceLang,
-      })
-
       try {
         if (!existingQ) {
-          // No question at this order — create new
           await api.post('/questions', {
             data: {
               text: q.text,
@@ -171,36 +144,34 @@ export default function AdminImport() {
               order: q.order,
               course: selectedCourse,
               sourceLang: language,
-              sourceFile: `${sourceFile} (${year})`,
+              sourceFile: sourceFileName,
             }
           })
           stats.created++
         } else {
-          // Question exists — check what to do
           const existingLangText = existingQ[langField]
           const answerChanged = existingQ.correctAnswer !== q.correctAnswer
+          const langTextChanged = existingLangText !== q.text
 
           if (!existingLangText) {
-            // This language doesn't exist yet on this question — attach translation
-            const updateData = {
-              [langField]: q.text,
-            }
-            // Also update answer if this is a newer year
-            if (answerChanged) {
-              updateData.correctAnswer = q.correctAnswer
-            }
-            await api.put(`/questions/${existingQ.documentId}`, { data: updateData })
+            await api.put(`/questions/${existingQ.documentId}`, {
+              data: {
+                [langField]: q.text,
+                sourceFile: sourceFileName,
+                ...(answerChanged ? { correctAnswer: q.correctAnswer } : {}),
+              }
+            })
             stats.updated++
-          } else if (existingLangText === q.text && !answerChanged) {
-            // Same language, same text, same answer — skip
+          } else if (!answerChanged && !langTextChanged) {
             stats.skipped++
           } else {
-            // Same language but something changed — update
-            const updateData = { [langField]: q.text }
-            if (answerChanged) {
-              updateData.correctAnswer = q.correctAnswer
-            }
-            await api.put(`/questions/${existingQ.documentId}`, { data: updateData })
+            await api.put(`/questions/${existingQ.documentId}`, {
+              data: {
+                [langField]: q.text,
+                sourceFile: sourceFileName,
+                ...(answerChanged ? { correctAnswer: q.correctAnswer } : {}),
+              }
+            })
             stats.updated++
           }
         }
@@ -212,25 +183,21 @@ export default function AdminImport() {
 
     setResults(stats)
     setImporting(false)
-    console.log('QUERY SOURCE FILE', sourceFile)
-    console.log('STORED SOURCE FILE', `${sourceFile} (${year})`)
   }
 
   const trueCount = questions.filter(q => q.correctAnswer === 'true').length
   const falseCount = questions.filter(q => q.correctAnswer === 'false').length
 
+  const canImport = selectedCourse && questions.length > 0
+
   return (
     <div className="max-w-2xl">
       <h1 className="text-3xl font-bold text-blue-700 mb-2">Import Questions</h1>
-      <p className="mb-1 text-sm" style={{ color: 'var(--text-secondary)' }}>
+      <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
         Import yes/no questions from .docx. Green = true, Red = false.
-      </p>
-      <p className="mb-6 text-xs" style={{ color: 'var(--text-muted)' }}>
-        Dedup by order number + course. Same order + new year = update answer. Translation = add language to existing.
       </p>
 
       <div className="space-y-4">
-        {/* Step 1 */}
         <div className="rounded-xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
           <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>1. Upload .docx file</h2>
           <div
@@ -243,9 +210,9 @@ export default function AdminImport() {
               {file ? file.name : 'Click to select .docx file'}
             </p>
             <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-              Include year in filename e.g. Kata_2025.docx for version tracking
+              Include year in filename e.g. Kata_2025.docx
             </p>
-            <input ref={fileRef} type="file" accept=".docx" onChange={handleFile} className="hidden" />
+            <input ref={fileRef} type="file" accept=".docx" onChange={handleFileChange} className="hidden" />
           </div>
 
           {parsing && (
@@ -258,7 +225,7 @@ export default function AdminImport() {
           {questions.length > 0 && (
             <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor: 'var(--bg-secondary)' }}>
               <span className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
-                ✅ {questions.length} questions (Q{questions[0]?.order}–Q{questions[questions.length-1]?.order})
+                ✅ {questions.length} questions (#{questions[0]?.order}–#{questions[questions.length - 1]?.order})
               </span>
               <span className="ml-3 text-sm text-green-600">✓ {trueCount}</span>
               <span className="ml-3 text-sm text-red-500">✗ {falseCount}</span>
@@ -266,7 +233,6 @@ export default function AdminImport() {
           )}
         </div>
 
-        {/* Step 2 */}
         {questions.length > 0 && (
           <div className="rounded-xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
             <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>2. Course & Language</h2>
@@ -304,35 +270,24 @@ export default function AdminImport() {
                 ))}
               </div>
 
-              {file && (
-                <div className="p-3 rounded-lg text-xs" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>
-                  <span>Year detected: </span>
-                  <strong style={{ color: 'var(--text-primary)' }}>{extractYear(file.name)}</strong>
-                  <span className="ml-2">• Source: </span>
-                  <strong style={{ color: 'var(--text-primary)' }}>{file.name}</strong>
-                </div>
-              )}
-
               <div className="p-3 rounded-lg text-xs space-y-1" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>
-                <p><strong style={{ color: 'var(--text-primary)' }}>Dedup rules (by order number):</strong></p>
-                <p>🟢 New order → <span className="text-green-600">create</span></p>
-                <p>🔵 Same order, add translation → <span className="text-blue-500">update textLv/textEn/textRu</span></p>
-                <p>🟡 Same order, newer file → <span className="text-yellow-600">update answer if changed</span></p>
-                <p>⚪ Same order, same file, same answer → <span>skip</span></p>
+                <p><strong style={{ color: 'var(--text-primary)' }}>Match key: course + order</strong></p>
+                <p>🟢 New order number → <span className="text-green-600">create</span></p>
+                <p>🔵 Same order, missing language → <span className="text-blue-500">attach translation</span></p>
+                <p>🟡 Same order, answer changed → <span className="text-yellow-600">update answer</span></p>
+                <p>⚪ Same order, same text, same answer → <span>skip</span></p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Step 3 */}
         {questions.length > 0 && selectedCourse && (
           <div className="rounded-xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
             <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>3. Preview & Import</h2>
 
             <div className="max-h-48 overflow-y-auto space-y-1.5 mb-4">
               {questions.slice(0, 15).map((q, i) => (
-                <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg text-sm"
-                  style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg text-sm" style={{ backgroundColor: 'var(--bg-secondary)' }}>
                   <span className="flex-shrink-0 text-xs font-mono w-8" style={{ color: 'var(--text-muted)' }}>
                     #{q.order}
                   </span>
@@ -361,7 +316,7 @@ export default function AdminImport() {
                     <div className="font-bold text-xl">{results.updated}</div>
                     <div className="text-xs">Updated</div>
                   </div>
-                  <div className="p-2 rounded text-gray-600" style={{ backgroundColor: 'var(--bg-card)' }}>
+                  <div className="p-2 rounded" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)' }}>
                     <div className="font-bold text-xl">{results.skipped}</div>
                     <div className="text-xs">Skipped</div>
                   </div>
@@ -371,7 +326,7 @@ export default function AdminImport() {
                   </div>
                 </div>
                 <button
-                  onClick={() => { setResults(null); setFile(null); setQuestions([]) }}
+                  onClick={() => { setResults(null); setFile(null); setQuestions([]); setSelectedCourse(''); setLanguage('lv') }}
                   className="w-full py-2 rounded-lg text-sm border transition"
                   style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-card)' }}
                 >
@@ -381,7 +336,7 @@ export default function AdminImport() {
             ) : (
               <button
                 onClick={handleImport}
-                disabled={importing}
+                disabled={importing || !canImport}
                 className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {importing ? (
@@ -389,7 +344,9 @@ export default function AdminImport() {
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     Importing...
                   </>
-                ) : `Import ${questions.length} Questions → ${courses?.find(c => c.documentId === selectedCourse)?.title || ''}`}
+                ) : (
+                  <>Import {questions.length} questions</>
+                )}
               </button>
             )}
           </div>
