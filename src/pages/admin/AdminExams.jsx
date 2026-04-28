@@ -16,7 +16,7 @@ export default function AdminExams() {
 
   const { data: exams, isLoading } = useQuery({
     queryKey: ['admin-exams'],
-    queryFn: () => api.get('/exams?populate=course&sort=createdAt:desc').then(r => r.data.data)
+    queryFn: () => api.get('/exams?populate[0]=course&populate[1]=questions&sort=createdAt:desc').then(r => r.data.data)
   })
 
   const { data: courses } = useQuery({
@@ -26,7 +26,27 @@ export default function AdminExams() {
 
   const { data: courseQuestions } = useQuery({
     queryKey: ['course-questions', form.course],
-    queryFn: () => api.get(`/questions?filters[course][documentId][$eq]=${form.course}&populate[0]=media&sort=createdAt:asc`).then(r => r.data.data),
+    queryFn: async () => {
+      let page = 1
+      let all = []
+      while (true) {
+        const res = await api.get('/questions', {
+          params: {
+            'filters[course][documentId][$eq]': form.course,
+            'pagination[page]': page,
+            'pagination[pageSize]': 100,
+            'populate[0]': 'media',
+            'sort': 'order:asc',
+          },
+        })
+        const items = res.data.data || []
+        all = [...all, ...items]
+        const { pagination } = res.data.meta
+        if (page >= pagination.pageCount) break
+        page++
+      }
+      return all
+    },
     enabled: !!form.course
   })
 
