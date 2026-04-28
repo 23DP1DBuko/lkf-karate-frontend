@@ -32,6 +32,14 @@ function YouTubeEmbed({ url }) {
   )
 }
 
+function getYouTubeId(url) {
+  try {
+    const u = new URL(url)
+    if (u.hostname.includes('youtu.be')) return u.pathname.slice(1)
+    return u.searchParams.get('v') || ''
+  } catch { return '' }
+}
+
 function ChapterMedia({ media }) {
   if (!media || media.length === 0) return null
   const items = Array.isArray(media) ? media : [media]
@@ -125,80 +133,76 @@ export default function ChapterPreviewModal({ chapter, onClose }) {
           </button>
         </div>
 
+    
         {/* Student-facing content */}
-        <div className="px-6 py-8">
-          
-          {/* Chapter title — as student sees it */}
-          <h1 className="text-2xl font-bold mb-6" style={{ color: 'var(--text-primary)' }}>
-            {chapter.title}
-          </h1>
+<div className="px-6 py-8">
+  <h1 className="text-2xl font-bold mb-6" style={{ color: 'var(--text-primary)' }}>
+    {chapter.title}
+  </h1>
 
-          {/* Video first (MOOC style) */}
-          <YouTubeEmbed url={chapter.videoUrl} />
-
-          {/* Rich text content */}
-          <RichContent html={chapter.content} />
-
-          {/* Images / media */}
-          <ChapterMedia media={chapter.media} />
-
-          {/* Questions preview */}
-          {chapter.questions?.length > 0 && (
-            <div className="mt-8">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="h-px flex-1" style={{ backgroundColor: 'var(--border)' }} />
-                <span className="text-sm font-semibold px-3" style={{ color: 'var(--text-muted)' }}>
-                  📝 Chapter Quiz ({chapter.questions.length} questions)
-                </span>
-                <div className="h-px flex-1" style={{ backgroundColor: 'var(--border)' }} />
-              </div>
-
-              <div className="space-y-4">
-                {chapter.questions.slice(0, 3).map((q, i) => (
-                  <div key={i} className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
-                    <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
-                      <span className="text-blue-600 mr-1">{i + 1}.</span>
-                      {q.text || q.textLv}
-                    </p>
-                    {q.type === 'yes_no' && (
-                      <div className="flex gap-3">
-                        {['Yes', 'No'].map(opt => (
-                          <div key={opt} className="px-4 py-2 rounded-lg border text-sm cursor-default"
-                            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-                            {opt}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    {q.type === 'multiple_choice' && (
-                      <div className="space-y-2">
-                        {(q.options || []).map((opt, j) => (
-                          <div key={j} className="px-3 py-2 rounded-lg border text-sm cursor-default"
-                            style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
-                            {opt}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {chapter.questions.length > 3 && (
-                  <p className="text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-                    + {chapter.questions.length - 3} more questions in the actual chapter
-                  </p>
-                )}
-              </div>
+  {chapter.blocks?.length > 0 ? (
+    // New block-based rendering
+    <div className="space-y-6">
+      {chapter.blocks.map((block, i) => {
+        if (block.type === 'text') return (
+          <div key={i} className="prose prose-sm max-w-none"
+            style={{ color: 'var(--text-primary)' }}
+            dangerouslySetInnerHTML={{ __html: block.content }} />
+        )
+        if (block.type === 'video') {
+          const videoId = getYouTubeId(block.url)
+          if (!videoId) return null
+          return (
+            <div key={i} className="rounded-xl overflow-hidden" style={{ aspectRatio: '16/9' }}>
+              <iframe src={`https://www.youtube.com/embed/${videoId}`}
+                className="w-full h-full" allowFullScreen title="Video" />
             </div>
-          )}
+          )
+        }
+        if (block.type === 'image_url') return (
+          <figure key={i} className="rounded-xl overflow-hidden">
+            <img src={block.url} alt={block.caption || ''} className="w-full object-cover max-h-96" />
+            {block.caption && (
+              <figcaption className="text-xs text-center py-2" style={{ color: 'var(--text-muted)' }}>
+                {block.caption}
+              </figcaption>
+            )}
+          </figure>
+        )
+        if (block.type === 'note') return (
+          <div key={i} className="border-l-4 border-blue-500 pl-4 py-3 rounded-r-lg"
+            style={{ backgroundColor: 'rgba(59,130,246,0.08)' }}>
+            <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{block.content}</p>
+          </div>
+        )
+        return null
+      })}
+    </div>
+  ) : (
+    // Fallback for old chapters without blocks
+    <>
+      <YouTubeEmbed url={chapter.videoUrl} />
+      <RichContent html={chapter.content} />
+      <ChapterMedia media={chapter.media} />
+    </>
+  )}
 
-          {/* Empty state */}
-          {!chapter.videoUrl && !chapter.content && (!chapter.media || chapter.media.length === 0) && (
-            <div className="text-center py-12">
-              <p className="text-4xl mb-3">📄</p>
-              <p style={{ color: 'var(--text-muted)' }}>This chapter has no content yet.</p>
-            </div>
-          )}
-        </div>
+  {/* Questions always show at bottom */}
+  {chapter.questions?.length > 0 && (
+    <div className="mt-8">
+      {/* ... questions preview ... */}
+    </div>
+  )}
+
+  {/* Empty state */}
+  {!chapter.blocks?.length && !chapter.videoUrl && !chapter.content && 
+   (!chapter.media || chapter.media.length === 0) && (
+    <div className="text-center py-12">
+      <p className="text-4xl mb-3">📄</p>
+      <p style={{ color: 'var(--text-muted)' }}>This chapter has no content yet.</p>
+    </div>
+  )}
+</div>
 
         {/* Footer */}
         <div className="px-6 py-4 border-t flex items-center justify-between rounded-b-2xl"

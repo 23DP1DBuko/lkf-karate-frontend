@@ -182,7 +182,7 @@ export default function ChapterDetail() {
 
   const { data: chapter, isLoading } = useQuery({
     queryKey: ['chapter', chapterDocumentId],
-    queryFn: () => api.get(`/chapters/${chapterDocumentId}?populate=media`).then(r => r.data.data)
+    queryFn: () => api.get(`/chapters/${chapterDocumentId}?populate[0]=course&populate[1]=media&populate[2]=questions`).then(r => r.data.data)
   })
 
   const { data: allChapters } = useQuery({
@@ -262,12 +262,59 @@ export default function ChapterDetail() {
         )}
       </div>
 
-      <YouTubeEmbed url={chapter?.videoUrl} />
-      <MediaDisplay media={chapter?.media} />
-
-      <div className="rounded-xl shadow p-6 mb-6" style={{ backgroundColor: 'var(--bg-card)' }}>
-        <RichText content={chapter?.content} />
-      </div>
+      {chapter?.blocks?.length > 0 ? (
+        <div className="space-y-6 mb-6">
+          {chapter.blocks.map((block, i) => {
+            if (block.type === 'text') return (
+              <div key={i} className="rounded-xl shadow p-6" style={{ backgroundColor: 'var(--bg-card)' }}>
+                <div className="prose prose-slate max-w-none"
+                  style={{ color: 'var(--text-primary)' }}
+                  dangerouslySetInnerHTML={{ __html: block.content }} />
+              </div>
+            )
+            if (block.type === 'video') {
+              const videoId = (() => {
+                try {
+                  const u = new URL(block.url)
+                  return u.hostname.includes('youtu.be') ? u.pathname.slice(1) : u.searchParams.get('v')
+                } catch { return null }
+              })()
+              if (!videoId) return null
+              return (
+                <div key={i} className="aspect-video rounded-xl overflow-hidden shadow">
+                  <iframe src={`https://www.youtube.com/embed/${videoId}`}
+                    className="w-full h-full" allowFullScreen title="Video" />
+                </div>
+              )
+            }
+            if (block.type === 'image_url') return (
+              <figure key={i} className="rounded-xl overflow-hidden shadow">
+                <img src={block.url} alt={block.caption || ''} className="w-full object-cover max-h-96" />
+                {block.caption && (
+                  <figcaption className="text-xs text-center py-2" style={{ color: 'var(--text-muted)' }}>
+                    {block.caption}
+                  </figcaption>
+                )}
+              </figure>
+            )
+            if (block.type === 'note') return (
+              <div key={i} className="border-l-4 border-blue-500 pl-4 py-3 rounded-r-lg"
+                style={{ backgroundColor: 'rgba(59,130,246,0.08)' }}>
+                <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{block.content}</p>
+              </div>
+            )
+            return null
+          })}
+        </div>
+      ) : (
+        <>
+          <YouTubeEmbed url={chapter?.videoUrl} />
+          <MediaDisplay media={chapter?.media} />
+          <div className="rounded-xl shadow p-6 mb-6" style={{ backgroundColor: 'var(--bg-card)' }}>
+            <RichText content={chapter?.content} />
+          </div>
+        </>
+      )}
 
       {/* Chapter Quiz */}
       {hasQuestions && (

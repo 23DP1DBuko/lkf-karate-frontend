@@ -3,11 +3,11 @@ import { useState } from 'react'
 import api from '../../api/strapi'
 import MediaUpload from '../../components/MediaUpload'
 import RichTextEditor from '../../components/RichTextEditor'
-import { mediaUrl } from '../../api/media'
 import IconButton from '../../components/IconButton'
 import { PencilIcon, TrashIcon, EyeIcon } from '@heroicons/react/24/outline'
 import { SkeletonTable } from '../../components/Skeleton'
 import ChapterPreviewModal from '../../components/ChapterPreviewModal'
+import BlockEditor from '../../components/BlockEditor'
 
 export default function AdminChapters() {
   const queryClient = useQueryClient()
@@ -16,9 +16,20 @@ export default function AdminChapters() {
   const [filterCourse, setFilterCourse] = useState('all')
   const [previewChapter, setPreviewChapter] = useState(null)
   const [form, setForm] = useState({
-    title: '', content: '', order: 1, videoUrl: '', course: '', media: null
+    title: '', content: '', blocks: [], order: 1, videoUrl: '', course: '', media: null
   })
+  const [editingId, setEditingId] = useState(null)
   
+  const emptyForm = {
+    title: '',
+    content: '',  // keep for backward compat
+    blocks: [],   // new block-based content
+    order: 1,
+    videoUrl: '',
+    course: '',
+    media: null,
+  }
+
   const { data: chapters, isLoading } = useQuery({
     queryKey: ['admin-chapters'],
     queryFn: () => api.get('/chapters?populate[0]=course&populate[1]=media&populate[2]=questions&sort=order:asc&pagination[limit]=200').then(r => r.data.data)
@@ -51,40 +62,45 @@ export default function AdminChapters() {
   })
 
   const resetForm = () => {
-    setForm({ title: '', content: '', order: 1, videoUrl: '', course: '' })
+    setForm(emptyForm)  // Now uses it
+    setEditingId(null)
     setShowForm(false)
-    setEditingChapter(null)
   }
 
+  
   const handleEdit = (chapter) => {
-    setEditingChapter(chapter)
     setForm({
-      title: chapter.title,
-      content: chapter.content?.[0]?.children?.[0]?.text || '',
-      order: chapter.order,
+      title: chapter.title || '',
+      content: chapter.content || '',
+      blocks: chapter.blocks || [],
+      order: chapter.order || 1,
       videoUrl: chapter.videoUrl || '',
       course: chapter.course?.documentId || '',
       media: chapter.media || null,
     })
+    setEditingId(chapter.documentId)
+    setEditingChapter(chapter)
     setShowForm(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
-    const data = {
-      title: form.title,
-      content: form.content,
-      order: Number(form.order),
-      videoUrl: form.videoUrl,
-      course: form.course,
-      media: form.media ? form.media.id : null,
-    }
-    if (editingChapter) {
-      updateMutation.mutate({ documentId: editingChapter.documentId, data })
-    } else {
-      createMutation.mutate(data)
-    }
+const handleSubmit = (e) => {
+  e.preventDefault()
+  const data = {
+    title: form.title,
+    content: form.content,
+    order: Number(form.order),
+    videoUrl: form.videoUrl,
+    course: form.course,
+    media: form.media ? form.media.id : null,
+    blocks: form.blocks || [],
   }
+  if (editingId) {
+    updateMutation.mutate({ documentId: editingId, data })
+  } else {
+    createMutation.mutate(data)
+  }
+}
 
   const handleDelete = (documentId) => {
     if (window.confirm('Delete this chapter?')) {
@@ -116,7 +132,7 @@ export default function AdminChapters() {
       {showForm && (
         <div className="bg-white rounded-xl shadow p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4">
-            {editingChapter ? 'Edit Chapter' : 'Create New Chapter'}
+            {editingId ? 'Edit Chapter' : 'Create New Chapter'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -146,10 +162,15 @@ export default function AdminChapters() {
               />
             </div>
             <div>
-              <RichTextEditor
-                label="Content"
-                value={form.content}
-                onChange={(val) => setForm({ ...form, content: val })}
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+                Content Blocks
+              </label>
+              <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+                Add text, videos, images in any order. Students see them in this order.
+              </p>
+              <BlockEditor
+                blocks={form.blocks}
+                onChange={blocks => setForm({ ...form, blocks })}
               />
             </div>
             <div className="flex gap-4">
@@ -186,7 +207,7 @@ export default function AdminChapters() {
                 disabled={createMutation.isPending || updateMutation.isPending}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {editingChapter ? 'Update Chapter' : 'Create Chapter'}
+                {editingId ? 'Update Chapter' : 'Create Chapter'}
               </button>
               <button
                 type="button"
@@ -225,16 +246,16 @@ export default function AdminChapters() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {chapters?.map(chapter => (
+            {filtered?.map(chapter => (
               <tr key={chapter.id} className="border-b hover:opacity-80 transition" style={{ borderColor: 'var(--border)' }}>
                 <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>{chapter.title}</td>
                 <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{chapter.course?.title || '—'}</td>
                 <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{chapter.order}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1 justify-end">
-                    <IconButton icon={EyeIcon} label="Preview chapter" onClick={() => setPreviewChapter(chapter)} variant="default" size="sm" />
-                    <IconButton icon={PencilIcon} label="Edit chapter" onClick={() => handleEdit(chapter)} variant="default" size="sm" />
-                    <IconButton icon={TrashIcon} label="Delete chapter" onClick={() => handleDelete(chapter.documentId)} variant="danger" size="sm" />
+                    <IconButton icon={EyeIcon} type="button" label="Preview chapter" onClick={() => setPreviewChapter(chapter)} variant="default" size="sm" />
+                    <IconButton icon={PencilIcon} type="button" label="Edit chapter" onClick={() => handleEdit(chapter)} variant="default" size="sm" />
+                    <IconButton icon={TrashIcon} type="button" label="Delete chapter" onClick={() => handleDelete(chapter.documentId)} variant="danger" size="sm" />
                   </div>
                 </td>
               </tr>

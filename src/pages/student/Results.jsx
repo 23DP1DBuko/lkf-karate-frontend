@@ -1,5 +1,5 @@
 /* Results.jsx */
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../api/strapi'
 import { useTranslation } from 'react-i18next'
@@ -8,11 +8,11 @@ import { SkeletonList } from '../../components/Skeleton'
 export default function Results() {
   const { user } = useAuth()
   const { t } = useTranslation()
-
+  const queryClient = useQueryClient()
   const { data: attempts, isLoading } = useQuery({
-    queryKey: ['attempts', user?.id],
-    queryFn: () => api.get(`/exam-attempts?populate=exam&sort=createdAt:desc`).then(r => r.data.data)
-  })
+  queryKey: ['attempts', user?.id],
+  queryFn: () => api.get(`/exam-attempts?populate=exam&sort=createdAt:desc`).then(r => r.data.data),
+})
 
   if (isLoading) return (
     <div>
@@ -77,6 +77,13 @@ export default function Results() {
           )
         })}
       </div>
+
+      <button
+        onClick={() => queryClient.invalidateQueries(['attempts'])}
+        className="text-sm text-blue-600 hover:underline"
+      >
+        ↻ Refresh
+      </button>
     </div>
   )
 }

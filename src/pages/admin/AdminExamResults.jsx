@@ -5,6 +5,7 @@ import api from '../../api/strapi'
 import IconButton from '../../components/IconButton'
 import { EyeIcon } from '@heroicons/react/24/outline'
 
+
 export default function AdminExamResults() {
   const queryClient = useQueryClient()
   const [selectedAttempt, setSelectedAttempt] = useState(null)
@@ -12,9 +13,11 @@ export default function AdminExamResults() {
   const [search, setSearch] = useState('')
 
   const { data: attempts, isLoading } = useQuery({
-    queryKey: ['admin-attempts'],
-    queryFn: () => api.get('/exam-attempts/all').then(r => r.data.data)
-  })
+  queryKey: ['admin-attempts'],
+  queryFn: () => api.get('/exam-attempts/all').then(r => r.data.data),
+})
+
+
 
   const filteredAttempts = attempts?.filter(attempt => {
     if (!search.trim()) return true
@@ -39,6 +42,31 @@ export default function AdminExamResults() {
       api.put(`/exams/${examDocumentId}`, { data: { resultsReleased: true } }),
     onSuccess: () => queryClient.invalidateQueries(['admin-attempts'])
   })
+
+  const handleClearAttempts = async () => {
+    if (!window.confirm('Delete ALL exam attempts? This cannot be undone.')) return
+    
+    try {
+      let page = 1
+      let allIds = []
+      while (true) {
+        const res = await api.get(`/exam-attempts/all?pagination[page]=${page}&pagination[pageSize]=${100}`)
+        const items = res.data?.attempts || res.data?.data || []
+        allIds = [...allIds, ...items.map(a => a.documentId || a.id)]
+        if (items.length < 100) break
+        page++
+      }
+      for (const id of allIds) {
+        await api.delete(`/exam-attempts/${id}`)
+      }
+      // Clear all caches
+      queryClient.clear()
+      alert(`Deleted ${allIds.length} attempts`)
+    } catch (err) {
+      console.error(err)
+      alert('Failed: ' + err.message)
+    }
+  }
 
   const handleGrade = (attempt) => {
     const questions = attempt.questions || []
@@ -78,6 +106,12 @@ export default function AdminExamResults() {
           className="text-blue-600 hover:underline text-sm mb-4 block"
         >
           ← Back to Results
+        </button>
+        <button
+          onClick={handleClearAttempts}
+          className="px-3 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"
+        >
+          🗑️ Clear All Attempts
         </button>
 
         <h1 className="text-2xl font-bold text-blue-700 mb-1">
