@@ -171,6 +171,7 @@ const handleSubmit = (e) => {
               <BlockEditor
                 blocks={form.blocks}
                 onChange={blocks => setForm({ ...form, blocks })}
+                courseId={form.course}
               />
             </div>
             <div className="flex gap-4">

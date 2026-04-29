@@ -303,6 +303,34 @@ export default function ChapterDetail() {
                 <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{block.content}</p>
               </div>
             )
+            if (block.type === 'question') return (
+              <QuestionCard
+                key={i}
+                question={{
+                  id: block.id,
+                  text: block.content,
+                  type: block.questionType || 'yes_no',
+                  options: block.options?.length ? block.options : ['true', 'false'],
+                  correctAnswer: block.correctAnswer,
+                  media: null,
+                }}
+                onCorrect={handleCorrect}
+              />
+            )
+            if (block.type === 'bank_question') return (
+              <QuestionCard
+                key={i}
+                question={{
+                  id: block.id,
+                  text: block.content,
+                  type: block.questionType || 'yes_no',
+                  options: block.options?.length ? block.options : ['true', 'false'],
+                  correctAnswer: block.correctAnswer,
+                  media: null,
+                }}
+                onCorrect={handleCorrect}
+              />
+            )
             return null
           })}
         </div>
