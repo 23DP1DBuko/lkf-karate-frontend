@@ -17,3 +17,12 @@ api.interceptors.request.use((config) => {
 })
 
 export default api
+
+export function getQuestionText(question, language) {
+  if (!question) return ''
+  if (language === 'lv' && question.textLv) return question.textLv
+  if (language === 'ru' && question.textRu) return question.textRu
+  if (language === 'en' && question.textEn) return question.textEn
+  // fallback chain
+  return question.textLv || question.textEn || question.textRu || question.text || ''
+}

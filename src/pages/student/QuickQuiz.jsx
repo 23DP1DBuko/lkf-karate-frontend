@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import api from '../../api/strapi'
 import { mediaUrl } from '../../api/media'
+import { useTranslation } from 'react-i18next'
+import { getQuestionText } from '../../api/strapi'
 
 function QuestionMedia({ media }) {
   if (!media) return null
@@ -46,6 +48,7 @@ export default function QuickQuiz() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [courseTitle, setCourseTitle] = useState('')
+  const { i18n } = useTranslation()
 
   const handleStart = async () => {
     setLoading(true)
@@ -156,7 +159,7 @@ export default function QuickQuiz() {
                     backgroundColor: isCorrect ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
                     borderColor: isCorrect ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)',
                   }}>
-                  <p className="text-sm font-medium mb-1">{i + 1}. {q.text}</p>
+                  <p className="text-sm font-medium mb-1">{i + 1}. {getQuestionText(q, i18n.language)}</p>
                   <p className="text-xs text-gray-500">Your answer: <span className={isCorrect ? 'text-green-600' : 'text-red-600'}>{userAnswer || 'No answer'}</span></p>
                   {!isCorrect && <p className="text-xs text-green-600">Correct: {q.correctAnswer}</p>}
                 </div>
@@ -195,7 +198,7 @@ export default function QuickQuiz() {
           <div key={q.id} className="bg-white rounded-xl shadow p-6">
             <p className="font-semibold mb-4">
               <span className="text-blue-600 mr-2">{index + 1}.</span>
-              {q.text}
+              {getQuestionText(q, i18n.language)}
             </p>
             <QuestionMedia media={q.media} />
 

@@ -16,7 +16,7 @@ export default function AdminChapters() {
   const [filterCourse, setFilterCourse] = useState('all')
   const [previewChapter, setPreviewChapter] = useState(null)
   const [form, setForm] = useState({
-    title: '', content: '', blocks: [], videoUrl: '', course: '', media: null
+    title: '', content: '', blocks: [], course: ''
   })
   const [editingId, setEditingId] = useState(null)
   
@@ -24,9 +24,7 @@ export default function AdminChapters() {
     title: '',
     content: '',  // keep for backward compat
     blocks: [],   // new block-based content
-    videoUrl: '',
     course: '',
-    media: null,
   }
 
   const { data: chapters, isLoading } = useQuery({
@@ -97,9 +95,7 @@ export default function AdminChapters() {
       title: chapter.title || '',
       content: chapter.content || '',
       blocks: chapter.blocks || [],
-      videoUrl: chapter.videoUrl || '',
       course: chapter.course?.documentId || '',
-      media: chapter.media || null,
     })
     setEditingId(chapter.documentId)
     setEditingChapter(chapter)
@@ -133,9 +129,7 @@ const handleSubmit = (e) => {
     title: form.title,
     content: form.content,
     order,
-    videoUrl: form.videoUrl,
     course: form.course,
-    media: form.media ? form.media.id : null,
     blocks: form.blocks || [],
     questions: bankQuestionIds,
   }
@@ -216,24 +210,6 @@ const handleSubmit = (e) => {
                 blocks={form.blocks}
                 onChange={blocks => setForm({ ...form, blocks })}
                 courseId={form.course}
-              />
-            </div>
-            <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="block text-sm font-medium mb-1">Video URL (YouTube)</label>
-                <input
-                  type="text"
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={form.videoUrl}
-                  onChange={e => setForm({ ...form, videoUrl: e.target.value })}
-                  placeholder="https://youtube.com/watch?v=..."
-                />
-              </div>
-              <MediaUpload
-                label="Chapter Media (images/videos)"
-                multiple={false}
-                current={form.media}
-                onUpload={(file) => setForm({ ...form, media: file })}
               />
             </div>
             <div className="flex gap-3">

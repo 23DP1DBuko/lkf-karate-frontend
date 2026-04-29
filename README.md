@@ -30,6 +30,8 @@ LKF Karate LMS ir pilna steka tīmekļa lietojumprogramma, kas paredzēta Latvij
 | Axios | 1.x | HTTP pieprasījumi |
 | TipTap | 2 | Bagātināts teksta redaktors |
 | i18next | 24 | Daudzvalodība (LV/RU/EN) |
+| Heroicons | 2 | Ikonas |
+| JSZip | 3 | Word dokumentu parsēšana |
 | Vite PWA Plugin | 0.21 | PWA atbalsts |
 | Vitest | 3 | Testēšana |
 
@@ -47,7 +49,6 @@ LKF Karate LMS ir pilna steka tīmekļa lietojumprogramma, kas paredzēta Latvij
 |---|---|
 | Vercel | Frontend hosting |
 | Railway | Backend + PostgreSQL hosting |
-| Cloudinary | Mediju glabāšana (plānots) |
 
 ---
 
@@ -64,7 +65,7 @@ LKF Karate LMS ir pilna steka tīmekļa lietojumprogramma, kas paredzēta Latvij
 | Vismaz 5 testi | ✅ | 7 vienību testi ar Vitest |
 | Izvietošana | ✅ | Vercel + Railway |
 | README + ERD | ✅ | Šis dokuments + datu modeļa shēma |
-| Daudzvalodība | ✅ | Latvija / Krievu / Angļu |
+| Daudzvalodība | ✅ | Latviešu / Krievu / Angļu |
 
 ---
 
@@ -94,12 +95,13 @@ Referrer-Policy: no-referrer
 
 ### 👤 Viesis (neautentificēts)
 - Skatīt sākumlapu
+- Skatīt WKF sacensību noteikumus (/rules) — bez pieteikšanās
 - Reģistrēties / Ieiet
 
 ### 🎓 Students (autentificēts, apstiprināts)
-- Skatīt un apgūt kursus
-- Lasīt nodaļas (teksts, video, attēli)
-- Kārtot nodaļu testus
+- Skatīt un apgūt kursus ar bloku saturu (teksts, video, attēli, jautājumi)
+- Lasīt nodaļas MOOC stilā
+- Kārtot nodaļu testus (jautājumi no blokiem vai jautājumu bankas)
 - Kārtot kvalifikācijas eksāmenus
 - Ātrais tests (nejaušas jautājumu)
 - Skatīt savus rezultātus
@@ -109,38 +111,47 @@ Referrer-Policy: no-referrer
 ### 🔑 Admins (isAdmin = true)
 - Viss ko Students
 - CRUD kursi, nodaļas, jautājumi, eksāmeni
+- Bloku redaktors nodaļām (teksts, video, attēli, piezīmes, jautājumi)
+- Jautājumu importēšana no Word dokumentiem ar dedup loģiku
 - Apstiprināt / noraidīt lietotājus
 - Skatīt un vērtēt eksāmenu atbildes
 - Publicēt eksāmenu rezultātus
+- Dzēst visus jautājumus kursam (ar apstiprinājumu)
 
 ---
 
 ## 📊 Datu modelis (ERD)
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│      User       │     │     Course      │     │    Chapter      │
-├─────────────────┤     ├─────────────────┤     ├─────────────────┤
-│ id (PK)         │     │ id (PK)         │     │ id (PK)         │
-│ username        │     │ title           │     │ title           │
-│ email           │     │ description     │     │ content (HTML)  │
-│ password (hash) │     │ slug            │     │ order           │
-│ firstName       │     │ category        │     │ videoUrl        │
-│ lastName        │     │ published       │     │ media (FK)      │
-│ isAdmin         │     │                 │     │ course_id (FK)  │
-│ verification    │     └────────┬────────┘     └────────┬────────┘
-│ rejectionReason │              │                       │
-└────────┬────────┘              │ 1:N                   │ 1:N
-         │                       │                       │
-         │         ┌─────────────▼────┐      ┌──────────▼──────┐
-         │         │    Question      │      │ ChapterProgress  │
-         │         ├──────────────────┤      ├─────────────────┤
-         │         │ id (PK)          │      │ id (PK)         │
-         │         │ text             │      │ seen            │
-         │         │ type             │      │ seenAt          │
-         │         │ options (JSON)   │      │ user_id (FK)    │
-         │         │ correctAnswer    │      │ chapter_id (FK) │
-         │         │ media (FK)       │      └─────────────────┘
+┌─────────────────┐     ┌─────────────────┐     ┌──────────────────────┐
+│      User       │     │     Course      │     │       Chapter        │
+├─────────────────┤     ├─────────────────┤     ├──────────────────────┤
+│ id (PK)         │     │ id (PK)         │     │ id (PK)              │
+│ username        │     │ title           │     │ title                │
+│ email           │     │ description     │     │ content (HTML)       │
+│ password (hash) │     │ slug            │     │ blocks (JSON)        │
+│ firstName       │     │ category        │     │ order (auto)         │
+│ lastName        │     │ published       │     │ course_id (FK)       │
+│ isAdmin         │     │                 │     │ questions (M2M)      │
+│ verification    │     └────────┬────────┘     └──────────┬───────────┘
+│ rejectionReason │              │                          │
+└────────┬────────┘              │ 1:N                      │ 1:N
+         │                       │                          │
+         │         ┌─────────────▼────┐        ┌───────────▼─────┐
+         │         │    Question      │        │ ChapterProgress  │
+         │         ├──────────────────┤        ├─────────────────┤
+         │         │ id (PK)          │        │ id (PK)         │
+         │         │ text             │        │ seen            │
+         │         │ textLv           │        │ seenAt          │
+         │         │ textRu           │        │ user_id (FK)    │
+         │         │ textEn           │        │ chapter_id (FK) │
+         │         │ type             │        └─────────────────┘
+         │         │ options (JSON)   │
+         │         │ correctAnswer    │
+         │         │ order            │
+         │         │ sourceFile       │
+         │         │ sourceLang       │
+         │         │ media (FK)       │
          │         │ course_id (FK)   │
          │         │ chapter_id (FK)  │
          │         └──────────────────┘
@@ -156,13 +167,11 @@ Referrer-Policy: no-referrer
          │    │ openAt          │     │ startedAt           │
          │    │ closeAt         │     │ submittedAt         │
          │    │ showResults     │     │ exam_id (FK)        │
-         │    │ resultsReleased │     │ user_id (FK)────────┘
+         │    │ resultsReleased │     │ user_id (FK)        │
          │    │ course_id (FK)  │     └─────────────────────┘
          │    └─────────────────┘
          │
-         └──────────────────────────────────────────────────────┘
-                              (user participates in ExamAttempt
-                               and ChapterProgress)
+         └─────────────────────────────────────────────────────┘
 ```
 
 ### Sakarības
@@ -171,12 +180,46 @@ Referrer-Policy: no-referrer
 | Course | 1:N | Chapter |
 | Course | 1:N | Question |
 | Course | 1:N | Exam |
-| Chapter | 1:N | Question |
-| Exam | N:M | Question (selected questions) |
+| Chapter | N:M | Question (no jautājumu bankas) |
+| Exam | N:M | Question (izvēlētie jautājumi) |
 | User | 1:N | ExamAttempt |
 | Exam | 1:N | ExamAttempt |
 | User | 1:N | ChapterProgress |
 | Chapter | 1:N | ChapterProgress |
+
+---
+
+## 📦 Bloku redaktors (BlockEditor)
+
+Nodaļas saturs ir veidots no brīvi sakārtojamiem blokiem:
+
+| Bloka tips | Apraksts |
+|---|---|
+| `text` | Bagātināts teksts (TipTap) ar formatēšanu |
+| `video` | YouTube video iegulšana ar priekšskatījumu |
+| `image` | Attēla augšupielāde uz Strapi mediju bibliotēku ar drag & drop |
+| `note` | Informatīva piezīme / callout bloks |
+| `question` | Manuāli izveidots jautājums (tikai nodaļā) |
+| `bank_question` | Jautājums no jautājumu bankas (saistīts ar Question entītiju) |
+
+Bloki tiek saglabāti kā JSON laukā `blocks` un renderēti secīgi studentam. Blokus var pārkārtot ar bultiņu pogām.
+
+---
+
+## 📥 Jautājumu importēšana
+
+Jautājumus var importēt no Word (.docx) failiem:
+
+- **Formāts:** numurēti jautājumi (1. 2. 3.) ar krāsu kodējumu
+  - 🟢 Zaļš teksts = `true` (pareiza atbilde)
+  - 🔴 Sarkans teksts = `false` (nepareiza atbilde)
+- **Dedup loģika:** atbilstība pēc `course + order`
+  - Jauns jautājums → izveidot
+  - Esošs jautājums, trūkst tulkojuma → pievienot tulkojumu
+  - Esošs jautājums, mainīta atbilde → atjaunināt
+  - Identisks → izlaist
+- **Valodu atbalsts:** LV / RU / EN — katru valodu importē atsevišķi ar vienu un to pašu failu
+- **Versiju izsekošana:** `sourceFile` lauks glabā faila nosaukumu katram jautājumam
 
 ---
 
@@ -196,14 +239,14 @@ Referrer-Policy: no-referrer
 | GET | /api/courses | Visi kursi |
 | GET | /api/courses/:id | Kursa detaļas |
 | GET | /api/chapters | Visas nodaļas |
-| GET | /api/chapters/:id | Nodaļas detaļas |
+| GET | /api/chapters/:id | Nodaļas detaļas ar blokiem |
 | GET | /api/questions | Visi jautājumi |
 
 ### Eksāmeni (pielāgoti galapunkti)
 | Metode | Ceļš | Apraksts |
 |---|---|---|
-| POST | /api/exams/start | Sākt eksāmenu (izveido mēģinājumu) |
-| POST | /api/exams/submit | Iesniegt eksāmenu (novērtē atbildes) |
+| POST | /api/exams/start | Sākt eksāmenu |
+| POST | /api/exams/submit | Iesniegt eksāmenu |
 | POST | /api/exams/quick-quiz | Ātrais tests |
 
 ### Progresa izsekošana
@@ -299,6 +342,18 @@ Lietojumprogramma atbalsta PWA standartu:
 - ✅ Service Worker ar Workbox
 - ✅ Offline kešošana (API atbildes 24h)
 - ✅ Instalējama kā desktop/mobilo lietotne
+- ✅ Optimizēta mobilajām ierīcēm
+
+---
+
+## 📱 Mobilā UX
+
+- **Apakšējā navigācija** — galvenās sadaļas pieejamas ar vienu klikšķi
+- **Admin panelis** — atveras kā apakšējais paplāte no navigācijas pogas
+- **Saliekamais sānjosls** — admins var sakļaut ikonu režīmā ar tooltip vai atvērt kā pārklājumu
+- **Pārvilkšanas žests** — velciet no kreisās malas, lai atvērtu sānjoslu
+- **Pieskaršanās viļņi** — vizuāla atgriezeniskā saite uz katru pogu
+- **Skeleta ekrāni** — ielādes laikā redzami skeleta ekrāni
 
 ---
 
@@ -327,7 +382,7 @@ Platforma atbalsta 3 valodas:
 - 🇷🇺 **Русский**
 - 🇬🇧 **English**
 
-Valodu var mainīt profilā. Izvēle tiek saglabāta localStorage.
+Valodu var mainīt profilā. Izvēle tiek saglabāta localStorage. Pārlūka valoda tiek automātiski noteikta pirmajā apmeklējumā ar `i18next-browser-languagedetector`.
 
 ---
 
@@ -336,17 +391,27 @@ Valodu var mainīt profilā. Izvēle tiek saglabāta localStorage.
 ```
 lkf-karate-frontend/
 ├── src/
-│   ├── api/          # Axios instance + media URL helper
-│   ├── components/   # Navbar, Layout, MediaUpload, RichTextEditor
-│   ├── context/      # AuthContext, ThemeContext
-│   ├── hooks/        # usePageTitle
-│   ├── i18n/         # Tulkojumi (lv, ru, en)
+│   ├── api/              # Axios instance + media URL helper
+│   ├── components/
+│   │   ├── BlockEditor.jsx          # Bloku redaktors nodaļām
+│   │   ├── RichTextEditor.jsx       # TipTap teksta redaktors
+│   │   ├── MediaUpload.jsx          # Failu augšupielāde ar drag & drop
+│   │   ├── Sidebar.jsx              # Saliekamais sānjosls
+│   │   ├── BottomNav.jsx            # Mobilā apakšējā navigācija
+│   │   ├── IconButton.jsx           # Ikonu pogas ar tooltip
+│   │   ├── Skeleton.jsx             # Ielādes skeleta ekrāni
+│   │   └── ChapterPreviewModal.jsx  # Nodaļas priekšskatījums
+│   ├── context/          # AuthContext, ThemeContext
+│   ├── hooks/            # usePageTitle, useRipple
+│   ├── i18n/             # Tulkojumi (lv, ru, en)
 │   ├── pages/
-│   │   ├── auth/     # Login, Register, ForgotPassword, ResetPassword
-│   │   ├── student/  # Courses, CourseDetail, ChapterDetail, ExamPage, Results...
-│   │   └── admin/    # AdminCourses, AdminChapters, AdminQuestions, AdminExams...
-│   └── test/         # Vitest testi
-├── public/           # PWA ikonas, robots.txt
+│   │   ├── auth/         # Login, Register, ForgotPassword, ResetPassword
+│   │   ├── landing/      # Landing, Rules (publisks PDF skatītājs)
+│   │   ├── student/      # Courses, CourseDetail, ChapterDetail, ExamPage...
+│   │   └── admin/        # AdminCourses, AdminChapters, AdminQuestions,
+│   │                     # AdminExams, AdminExamResults, AdminUsers, AdminImport
+│   └── test/             # Vitest testi
+├── public/               # PWA ikonas, robots.txt
 └── vite.config.js
 
 lkf-karate-backend/
@@ -357,14 +422,14 @@ lkf-karate-backend/
 │   │   ├── course/
 │   │   ├── exam/
 │   │   ├── exam-attempt/
-│   │   ├── exam-session/   # Pielāgoti galapunkti
+│   │   ├── exam-session/       # Pielāgoti galapunkti
 │   │   └── question/
 │   └── extensions/
 │       └── users-permissions/
 ├── config/
-│   ├── database.js   # SQLite/PostgreSQL konfigurācija
-│   ├── middlewares.js # CORS + drošības galvenes
-│   └── plugins.js    # E-pasta konfigurācija
+│   ├── database.js       # SQLite/PostgreSQL konfigurācija
+│   ├── middlewares.js    # CORS + drošības galvenes
+│   └── plugins.js        # E-pasta konfigurācija
 └── .env
 ```
 
@@ -373,12 +438,13 @@ lkf-karate-backend/
 ## 🔮 Nākotnes plāni (v2.0)
 
 - 🤖 AI automātiskā vērtēšana (Google Gemini) atvērtā teksta jautājumiem
-- 📊 Analītika - nokārtošanas statistika, grūtākie jautājumi
-- 🔄 Auto-pārvērtēšana - mainot pareizo atbildi, automātiski pārrēķina rezultātus
-- 📡 Reāllaika monitorings - vecākais tiesnesis redz eksāmena progresu
+- 📊 Analītika — nokārtošanas statistika, grūtākie jautājumi
+- 🔄 Auto-pārvērtēšana — mainot pareizo atbildi, automātiski pārrēķina rezultātus
+- 📡 Reāllaika monitorings — vecākais tiesnesis redz eksāmena progresu
 - 📜 PDF sertifikāti pēc nokārtošanas
 - 📅 Kalendārs ar eksāmenu atgādinājumiem
 - 🌐 Pilns daudzvalodīgs saturs (kursi/jautājumi LV/RU/EN)
+- 📄 PDF parsēšana — WKF noteikumu automātiska sadalīšana nodaļās
 
 ---
 

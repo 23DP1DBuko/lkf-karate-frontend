@@ -36,7 +36,10 @@ export default function AdminQuestions() {
   const [editingQuestion, setEditingQuestion] = useState(null)
   const [filterCourse, setFilterCourse] = useState('all')
   const [form, setForm] = useState({
-    text: '', type: 'multiple_choice', options: ['', '', '', ''], correctAnswer: '', course: '', media: null, chapter: ''
+    text: '', textLv: '', textRu: '', textEn: '',
+    type: 'multiple_choice', options: ['', '', '', ''],
+    correctAnswer: '', course: '', media: null, chapter: '',
+    order: ''
   })
   const [deleteModal, setDeleteModal] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
@@ -76,12 +79,16 @@ export default function AdminQuestions() {
     onSuccess: () => {
       queryClient.invalidateQueries(['admin-questions'])
       queryClient.invalidateQueries(['admin-attempts'])
+      resetForm()
     }
   })
 
   const deleteMutation = useMutation({
     mutationFn: (documentId) => api.delete(`/questions/${documentId}`),
-    onSuccess: () => queryClient.invalidateQueries(['admin-questions'])
+    onSuccess: () => {
+      queryClient.invalidateQueries(['admin-questions'])
+      resetForm()
+    }
   })
 
   const resetForm = () => {
@@ -93,7 +100,10 @@ export default function AdminQuestions() {
   const handleEdit = (question) => {
     setEditingQuestion(question)
     setForm({
-      text: question.text,
+      text: question.text || '',
+      textLv: question.textLv || '',
+      textRu: question.textRu || '',
+      textEn: question.textEn || '',
       type: question.type,
       options: question.type === 'multiple_choice'
         ? (question.options || ['', '', '', ''])
@@ -102,6 +112,7 @@ export default function AdminQuestions() {
       course: question.course?.documentId || '',
       media: question.media || null,
       chapter: question.chapter?.documentId || '',
+      order: question.order || '',
     })
     setShowForm(true)
   }
@@ -109,13 +120,17 @@ export default function AdminQuestions() {
   const handleSubmit = (e) => {
     e.preventDefault()
     const data = {
-      text: form.text,
+      text: form.text || form.textLv || '',
+      textLv: form.textLv || '',
+      textRu: form.textRu || '',
+      textEn: form.textEn || '',
       type: form.type,
       options: form.type === 'yes_no' ? ['true', 'false'] : form.type === 'open_text' ? [] : form.options.filter(o => o.trim()),
       correctAnswer: form.type === 'open_text' ? null : form.correctAnswer,
       course: form.course,
       media: form.media ? form.media.id : null,
       chapter: form.chapter || null,
+      order: form.order ? Number(form.order) : null,
     }
     if (editingQuestion) {
       updateMutation.mutate({ documentId: editingQuestion.documentId, data })
@@ -225,6 +240,58 @@ export default function AdminQuestions() {
                 value={form.text}
                 onChange={e => setForm({ ...form, text: e.target.value })}
                 required
+              />
+            </div>
+            {/* Translations */}
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                Translations (optional)
+              </p>
+              <div>
+                <label className="block text-sm font-medium mb-1">🇱🇻 Latvian text</label>
+                <textarea
+                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  rows={2}
+                  value={form.textLv}
+                  onChange={e => setForm({ ...form, textLv: e.target.value })}
+                  style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">🇷🇺 Russian text</label>
+                <textarea
+                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  rows={2}
+                  value={form.textRu}
+                  onChange={e => setForm({ ...form, textRu: e.target.value })}
+                  style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">🇬🇧 English text</label>
+                <textarea
+                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  rows={2}
+                  value={form.textEn}
+                  onChange={e => setForm({ ...form, textEn: e.target.value })}
+                  style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                />
+              </div>
+            </div>
+
+            {/* Order */}
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Order <span style={{ color: 'var(--text-muted)' }}>(from source document)</span>
+              </label>
+              <input
+                type="number"
+                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                value={form.order}
+                onChange={e => setForm({ ...form, order: e.target.value })}
+                min={1}
+                placeholder="e.g. 42"
+                style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
               />
             </div>
             <MediaUpload

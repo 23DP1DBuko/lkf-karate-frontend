@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import api from '../../api/strapi'
 import { mediaUrl } from '../../api/media'
+import { useTranslation } from 'react-i18next'
+import { getQuestionText } from '../../api/strapi'
 
 function RichText({ content }) {
   if (!content) return null
@@ -128,9 +130,10 @@ function QuestionCard({ question, onCorrect }) {
                 locked && val === String(question.correctAnswer)
                   ? 'bg-green-500 text-white border-green-500'
                   : selected === val && feedback === 'wrong'
-                    ? 'bg-red-100 border-red-400 text-red-700'
+                    ? 'bg-red-500 text-white border-red-500'
                     : 'border-gray-300 hover:border-blue-400 dark:border-gray-600'
               } disabled:cursor-not-allowed`}
+              style={{ color: (locked && val === String(question.correctAnswer)) || (selected === val && feedback === 'wrong') ? 'white' : 'var(--text-primary)' }}
             >
               {val === 'true' ? '✓ Yes' : '✗ No'}
             </button>
@@ -149,9 +152,10 @@ function QuestionCard({ question, onCorrect }) {
                 locked && option === question.correctAnswer
                   ? 'bg-green-500 text-white border-green-500'
                   : selected === option && feedback === 'wrong'
-                    ? 'bg-red-100 border-red-400 text-red-700'
+                    ? 'bg-red-500 text-white border-red-500'
                     : 'border-gray-300 hover:border-blue-400 dark:border-gray-600'
               } disabled:cursor-not-allowed`}
+              style={{ color: (locked && option === question.correctAnswer) || (selected === option && feedback === 'wrong') ? 'white' : 'var(--text-primary)' }}
             >
               {option}
             </button>
@@ -179,6 +183,7 @@ export default function ChapterDetail() {
   const queryClient = useQueryClient()
   const [correctCount, setCorrectCount] = useState(0)
   const [answeredIds, setAnsweredIds] = useState(new Set())
+const { i18n } = useTranslation()
 
   const { data: chapter, isLoading } = useQuery({
     queryKey: ['chapter', chapterDocumentId],
@@ -322,7 +327,7 @@ export default function ChapterDetail() {
                 key={i}
                 question={{
                   id: block.id,
-                  text: block.content,
+                  text: getQuestionText(block, i18n.language) || block.content,
                   type: block.questionType || 'yes_no',
                   options: block.options?.length ? block.options : ['true', 'false'],
                   correctAnswer: block.correctAnswer,
@@ -355,7 +360,7 @@ export default function ChapterDetail() {
             {questions.map(question => (
               <QuestionCard
                 key={question.id}
-                question={question}
+                question={{ ...question, text: getQuestionText(question, i18n.language) }}
                 onCorrect={handleCorrect}
               />
             ))}

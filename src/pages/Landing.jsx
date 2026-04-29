@@ -21,7 +21,11 @@ return (
             <span className="text-2xl">🥋</span>
             <span className="font-bold text-blue-700 text-lg">{t('landing.title')}</span>
           </div>
-          <div className="flex gap-3">
+          <div className="flex gap-3 items-center">
+            <Link to="/rules" className="px-4 py-2 text-sm font-medium hover:underline"
+              style={{ color: 'var(--text-secondary)' }}>
+              Rules
+            </Link>
             <Link
               to="/login"
               className="px-4 py-2 text-sm font-medium text-blue-600 hover:underline"

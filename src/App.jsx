@@ -23,7 +23,7 @@ import Profile from './pages/student/Profile'
 import Landing from './pages/Landing'
 import AdminImport from './pages/admin/AdminImport'
 import { useTranslation } from 'react-i18next'
-
+import Rules from './pages/landing/Rules'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -87,6 +87,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/rules" element={<Rules />} />
       <Route path="*" element={<Navigate to="/" />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
