@@ -16,7 +16,7 @@ export default function AdminChapters() {
   const [filterCourse, setFilterCourse] = useState('all')
   const [previewChapter, setPreviewChapter] = useState(null)
   const [form, setForm] = useState({
-    title: '', content: '', blocks: [], order: 1, videoUrl: '', course: '', media: null
+    title: '', content: '', blocks: [], videoUrl: '', course: '', media: null
   })
   const [editingId, setEditingId] = useState(null)
   
@@ -24,7 +24,6 @@ export default function AdminChapters() {
     title: '',
     content: '',  // keep for backward compat
     blocks: [],   // new block-based content
-    order: 1,
     videoUrl: '',
     course: '',
     media: null,
@@ -58,7 +57,32 @@ export default function AdminChapters() {
 
   const deleteMutation = useMutation({
     mutationFn: (documentId) => api.delete(`/chapters/${documentId}`),
-    onSuccess: () => queryClient.invalidateQueries(['admin-chapters'])
+    onSuccess: async (_, deletedDocumentId) => {
+      await queryClient.invalidateQueries(['admin-chapters'])
+      // Reorder remaining chapters in same course
+      const remaining = chapters
+        ?.filter(c => c.documentId !== deletedDocumentId)
+        ?.sort((a, b) => a.order - b.order)
+      
+      // Group by course and reorder
+      const byCourse = {}
+      remaining?.forEach(c => {
+        const courseId = c.course?.documentId
+        if (!byCourse[courseId]) byCourse[courseId] = []
+        byCourse[courseId].push(c)
+      })
+
+      for (const courseChapters of Object.values(byCourse)) {
+        for (let i = 0; i < courseChapters.length; i++) {
+          if (courseChapters[i].order !== i + 1) {
+            await api.put(`/chapters/${courseChapters[i].documentId}`, {
+              data: { order: i + 1 }
+            })
+          }
+        }
+      }
+      queryClient.invalidateQueries(['admin-chapters'])
+    }
   })
 
   const resetForm = () => {
@@ -73,7 +97,6 @@ export default function AdminChapters() {
       title: chapter.title || '',
       content: chapter.content || '',
       blocks: chapter.blocks || [],
-      order: chapter.order || 1,
       videoUrl: chapter.videoUrl || '',
       course: chapter.course?.documentId || '',
       media: chapter.media || null,
@@ -86,14 +109,35 @@ export default function AdminChapters() {
 
 const handleSubmit = (e) => {
   e.preventDefault()
+
+  // Auto-calculate order
+  let order
+  if (editingId) {
+    // Keep existing order when editing
+    const existing = chapters?.find(c => c.documentId === editingId)
+    order = existing?.order || 1
+  } else {
+    // New chapter: max order in this course + 1
+    const courseChapters = chapters?.filter(c => c.course?.documentId === form.course) || []
+    order = courseChapters.length > 0
+      ? Math.max(...courseChapters.map(c => c.order || 0)) + 1
+      : 1
+  }
+
+  // Extract question relations from bank_question blocks
+  const bankQuestionIds = (form.blocks || [])
+    .filter(b => b.type === 'bank_question' && b.questionId)
+    .map(b => b.questionId)
+
   const data = {
     title: form.title,
     content: form.content,
-    order: Number(form.order),
+    order,
     videoUrl: form.videoUrl,
     course: form.course,
     media: form.media ? form.media.id : null,
     blocks: form.blocks || [],
+    questions: bankQuestionIds,
   }
   if (editingId) {
     updateMutation.mutate({ documentId: editingId, data })
@@ -175,16 +219,6 @@ const handleSubmit = (e) => {
               />
             </div>
             <div className="flex gap-4">
-              <div className="flex-1">
-                <label className="block text-sm font-medium mb-1">Order</label>
-                <input
-                  type="number"
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={form.order}
-                  onChange={e => setForm({ ...form, order: e.target.value })}
-                  min={1}
-                />
-              </div>
               <div className="flex-1">
                 <label className="block text-sm font-medium mb-1">Video URL (YouTube)</label>
                 <input

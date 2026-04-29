@@ -50,10 +50,26 @@ export default function MediaUpload({ onUpload, label = 'Upload Media', multiple
         </div>
       )}
 
-      <label className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer hover:border-blue-400 transition ${uploading ? 'opacity-50' : ''}`}>
+      <label
+        className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer transition ${
+          uploading ? 'opacity-50' : 'hover:border-blue-400'
+        }`}
+        onDragOver={(e) => e.preventDefault()}
+        onDragEnter={(e) => e.currentTarget.classList.add('border-blue-400')}
+        onDragLeave={(e) => e.currentTarget.classList.remove('border-blue-400')}
+        onDrop={async (e) => {
+          e.preventDefault()
+          e.currentTarget.classList.remove('border-blue-400')
+          if (uploading) return
+          const files = e.dataTransfer.files
+          if (!files.length) return
+          const fakeEvent = { target: { files } }
+          handleFile(fakeEvent)
+        }}
+      >
         <span className="text-2xl">📎</span>
-        <span className="text-sm text-gray-500">
-          {uploading ? 'Uploading...' : `Click to ${current ? 'change' : 'upload'} ${multiple ? 'files' : 'file'}`}
+        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          {uploading ? 'Uploading...' : `Click or drag to ${current ? 'change' : 'upload'} ${multiple ? 'files' : 'file'}`}
         </span>
         <input
           type="file"
