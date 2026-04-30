@@ -5,6 +5,112 @@ import api from '../../api/strapi'
 import IconButton from '../../components/IconButton'
 import { EyeIcon } from '@heroicons/react/24/outline'
 
+function YearGroup({ year, attempts, onReview }) {
+  const [open, setOpen] = useState(true)
+
+  // Group by category
+  const byCategory = { kata: [], kumite: [], secretary: [], other: [] }
+  attempts.forEach(attempt => {
+    const cat = attempt.exam?.course?.category || 'other'
+    if (byCategory[cat]) byCategory[cat].push(attempt)
+    else byCategory.other.push(attempt)
+  })
+
+  const categories = ['kata', 'kumite', 'secretary', 'other'].filter(
+    cat => byCategory[cat].length > 0
+  )
+
+  return (
+    <div className="mb-4 rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)' }}>
+      {/* Year header */}
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-5 py-3 text-left font-bold text-lg"
+        style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
+      >
+        <span>📅 {year}</span>
+        <span className="text-sm font-normal" style={{ color: 'var(--text-muted)' }}>
+          {open ? '▲' : '▼'} {attempts.length} attempts
+        </span>
+      </button>
+
+      {open && (
+        <div className="divide-y" style={{ borderColor: 'var(--border)' }}>
+          {categories.map(cat => (
+            <div key={cat}>
+              <p className="px-5 py-2 text-xs font-semibold uppercase tracking-wider"
+                style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-muted)' }}>
+                {cat === 'kata' ? '🥋 Kata' : cat === 'kumite' ? '🥊 Kumite' : cat === 'secretary' ? '📋 Secretary' : '📄 Other'}
+              </p>
+              <table className="w-full min-w-[600px]">
+                <thead style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                  <tr>
+                    <th className="text-left px-5 py-2 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Student</th>
+                    <th className="text-left px-5 py-2 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Exam</th>
+                    <th className="text-left px-5 py-2 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Score</th>
+                    <th className="text-left px-5 py-2 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Status</th>
+                    <th className="text-left px-5 py-2 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Date</th>
+                    <th className="text-left px-5 py-2 text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {byCategory[cat].map(attempt => (
+                    <tr key={attempt.id} className="border-t hover:opacity-80 transition"
+                      style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-card)' }}>
+                      <td className="px-5 py-3">
+                        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+                          {attempt.user?.firstName} {attempt.user?.lastName}
+                        </p>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          @{attempt.user?.username}
+                        </p>
+                      </td>
+                      <td className="px-5 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                        {attempt.exam?.title || '—'}
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className="font-bold" style={{ color: 'var(--text-primary)' }}>
+                          {attempt.score ?? '?'}%
+                        </span>
+                      </td>
+                      <td className="px-5 py-3">
+                        {attempt.submittedAt ? (
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                            attempt.passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                          }`}>
+                            {attempt.passed ? 'Passed' : 'Failed'}
+                          </span>
+                        ) : (
+                          <span className="text-xs px-2 py-1 rounded-full font-medium bg-yellow-100 text-yellow-700">
+                            In Progress
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
+                        {attempt.submittedAt
+                          ? new Date(attempt.submittedAt).toLocaleDateString()
+                          : '—'}
+                      </td>
+                      <td className="px-5 py-3">
+                        <IconButton
+                          icon={EyeIcon}
+                          label="Review answers"
+                          onClick={() => onReview(attempt)}
+                          variant="default"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function AdminExamResults() {
   const queryClient = useQueryClient()
@@ -42,31 +148,6 @@ export default function AdminExamResults() {
       api.put(`/exams/${examDocumentId}`, { data: { resultsReleased: true } }),
     onSuccess: () => queryClient.invalidateQueries(['admin-attempts'])
   })
-
-  const handleClearAttempts = async () => {
-    if (!window.confirm('Delete ALL exam attempts? This cannot be undone.')) return
-    
-    try {
-      let page = 1
-      let allIds = []
-      while (true) {
-        const res = await api.get(`/exam-attempts/all?pagination[page]=${page}&pagination[pageSize]=${100}`)
-        const items = res.data?.attempts || res.data?.data || []
-        allIds = [...allIds, ...items.map(a => a.documentId || a.id)]
-        if (items.length < 100) break
-        page++
-      }
-      for (const id of allIds) {
-        await api.delete(`/exam-attempts/${id}`)
-      }
-      // Clear all caches
-      queryClient.clear()
-      alert(`Deleted ${allIds.length} attempts`)
-    } catch (err) {
-      console.error(err)
-      alert('Failed: ' + err.message)
-    }
-  }
 
   const handleGrade = (attempt) => {
     const questions = attempt.questions || []
@@ -106,12 +187,6 @@ export default function AdminExamResults() {
           className="text-blue-600 hover:underline text-sm mb-4 block"
         >
           ← Back to Results
-        </button>
-        <button
-          onClick={handleClearAttempts}
-          className="px-3 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"
-        >
-          🗑️ Clear All Attempts
         </button>
 
         <h1 className="text-2xl font-bold text-blue-700 mb-1">
@@ -212,21 +287,26 @@ export default function AdminExamResults() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-blue-700 mb-2">Exam Results</h1>
-      <p className="text-gray-500 mb-4">
-        {filteredAttempts?.length} of {attempts?.length} attempts
-      </p>
-      <div className="mb-6">
-        <input
-          type="text"
-          placeholder="Search by name, username or exam..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="w-full md:w-96 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h1 className="text-3xl font-bold text-blue-700">Exam Results</h1>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {filteredAttempts?.length} of {attempts?.length} attempts
+          </p>
+        </div>
       </div>
 
-      {/* Release Results per exam */}
+      {/* Search */}
+      <input
+        type="text"
+        placeholder="Search by name, username or exam..."
+        value={search}
+        onChange={e => setSearch(e.target.value)}
+        className="w-full md:w-96 border rounded-lg px-4 py-2 mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+      />
+
+      {/* Release Results — only show unreleased exams */}
       {(() => {
         const exams = {}
         attempts?.forEach(a => {
@@ -234,83 +314,57 @@ export default function AdminExamResults() {
             exams[a.exam.documentId] = a.exam
           }
         })
-        return Object.values(exams).map(exam => (
-          <div key={exam.documentId} 
-            className="rounded-xl p-4 mb-4 flex items-center justify-between"
-            style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
-          >
-            <div>
-              <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{exam.title}</p>
-              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Results: {exam.showResults ? '✅ Shown immediately' : exam.resultsReleased ? '✅ Released to students' : '⏳ Not released yet'}
-              </p>
-            </div>
-            {!exam.resultsReleased && !exam.showResults && (
-              <button
-                onClick={() => releaseMutation.mutate(exam.documentId)}
-                disabled={releaseMutation.isPending}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
+        const unreleased = Object.values(exams).filter(
+          exam => !exam.resultsReleased && !exam.showResults
+        )
+        if (unreleased.length === 0) return null
+        return (
+          <div className="mb-6 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>
+              Pending Release
+            </p>
+            {unreleased.map(exam => (
+              <div key={exam.documentId}
+                className="rounded-xl p-4 flex items-center justify-between"
+                style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
               >
-                Release Results
-              </button>
-            )}
+                <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{exam.title}</p>
+                <button
+                  onClick={() => releaseMutation.mutate(exam.documentId)}
+                  disabled={releaseMutation.isPending}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700 disabled:opacity-50"
+                >
+                  Release Results
+                </button>
+              </div>
+            ))}
           </div>
+        )
+      })()}
+
+      {/* Grouped by year */}
+      {(() => {
+        // Group attempts by year
+        const byYear = {}
+        filteredAttempts?.forEach(attempt => {
+          const year = attempt.submittedAt
+            ? new Date(attempt.submittedAt).getFullYear()
+            : 'In Progress'
+          if (!byYear[year]) byYear[year] = []
+          byYear[year].push(attempt)
+        })
+
+        const years = Object.keys(byYear).sort((a, b) => b - a)
+
+        return years.map(year => (
+          <YearGroup
+            key={year}
+            year={year}
+            attempts={byYear[year]}
+            onReview={(attempt) => { setSelectedAttempt(attempt); setManualScores({}) }}
+          />
         ))
       })()}
-      <div className="rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-        <table className="w-full min-w-[600px]">
-          <thead className="bg-gray-50 border-b">
-            <tr>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Student</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Exam</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Score</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Status</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Date</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filteredAttempts?.map(attempt => (
-              <tr key={attempt.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">
-                  <p className="font-medium">{attempt.user?.firstName} {attempt.user?.lastName}</p>
-                  <p className="text-xs text-gray-400">@{attempt.user?.username}</p>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-500">{attempt.exam?.title || '—'}</td>
-                <td className="px-6 py-4">
-                  <span className="font-bold">{attempt.score ?? '?'}%</span>
-                </td>
-                <td className="px-6 py-4">
-                  {attempt.submittedAt ? (
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      attempt.passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {attempt.passed ? 'Passed' : 'Failed'}
-                    </span>
-                  ) : (
-                    <span className="text-xs px-2 py-1 rounded-full font-medium bg-yellow-100 text-yellow-700">
-                      In Progress
-                    </span>
-                  )}
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-500">
-                  {attempt.submittedAt
-                    ? new Date(attempt.submittedAt).toLocaleDateString()
-                    : '—'}
-                </td>
-                <td className="px-6 py-4">
-                  <IconButton
-                    icon={EyeIcon}
-                    label="Review answers"
-                    onClick={() => { setSelectedAttempt(attempt); setManualScores({}) }}
-                    variant="default"
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   )
 }

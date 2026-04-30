@@ -226,6 +226,11 @@ const { i18n } = useTranslation()
     }
   }, [chapter?.documentId])
 
+    useEffect(() => {
+    setCorrectCount(0)
+    setAnsweredIds(new Set())
+  }, [chapterDocumentId])
+
   const isSeen = progressData?.some(p => p.chapter?.documentId === chapter?.documentId)
 
   const handleCorrect = (questionId) => {
@@ -235,9 +240,11 @@ const { i18n } = useTranslation()
     }
   }
 
-  const totalQuestions = questions?.length || 0
+  const blockQuestionCount = chapter?.blocks?.filter(
+    b => b.type === 'question' || b.type === 'bank_question'
+  ).length || 0
+  const totalQuestions = (questions?.length || 0) + blockQuestionCount
   const allCorrect = totalQuestions > 0 && correctCount >= totalQuestions
-  const hasQuestions = totalQuestions > 0
 
   // Find next chapter
   const currentIndex = allChapters?.findIndex(c => c.documentId === chapterDocumentId) ?? -1
@@ -350,14 +357,14 @@ const { i18n } = useTranslation()
       )}
 
       {/* Chapter Quiz */}
-      {hasQuestions && (
+      {totalQuestions > 0 && (
         <div className="mb-6">
           <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
             📝 Chapter Quiz
           </h2>
 
           <div className="space-y-4 mb-6">
-            {questions.map(question => (
+            {(questions || []).map(question => (
               <QuestionCard
                 key={question.id}
                 question={{ ...question, text: getQuestionText(question, i18n.language) }}
@@ -394,17 +401,9 @@ const { i18n } = useTranslation()
         <div className="flex justify-end mb-8">
           <button
             onClick={() => navigate(`/courses/${documentId}/chapters/${nextChapter.documentId}`)}
-            disabled={hasQuestions && !allCorrect}
-            className={`px-6 py-3 rounded-xl font-semibold transition ${
-              hasQuestions && !allCorrect
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed dark:bg-gray-700 dark:text-gray-500'
-                : 'bg-green-600 text-white hover:bg-green-700'
-            }`}
+            className="px-6 py-3 rounded-xl font-semibold transition bg-green-600 text-white hover:bg-green-700"
           >
-            {hasQuestions && !allCorrect
-              ? `🔒 Answer all questions first (${correctCount}/${totalQuestions})`
-              : `Next Chapter → ${nextChapter.title}`
-            }
+            Next Chapter → {nextChapter.title}
           </button>
         </div>
       )}

@@ -207,8 +207,12 @@ export default function QuickQuiz() {
                 {q.options?.map(option => (
                   <label
                     key={option}
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition
-                      ${answers[q.id] === option ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${
+                      answers[q.id] === option
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : 'border-gray-200 hover:border-blue-300'
+                    }`}
+                    style={{ color: answers[q.id] === option ? 'white' : 'var(--text-primary)' }}
                   >
                     <input
                       type="radio"
@@ -229,8 +233,12 @@ export default function QuickQuiz() {
                 {['true', 'false'].map(val => (
                   <label
                     key={val}
-                    className={`flex items-center gap-2 px-6 py-3 rounded-lg border cursor-pointer transition
-                      ${answers[q.id] === val ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}
+                    className={`flex items-center gap-2 px-6 py-3 rounded-lg border cursor-pointer transition ${
+                      answers[q.id] === val
+                        ? 'border-blue-600 bg-blue-600 text-white'
+                        : 'border-gray-200 hover:border-blue-300'
+                    }`}
+                    style={{ color: answers[q.id] === val ? 'white' : 'var(--text-primary)' }}
                   >
                     <input
                       type="radio"

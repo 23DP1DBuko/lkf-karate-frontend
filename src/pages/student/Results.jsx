@@ -77,13 +77,6 @@ export default function Results() {
           )
         })}
       </div>
-
-      <button
-        onClick={() => queryClient.invalidateQueries(['attempts'])}
-        className="text-sm text-blue-600 hover:underline"
-      >
-        ↻ Refresh
-      </button>
     </div>
   )
 }
