@@ -182,7 +182,7 @@ export default function ChapterDetail() {
   const queryClient = useQueryClient()
   const [correctCount, setCorrectCount] = useState(0)
   const [answeredIds, setAnsweredIds] = useState(new Set())
-const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   const { data: chapter, isLoading } = useQuery({
     queryKey: ['chapter', chapterDocumentId],
@@ -265,7 +265,7 @@ const { i18n } = useTranslation()
       </Link>
 
       <div className="flex items-center gap-3 mb-6">
-        <h1 className="text-3xl font-bold text-blue-700">{chapter?.title}</h1>
+        <h1 className="text-3xl font-bold text-blue-700">{getLocalizedField(chapter, i18n.language, 'title') || chapter?.title}</h1>
         {isSeen && (
           <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">
             ✓ Completed

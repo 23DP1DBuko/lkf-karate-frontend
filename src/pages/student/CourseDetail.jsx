@@ -1,10 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { useParams, Link } from 'react-router-dom'
-import api from '../../api/strapi'
+import api, { getLocalizedField } from '../../api/strapi'
 import { usePageTitle } from '../../hooks/usePageTitle'
+import { useTranslation } from 'react-i18next'
 
 export default function CourseDetail() {
   const { documentId } = useParams()
+  const { i18n } = useTranslation()
 
   const { data: course, isLoading: courseLoading } = useQuery({
     queryKey: ['course', documentId],
@@ -40,8 +42,12 @@ export default function CourseDetail() {
           ← Back to Courses
         </Link>
 
-        <h1 className="text-3xl font-bold text-blue-700 mb-2">{course?.title}</h1>
-        <p className="text-gray-500 mb-8">{course?.description}</p>
+        <h1 className="text-3xl font-bold text-blue-700 mb-2">
+          {getLocalizedField(course, i18n.language, 'title') || course?.title}
+        </h1>
+        <p className="text-gray-500 mb-8">
+          {getLocalizedField(course, i18n.language, 'description') || course?.description}
+        </p>
 
         <h2 className="text-xl font-semibold mb-4">Chapters</h2>
 
@@ -62,7 +68,7 @@ export default function CourseDetail() {
                   {seen ? '✓' : index + 1}
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold">{chapter.title}</h3>
+                  <h3 className="font-semibold">{getLocalizedField(chapter, i18n.language, 'title') || chapter?.title}</h3>
                   {chapter.videoUrl && (
                     <span className="text-xs text-gray-400">📹 Includes video</span>
                   )}
@@ -95,7 +101,9 @@ export default function CourseDetail() {
                   className="bg-white rounded-xl shadow hover:shadow-md transition p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 block"
                 >
                   <div>
-                    <h3 className="font-semibold">{exam.title}</h3>
+                    <h3 className="font-semibold">
+                      {getLocalizedField(exam, i18n.language, 'title') || exam.title}
+                    </h3>
                     <p className="text-sm text-gray-400">{exam.duration} minutes • {exam.questionCount} questions</p>
                   </div>
                   <span className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium w-full sm:w-auto text-center">
