@@ -9,8 +9,6 @@ import { useTranslation } from 'react-i18next'
 export default function Profile() {
   const { user, setUser } = useAuth()
   const [form, setForm] = useState({
-    firstName: user?.firstName || '',
-    lastName: user?.lastName || '',
     username: user?.username || '',
     email: user?.email || '',
   })
@@ -42,8 +40,6 @@ export default function Profile() {
     setProfileLoading(true)
     try {
       const putRes = await api.put(`/users/${user.id}`, {
-        firstName: form.firstName,
-        lastName: form.lastName,
         username: form.username,
       })
       console.log('PUT response:', putRes)
@@ -130,30 +126,6 @@ export default function Profile() {
         )}
 
         <form onSubmit={handleProfileSubmit} className="space-y-4">
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-1" htmlFor="firstName">First Name</label>
-              <input
-                id="firstName"
-                type="text"
-                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={form.firstName}
-                onChange={e => setForm({ ...form, firstName: e.target.value })}
-                required
-              />
-            </div>
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-1" htmlFor="lastName">Last Name</label>
-              <input
-                id="lastName"
-                type="text"
-                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={form.lastName}
-                onChange={e => setForm({ ...form, lastName: e.target.value })}
-                required
-              />
-            </div>
-          </div>
           <div>
             <label className="block text-sm font-medium mb-1" htmlFor="username">Username</label>
             <input

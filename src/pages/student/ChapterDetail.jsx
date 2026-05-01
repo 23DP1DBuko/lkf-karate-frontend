@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import api from '../../api/strapi'
 import { mediaUrl } from '../../api/media'
 import { useTranslation } from 'react-i18next'
-import { getQuestionText } from '../../api/strapi'
+import { getQuestionText, getLocalizedField } from '../../api/strapi'
 
 function RichText({ content }) {
   if (!content) return null
@@ -102,7 +102,6 @@ function QuestionCard({ question, onCorrect }) {
       setFeedback('wrong')
     }
   }
-
   return (
     <div className={`rounded-xl border-2 p-5 transition-all ${
       feedback === 'correct'

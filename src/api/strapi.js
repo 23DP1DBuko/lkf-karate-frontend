@@ -19,10 +19,15 @@ api.interceptors.request.use((config) => {
 export default api
 
 export function getQuestionText(question, language) {
-  if (!question) return ''
-  if (language === 'lv' && question.textLv) return question.textLv
-  if (language === 'ru' && question.textRu) return question.textRu
-  if (language === 'en' && question.textEn) return question.textEn
-  // fallback chain
-  return question.textLv || question.textEn || question.textRu || question.text || ''
+  return getLocalizedField(question, language, 'text')
+}
+
+export function getLocalizedField(item, language, fieldBase) {
+  if (!item) return ''
+  const langMap = { lv: 'Lv', ru: 'Ru', en: 'En' }
+  const suffix = langMap[language] || 'Lv'
+  const localizedKey = `${fieldBase}${suffix}`
+  if (item[localizedKey]) return item[localizedKey]
+  // Fallback chain: lv → en → base field
+  return item[`${fieldBase}Lv`] || item[`${fieldBase}En`] || item[fieldBase] || ''
 }
