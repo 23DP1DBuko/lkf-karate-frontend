@@ -327,8 +327,7 @@ export default function Sidebar() {
         style={{ backgroundColor: 'var(--nav-bg)', borderColor: 'var(--nav-border)' }}
       >
         <Link to="/dashboard" className="flex items-center gap-2">
-          <span className="text-xl">🥋</span>
-          <span className="font-bold text-blue-700">LKF Karate</span>
+          <span className="font-bold text-blue-700">LKF Academy</span>
         </Link>
         <button
           onClick={() => setMobileOpen(true)}

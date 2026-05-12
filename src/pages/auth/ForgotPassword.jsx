@@ -42,7 +42,7 @@ export default function ForgotPassword() {
   return (
   <div className="min-h-screen bg-gray-100 flex items-center justify-center" role="main">
       <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center text-blue-700 mb-6">LKF Karate LMS</h1>
+        <h1 className="text-2xl font-bold text-center text-blue-700 mb-6">LKF Academy</h1>
         <h2 className="text-xl font-semibold mb-2">Forgot Password</h2>
         <p className="text-gray-500 text-sm mb-6">
           Enter your email and we'll send you a reset link.
