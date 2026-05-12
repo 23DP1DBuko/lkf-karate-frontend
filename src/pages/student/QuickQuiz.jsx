@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import api from '../../api/strapi'
 import { mediaUrl } from '../../api/media'
 import { useTranslation } from 'react-i18next'
-import { getQuestionText } from '../../api/strapi'
+import { getQuestionText, getLocalizedField } from '../../api/strapi'
 
 function QuestionMedia({ media }) {
   if (!media) return null
