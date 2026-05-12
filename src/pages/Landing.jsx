@@ -26,18 +26,22 @@ return (
               style={{ color: 'var(--text-secondary)' }}>
               Rules
             </Link>
-            <Link
-              to="/login"
-              className="px-4 py-2 text-sm font-medium text-blue-600 hover:underline"
-            >
-              {t('landing.signIn')}
-            </Link>
-            <Link
-              to="/register"
-              className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              {t('landing.createAccount')}
-            </Link>
+            {user ? (
+              <Link to="/dashboard"
+                className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                {user.firstName || user.username} →
+              </Link>
+            ) : (
+              <>
+                <Link to="/login" className="px-4 py-2 text-sm font-medium text-blue-600 hover:underline">
+                  Sign In
+                </Link>
+                <Link to="/register"
+                  className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  Register
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
