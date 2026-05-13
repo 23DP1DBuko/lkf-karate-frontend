@@ -324,7 +324,7 @@ export default function BlockEditor({ blocks = [], onChange, courseId }) {
 
   const addBlock = (type) => {
     const newBlock = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       type,
       content: '',
       url: '',

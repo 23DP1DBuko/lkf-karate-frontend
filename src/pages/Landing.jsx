@@ -18,26 +18,29 @@ return (
       <header className="border-b" style={{ backgroundColor: 'var(--nav-bg)', borderColor: 'var(--border)' }}>
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">🥋</span>
-            <span className="font-bold text-blue-700 text-lg">{t('landing.title')}</span>
+            <span className="font-bold text-blue-700 text-lg">LKF Academy</span>
           </div>
           <div className="flex gap-3 items-center">
             <Link to="/rules" className="px-4 py-2 text-sm font-medium hover:underline"
               style={{ color: 'var(--text-secondary)' }}>
               Rules
             </Link>
-            <Link
-              to="/login"
-              className="px-4 py-2 text-sm font-medium text-blue-600 hover:underline"
-            >
-              {t('landing.signIn')}
-            </Link>
-            <Link
-              to="/register"
-              className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              {t('landing.createAccount')}
-            </Link>
+            {user ? (
+              <Link to="/dashboard"
+                className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                {user.firstName || user.username} →
+              </Link>
+            ) : (
+              <>
+                <Link to="/login" className="px-4 py-2 text-sm font-medium text-blue-600 hover:underline">
+                  Sign In
+                </Link>
+                <Link to="/register"
+                  className="px-4 py-2 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                  Register
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -47,7 +50,7 @@ return (
         <section className="max-w-5xl mx-auto px-4 py-20 text-center">
           <div className="text-6xl mb-6">🥋</div>
           <h1 className="text-4xl md:text-5xl font-bold text-blue-700 mb-4">
-            {t('landing.title')}
+            LKF Academy
           </h1>
           <p className="text-xl mb-2 text-white">
             {t('landing.subtitle')}

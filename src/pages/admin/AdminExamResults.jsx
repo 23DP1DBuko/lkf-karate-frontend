@@ -153,12 +153,9 @@ export default function AdminExamResults() {
     const questions = attempt.questions || []
     const answers = attempt.answers || {}
     let autoCorrect = 0
-    let openTextCount = 0
 
     questions.forEach(q => {
-      if (q.type === 'open_text') {
-        openTextCount++
-      } else {
+      if (q.type !== 'open_text') {
         const userAnswer = answers[q.id]
         if (userAnswer && String(userAnswer).toLowerCase() === String(q.correctAnswer).toLowerCase()) {
           autoCorrect++

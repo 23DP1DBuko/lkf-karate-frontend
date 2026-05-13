@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import api from '../../api/strapi'
+import api, { getLocalizedField } from '../../api/strapi'
 import { usePageTitle } from '../../hooks/usePageTitle'
 import { useTranslation } from 'react-i18next'
 import { createRipple } from '../../hooks/useRipple'
@@ -15,7 +15,7 @@ const categoryColors = {
 
 function CourseCard({ course, chapters, progress }) {
   const navigate = useNavigate()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   const courseChapters = chapters?.filter(c => c.course?.documentId === course.documentId) || []
   const seenChapterIds = new Set(
@@ -57,7 +57,7 @@ function CourseCard({ course, chapters, progress }) {
           <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-2">
             {t(`courses.categories.${course.category}`)}
           </p>
-          <h2 className="text-white text-2xl font-bold leading-tight">{course.title}</h2>
+          <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>{getLocalizedField(course, i18n.language, 'title') || course.title}</h2>
         </div>
         <Link
           data-inner="true"

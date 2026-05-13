@@ -159,6 +159,16 @@ export default function ChapterPreviewModal({ chapter, onClose }) {
             </div>
           )
         }
+        if (block.type === 'image') return (
+          <figure key={i} className="rounded-xl overflow-hidden">
+            <img src={block.media?.url ? mediaUrl(block.media.url) : block.url} alt={block.caption || ''} className="w-full object-cover max-h-96" />
+            {block.caption && (
+              <figcaption className="text-xs text-center py-2" style={{ color: 'var(--text-muted)' }}>
+                {block.caption}
+              </figcaption>
+            )}
+          </figure>
+        )
         if (block.type === 'image_url') return (
           <figure key={i} className="rounded-xl overflow-hidden">
             <img src={block.url} alt={block.caption || ''} className="w-full object-cover max-h-96" />
@@ -173,6 +183,37 @@ export default function ChapterPreviewModal({ chapter, onClose }) {
           <div key={i} className="border-l-4 border-blue-500 pl-4 py-3 rounded-r-lg"
             style={{ backgroundColor: 'rgba(59,130,246,0.08)' }}>
             <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{block.content}</p>
+          </div>
+        )
+        if (block.type === 'question' || block.type === 'bank_question') return (
+          <div key={i} className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
+              <span className="text-blue-600 mr-1">Q.</span>
+              {block.content}
+            </p>
+            {(block.questionType === 'yes_no' || !block.questionType) && (
+              <div className="flex gap-3">
+                {['Yes', 'No'].map(opt => (
+                  <div key={opt} className="px-4 py-2 rounded-lg border text-sm"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                    {opt}
+                  </div>
+                ))}
+              </div>
+            )}
+            {block.questionType === 'multiple_choice' && (
+              <div className="space-y-2">
+                {(block.options || []).filter(o => o.trim()).map((opt, j) => (
+                  <div key={j} className="px-3 py-2 rounded-lg border text-sm"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                    {opt}
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-xs mt-2 text-green-600">
+              ✓ Correct: {block.correctAnswer}
+            </p>
           </div>
         )
         return null
@@ -190,7 +231,43 @@ export default function ChapterPreviewModal({ chapter, onClose }) {
   {/* Questions always show at bottom */}
   {chapter.questions?.length > 0 && (
     <div className="mt-8">
-      {/* ... questions preview ... */}
+      <div className="flex items-center gap-2 mb-4">
+        <div className="h-px flex-1" style={{ backgroundColor: 'var(--border)' }} />
+        <span className="text-sm font-semibold px-3" style={{ color: 'var(--text-muted)' }}>
+          📝 Chapter Quiz ({chapter.questions.length} questions)
+        </span>
+        <div className="h-px flex-1" style={{ backgroundColor: 'var(--border)' }} />
+      </div>
+      <div className="space-y-4">
+        {chapter.questions.map((q, i) => (
+          <div key={q.id || i} className="rounded-xl p-4 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+            <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
+              <span className="text-blue-600 mr-1">{i + 1}.</span>
+              {q.text || q.textLv || ''}
+            </p>
+            {q.type === 'yes_no' && (
+              <div className="flex gap-3">
+                {['Yes', 'No'].map(opt => (
+                  <div key={opt} className="px-4 py-2 rounded-lg border text-sm"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                    {opt}
+                  </div>
+                ))}
+              </div>
+            )}
+            {q.type === 'multiple_choice' && (
+              <div className="space-y-2">
+                {(q.options || []).map((opt, j) => (
+                  <div key={j} className="px-3 py-2 rounded-lg border text-sm"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+                    {opt}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   )}
 
