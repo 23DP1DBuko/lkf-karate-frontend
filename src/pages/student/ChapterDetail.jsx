@@ -189,25 +189,10 @@ export default function ChapterDetail() {
     queryKey: ['chapter', chapterDocumentId],
     queryFn: () => api.get(`/chapters/${chapterDocumentId}?populate[0]=course&populate[1]=media&populate[2]=questions`).then(r => r.data.data)
   })
-
+    
   const { data: allChapters } = useQuery({
     queryKey: ['chapters', documentId],
     queryFn: () => api.get(`/chapters?filters[course][documentId][$eq]=${documentId}&sort=order:asc`).then(r => r.data.data)
-  })
-
-  const { data: questions } = useQuery({
-    queryKey: ['chapter-questions', chapterDocumentId],
-    queryFn: async () => {
-      const res = await api.get(`/questions?filters[chapter][documentId][$eq]=${chapterDocumentId}&populate=media`)
-      const all = res.data.data || []
-      const supported = all.filter(
-        question => question.type === 'multiple_choice' || question.type === 'yes_no'
-      )
-      // Shuffle and take max 5
-      const shuffled = [...supported].sort(() => Math.random() - 0.5)
-      return shuffled.slice(0, 5)
-    },
-    enabled: !!chapterDocumentId
   })
 
   const { data: progressData } = useQuery({
@@ -240,10 +225,9 @@ export default function ChapterDetail() {
     }
   }
 
-  const blockQuestionCount = chapter?.blocks?.filter(
+  const totalQuestions = chapter?.blocks?.filter(
     b => b.type === 'question' || b.type === 'bank_question'
   ).length || 0
-  const totalQuestions = (questions?.length || 0) + blockQuestionCount
   const allCorrect = totalQuestions > 0 && correctCount >= totalQuestions
 
   // Find next chapter
@@ -370,42 +354,22 @@ export default function ChapterDetail() {
         </>
       )}
 
-      {/* Chapter Quiz */}
+      {/* Progress counter — shows after all content */}
       {totalQuestions > 0 && (
-        <div className="mb-6">
-          <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-            📝 Chapter Quiz
-          </h2>
-
-          <div className="space-y-4 mb-6">
-            {(questions || []).map(question => (
-              <QuestionCard
-                key={question.id}
-                question={{ ...question, text: getQuestionText(question, i18n.language) }}
-                onCorrect={handleCorrect}
-              />
-            ))}
+        <div className="mb-6 p-4 rounded-xl" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <p className="text-sm text-center mb-2" style={{ color: 'var(--text-secondary)' }}>
+            {correctCount} / {totalQuestions} questions answered correctly
+          </p>
+          <div className="w-full rounded-full h-2 overflow-hidden" style={{ backgroundColor: 'var(--border)' }}>
+            <div
+              className="h-2 rounded-full bg-blue-600 transition-all duration-500"
+              style={{ width: `${(correctCount / totalQuestions) * 100}%` }}
+            />
           </div>
-
-          {/* Progress counter */}
-          <div className="text-center mb-4">
-            <p style={{ color: 'var(--text-secondary)' }} className="text-sm">
-              {correctCount} / {totalQuestions} questions answered correctly
-            </p>
-            <div className="w-full bg-gray-200 rounded-full h-2 mt-2 dark:bg-gray-700">
-              <div
-                className="h-2 rounded-full bg-blue-600 transition-all duration-500"
-                style={{ width: `${(correctCount / totalQuestions) * 100}%` }}
-              />
-            </div>
-          </div>
-
           {allCorrect && (
-            <div className="bg-green-100 dark:bg-green-900/30 border border-green-300 rounded-xl p-4 text-center mb-4">
-              <p className="text-green-700 dark:text-green-400 font-semibold">
-                🎉 Chapter complete! You can now proceed.
-              </p>
-            </div>
+            <p className="text-green-600 font-semibold text-sm text-center mt-3">
+              🎉 Chapter complete!
+            </p>
           )}
         </div>
       )}
