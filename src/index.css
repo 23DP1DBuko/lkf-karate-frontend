@@ -126,3 +126,38 @@ nav { background-color: var(--nav-bg) !important; border-color: var(--nav-border
 
 /* Safe area iPhone */
 .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 0px); }
+
+/* Rich text content visibility */
+.prose strong,
+.prose b {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4 {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.prose p {
+  color: var(--text-primary);
+}
+
+.prose ul,
+.prose ol {
+  color: var(--text-primary);
+}
+
+.prose a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+.prose blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 1rem;
+  color: var(--text-secondary);
+}

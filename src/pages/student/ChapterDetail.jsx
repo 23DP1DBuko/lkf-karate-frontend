@@ -343,6 +343,20 @@ export default function ChapterDetail() {
                 onCorrect={handleCorrect}
               />
             )
+            if (block.type === 'image') return (
+              <figure key={i} className="rounded-xl overflow-hidden shadow">
+                <img
+                  src={block.media?.url ? mediaUrl(block.media.url) : block.url}
+                  alt={block.caption || ''}
+                  className="w-full object-cover max-h-96"
+                />
+                {block.caption && (
+                  <figcaption className="text-xs text-center py-2" style={{ color: 'var(--text-muted)' }}>
+                    {block.caption}
+                  </figcaption>
+                )}
+              </figure>
+            )
             return null
           })}
         </div>
