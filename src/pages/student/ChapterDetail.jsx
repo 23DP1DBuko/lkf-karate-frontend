@@ -205,7 +205,13 @@ export default function ChapterDetail() {
     onSuccess: () => queryClient.invalidateQueries(['chapter-progress'])
   })
 
-    useEffect(() => {
+  const isSeen = progressData?.some(p => p.chapter?.documentId === chapter?.documentId)
+  const totalQuestions = chapter?.blocks?.filter(
+    b => b.type === 'question' || b.type === 'bank_question'
+  ).length || 0
+  const allCorrect = totalQuestions > 0 && correctCount >= totalQuestions
+
+  useEffect(() => {
     setCorrectCount(0)
     setAnsweredIds(new Set())
   }, [chapterDocumentId])
@@ -215,14 +221,7 @@ export default function ChapterDetail() {
       markSeenMutation.mutate(chapter.documentId)
     }
   }, [chapter?.documentId, totalQuestions])
-
-
-  const isSeen = progressData?.some(p => p.chapter?.documentId === chapter?.documentId)
-  const totalQuestions = chapter?.blocks?.filter(
-    b => b.type === 'question' || b.type === 'bank_question'
-  ).length || 0
-  const allCorrect = totalQuestions > 0 && correctCount >= totalQuestions
-
+  
   const handleCorrect = (questionId) => {
     if (answeredIds.has(questionId)) return
     const newAnswered = new Set([...answeredIds, questionId])

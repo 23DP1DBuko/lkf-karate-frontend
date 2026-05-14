@@ -1,18 +1,84 @@
 /* Results.jsx */
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../api/strapi'
 import { useTranslation } from 'react-i18next'
 import { SkeletonList } from '../../components/Skeleton'
 
+
 export default function Results() {
   const { user } = useAuth()
   const { t } = useTranslation()
   const queryClient = useQueryClient()
+  const location = useLocation()
+  const [selectedAttempt, setSelectedAttempt] = useState(null)
+  const justSubmitted = location.state?.justSubmitted || null
   const { data: attempts, isLoading } = useQuery({
   queryKey: ['attempts', user?.id],
   queryFn: () => api.get(`/exam-attempts?populate=exam&sort=createdAt:desc`).then(r => r.data.data),
 })
+
+  if (selectedAttempt) {
+    const questions = selectedAttempt.questions || []
+    const answers = selectedAttempt.answers || {}
+
+    return (
+      <div>
+        <button
+          onClick={() => setSelectedAttempt(null)}
+          className="text-blue-600 hover:underline text-sm mb-4 block"
+        >
+          ← Back to Results
+        </button>
+
+        <h1 className="text-3xl font-bold text-blue-700 mb-2">
+          {selectedAttempt.exam?.title || 'Exam'}
+        </h1>
+        <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>
+          {selectedAttempt.score}% • {selectedAttempt.passed ? t('results.passed') : t('results.failed')}
+        </p>
+
+        <div className="space-y-4">
+          {questions.map((q, i) => {
+            const userAnswer = answers[q.id]
+            const isCorrect =
+              q.type !== 'open_text' &&
+              String(userAnswer || '').toLowerCase() === String(q.correctAnswer || '').toLowerCase()
+
+            return (
+              <div
+                key={q.id || i}
+                className="rounded-xl shadow p-5"
+                style={{ backgroundColor: 'var(--bg-card)' }}
+              >
+                <p className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>{i + 1}.</span> {q.text}
+                </p>
+
+                <div className="space-y-1 text-sm">
+                  <p style={{ color: 'var(--text-secondary)' }}>
+                    Your answer:{' '}
+                    <span className={isCorrect ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+                      {userAnswer || '—'}
+                    </span>
+                  </p>
+
+                  <p style={{ color: 'var(--text-secondary)' }}>
+                    Correct answer:{' '}
+                    <span className="text-green-600 font-medium">
+                      {q.correctAnswer || '—'}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   if (isLoading) return (
     <div>
@@ -34,11 +100,46 @@ export default function Results() {
         </div>
       )}
 
+      {justSubmitted && (
+        <div className="rounded-xl shadow p-5 mb-6" style={{ backgroundColor: 'var(--bg-card)' }}>
+          <h2 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
+            {justSubmitted.title || t('results.title')}
+          </h2>
+
+          {justSubmitted.showResults ? (
+            <div>
+              <p className="mb-2" style={{ color: 'var(--text-secondary)' }}>
+                {justSubmitted.score}% • {justSubmitted.passed ? t('results.passed') : t('results.failed')}
+              </p>
+              <button
+                onClick={() => setSelectedAttempt(justSubmitted)}
+                className="text-blue-600 hover:underline text-sm"
+              >
+                View answers
+              </button>
+            </div>
+          ) : (
+            <p style={{ color: 'var(--text-secondary)' }}>
+              Exam submitted. Results will appear here after the administrator releases them.
+            </p>
+          )}
+        </div>
+      )}
+
       <div className="space-y-4">
         {attempts?.map(attempt => {
-          const released = attempt.exam?.showResults === true || attempt.exam?.resultsReleased === true
+          const released = attempt.exam?.showResults === true
           return (
-            <div key={attempt.id} className="rounded-xl shadow p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3" style={{ backgroundColor: 'var(--bg-card)' }}>
+            <div
+              key={attempt.id}
+              onClick={() => {
+                if (released) setSelectedAttempt(attempt)
+              }}
+              className={`rounded-xl shadow p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+                released ? 'cursor-pointer hover:opacity-80 transition' : ''
+              }`}
+              style={{ backgroundColor: 'var(--bg-card)' }}
+            >
               <div>
                 <h3 className="font-semibold text-lg" style={{ color: 'var(--text-primary)' }}>{attempt.exam?.title || 'Exam'}</h3>
                 <p className="text-sm" style={{ color: 'var(--text-muted)' }}>

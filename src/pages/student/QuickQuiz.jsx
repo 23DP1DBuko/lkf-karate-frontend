@@ -1,3 +1,4 @@
+// quickquiz.jsx
 import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import api from '../../api/strapi'
@@ -83,8 +84,6 @@ export default function QuickQuiz() {
         }
       }
     })
-    console.log('Answers:', answers)
-    console.log('Questions:', questions.map(q => ({ id: q.id, correctAnswer: q.correctAnswer })))
     return { correct, total: questions.length, score: Math.round((correct / questions.length) * 100) }
   }
 

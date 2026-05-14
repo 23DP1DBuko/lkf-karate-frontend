@@ -130,7 +130,14 @@ export default function AdminQuestions() {
       course: form.course,
       media: form.media ? form.media.id : null,
       chapter: form.chapter || null,
-      order: form.order ? Number(form.order) : null,
+      order: (() => {
+        if (editingQuestion) return form.order ? Number(form.order) : null
+        // Auto-calculate: max order in this course + 1
+        const courseQuestions = questions?.filter(q => q.course?.documentId === form.course) || []
+        return courseQuestions.length > 0
+          ? Math.max(...courseQuestions.map(q => q.order || 0)) + 1
+          : 1
+      })(),
     }
     if (editingQuestion) {
       updateMutation.mutate({ documentId: editingQuestion.documentId, data })
@@ -294,6 +301,8 @@ export default function AdminQuestions() {
                 min={1}
                 placeholder="e.g. 42"
                 style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                disabled={!editingQuestion}
+                placeholder={editingQuestion ? 'e.g. 42' : 'Auto-calculated'}
               />
             </div>
             <MediaUpload

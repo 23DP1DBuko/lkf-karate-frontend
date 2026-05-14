@@ -3,20 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import api from '../../api/strapi'
 import { mediaUrl } from '../../api/media'
 
-export default function ExamPage() {
-  const { documentId } = useParams()
-  const navigate = useNavigate()
-
-  const [attempt, setAttempt] = useState(null)
-  const [questions, setQuestions] = useState([])
-  const [answers, setAnswers] = useState({})
-  const [timeLeft, setTimeLeft] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState('')
-  const [showResults, setShowResults] = useState(true)
-
-  function QuestionMedia({ media }) {
+function QuestionMedia({ media }) {
   if (!media) return null
   
   // Handle both array and single object
@@ -49,10 +36,22 @@ export default function ExamPage() {
   )
 }
 
+export default function ExamPage() {
+  const { documentId } = useParams()
+  const navigate = useNavigate()
+
+  const [attempt, setAttempt] = useState(null)
+  const [questions, setQuestions] = useState([])
+  const [answers, setAnswers] = useState({})
+  const [timeLeft, setTimeLeft] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const [showResults, setShowResults] = useState(true)
+
   useEffect(() => {
     api.post('/exams/start', { examId: documentId })
       .then(res => {
-        console.log('Questions:', JSON.stringify(res.data.questions))
         setAttempt(res.data.attemptId)
         setQuestions(res.data.questions || [])
         setTimeLeft(res.data.remainingSeconds || res.data.duration * 60)
@@ -80,10 +79,8 @@ export default function ExamPage() {
     setSubmitting(true)
     try {
       const res = await api.post('/exams/submit', { attemptId: attempt, answers })
-      console.log('Submit response:', res.data)
       navigate('/exam-result', { state: res.data })
     } catch (err) {
-      console.log('Submit error:', err.response?.data)
       setError('Failed to submit exam: ' + JSON.stringify(err.response?.data?.error))
       setSubmitting(false)
     }
