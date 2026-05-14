@@ -205,31 +205,34 @@ export default function ChapterDetail() {
     onSuccess: () => queryClient.invalidateQueries(['chapter-progress'])
   })
 
-  useEffect(() => {
-    if (chapter?.documentId) {
-      markSeenMutation.mutate(chapter.documentId)
-    }
-  }, [chapter?.documentId])
-
     useEffect(() => {
     setCorrectCount(0)
     setAnsweredIds(new Set())
   }, [chapterDocumentId])
 
-  const isSeen = progressData?.some(p => p.chapter?.documentId === chapter?.documentId)
-
-  const handleCorrect = (questionId) => {
-    if (!answeredIds.has(questionId)) {
-      setAnsweredIds(prev => new Set([...prev, questionId]))
-      setCorrectCount(prev => prev + 1)
+  useEffect(() => {
+    if (chapter?.documentId && totalQuestions === 0) {
+      markSeenMutation.mutate(chapter.documentId)
     }
-  }
+  }, [chapter?.documentId, totalQuestions])
 
+
+  const isSeen = progressData?.some(p => p.chapter?.documentId === chapter?.documentId)
   const totalQuestions = chapter?.blocks?.filter(
     b => b.type === 'question' || b.type === 'bank_question'
   ).length || 0
   const allCorrect = totalQuestions > 0 && correctCount >= totalQuestions
 
+  const handleCorrect = (questionId) => {
+    if (answeredIds.has(questionId)) return
+    const newAnswered = new Set([...answeredIds, questionId])
+    setAnsweredIds(newAnswered)
+    const newCount = correctCount + 1
+    setCorrectCount(newCount)
+    if (newCount >= totalQuestions && totalQuestions > 0) {
+      markSeenMutation.mutate(chapter.documentId)
+    }
+  }
   // Find next chapter
   const currentIndex = allChapters?.findIndex(c => c.documentId === chapterDocumentId) ?? -1
   const nextChapter = allChapters?.[currentIndex + 1]
