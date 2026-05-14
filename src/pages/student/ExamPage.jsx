@@ -1,40 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../../api/strapi'
-import { mediaUrl } from '../../api/media'
-
-function QuestionMedia({ media }) {
-  if (!media) return null
-  
-  // Handle both array and single object
-  const items = Array.isArray(media) ? media : [media]
-  if (items.length === 0) return null
-
-  return (
-    <div className="mb-4 space-y-2">
-      {items.map((item, i) => {
-        if (item.mime?.startsWith('image/')) {
-          return (
-            <img
-              key={i}
-              src={mediaUrl(item.url)}
-              alt={item.alternativeText || 'Question media'}
-              className="w-full rounded-lg max-h-64 object-cover"
-            />
-          )
-        }
-        if (item.mime?.startsWith('video/')) {
-          return (
-            <video key={i} controls className="w-full rounded-lg max-h-64">
-              <source src={mediaUrl(item.url)} type={item.mime} />
-            </video>
-          )
-        }
-        return null
-      })}
-    </div>
-  )
-}
+import MediaDisplay from '../../components/MediaDisplay'
 
 export default function ExamPage() {
   const { documentId } = useParams()
@@ -79,7 +46,19 @@ export default function ExamPage() {
     setSubmitting(true)
     try {
       const res = await api.post('/exams/submit', { attemptId: attempt, answers })
-      navigate('/exam-result', { state: res.data })
+
+      navigate('/results', {
+        state: {
+          justSubmitted: {
+            ...res.data,
+            id: attempt,
+            title: res.data.title || 'Exam',
+            questions,
+            answers,
+            showResults: res.data.showResults === true,
+          }
+        }
+      })
     } catch (err) {
       setError('Failed to submit exam: ' + JSON.stringify(err.response?.data?.error))
       setSubmitting(false)
@@ -104,6 +83,11 @@ export default function ExamPage() {
     </div>
   )
 
+  const allAnswered = questions.length > 0 && questions.every(q => {
+    const value = answers[q.id]
+    return value !== undefined && value !== null && String(value).trim() !== ''
+  })
+
   return (
     <div className="min-h-screen bg-gray-100 p-8">
       <div className="max-w-3xl mx-auto">
@@ -124,7 +108,7 @@ export default function ExamPage() {
                 <span className="text-blue-600 mr-2">{index + 1}.</span>
                 {q.text}
               </p>
-              <QuestionMedia media={q.media} />
+              <MediaDisplay media={q.media} />
 
               {q.type === 'multiple_choice' && (
                 <div className="space-y-2">
@@ -188,11 +172,15 @@ export default function ExamPage() {
         </div>
 
         {/* Submit */}
-        <div className="mt-8 flex justify-end">
+        <div className="mt-8 flex flex-col items-end gap-2">
+          {!allAnswered && (
+            <p className="text-sm text-red-500">Answer all questions before submitting the exam.</p>
+          )}
           <button
             onClick={handleSubmit}
-            disabled={submitting}
-            className="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50"
+            disabled={submitting || !allAnswered}
+            title={!allAnswered ? 'Answer all questions first' : ''}
+            className="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? 'Submitting...' : 'Submit Exam'}
           </button>

@@ -90,6 +90,11 @@ export default function QuickQuiz() {
     })
   }
 
+  const allAnswered = questions.length > 0 && questions.every(q => {
+    const value = answers[q.id]
+    return value !== undefined && value !== null && String(value).trim() !== ''
+  })
+
   const getScore = () => {
     let correct = 0
     questions.forEach(q => {
@@ -229,10 +234,15 @@ export default function QuickQuiz() {
         ))}
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex flex-col items-end gap-2">
+        {!allAnswered && (
+          <p className="text-sm text-red-500">Answer all questions before submitting.</p>
+        )}
         <button
           onClick={handleSubmit}
-          className="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700"
+          disabled={!allAnswered}
+          title={!allAnswered ? 'Answer all questions first' : ''}
+          className="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Submit Quiz
         </button>
