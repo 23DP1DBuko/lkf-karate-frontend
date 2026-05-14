@@ -1,6 +1,6 @@
 import { mediaUrl } from '../api/media'
 
-export default function QuestionMedia({ media }) {
+export default function MediaDisplay({ media }) {
   if (!media) return null
   const items = Array.isArray(media) ? media : [media]
   if (items.length === 0) return null
@@ -8,7 +8,7 @@ export default function QuestionMedia({ media }) {
     <div className="mb-4 space-y-2">
       {items.map((item, i) => {
         if (item.mime?.startsWith('image/')) return (
-          <img key={i} src={mediaUrl(item.url)} alt={item.alternativeText || 'Question media'}
+          <img key={i} src={mediaUrl(item.url)} alt={item.alternativeText || 'Attached media'}
             className="w-full rounded-lg max-h-64 object-cover" />
         )
         if (item.mime?.startsWith('video/')) return (
