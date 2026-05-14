@@ -15,6 +15,7 @@ export default function ExamPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [showResults, setShowResults] = useState(true)
+  const [completedExam, setCompletedExam] = useState(false)
 
   useEffect(() => {
     api.post('/exams/start', { examId: documentId })
@@ -26,7 +27,13 @@ export default function ExamPage() {
         setLoading(false)
         })
       .catch(err => {
-        setError(err.response?.data?.error?.message || 'Failed to start exam')
+        const message = err.response?.data?.error?.message || 'Failed to start exam'
+        if (message.toLowerCase().includes('already completed')) {
+          setCompletedExam(true)
+          setError('')
+        } else {
+          setError(message)
+        }
         setLoading(false)
       })
   }, [documentId])
@@ -77,9 +84,29 @@ export default function ExamPage() {
     </div>
   )
 
-  if (error) return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="bg-red-100 text-red-700 px-6 py-4 rounded-xl">{error}</div>
+  if (completedExam) return (
+    <div className="flex items-center justify-center min-h-screen p-6">
+      <div className="bg-white rounded-xl shadow p-8 max-w-md w-full text-center">
+        <div className="text-5xl mb-4">✅</div>
+        <h1 className="text-2xl font-bold text-blue-700 mb-2">Exam already completed</h1>
+        <p className="text-gray-500 mb-6">
+          You have already submitted this exam. You cannot start it again.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => navigate('/results')}
+            className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Go to Results
+          </button>
+          <button
+            onClick={() => navigate(-1)}
+            className="flex-1 border px-4 py-2 rounded-lg hover:bg-gray-50"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
     </div>
   )
 
