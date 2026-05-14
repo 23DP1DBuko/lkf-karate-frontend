@@ -12,7 +12,7 @@ export default defineConfig({
       includeAssets: ["favicon.ico", "apple-touch-icon.png"],
       manifest: {
         name: "LKF Academy",
-        short_name: "LKF Karate",
+        short_name: "LKF Academy",
         description:
           "Karate judges and competition secretaries qualification platform",
         theme_color: "#1d4ed8",
@@ -30,7 +30,7 @@ export default defineConfig({
         runtimeCaching: [
           {
             urlPattern:
-              /^https:\/\/lkf-karate-backend-production\.up\.railway\.app\/api\/.*/i,
+              /^https:\/\/lkf-karate-backend\.onrender\.com\/api\/.*/i,
             handler: "NetworkFirst",
             options: {
               cacheName: "api-cache",

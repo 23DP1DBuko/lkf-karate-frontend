@@ -9,7 +9,7 @@ export default function IconButton(props) {
     size = 'md',
   } = props
   const Icon = icon
-  const [showTooltip, setShowTooltip] = useState(false)
+  const [tooltipPos, setTooltipPos] = useState(null)
   const variants = {
     default: 'hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-600',
     danger: 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500',
@@ -27,10 +27,16 @@ export default function IconButton(props) {
         type="button"
         onClick={onClick}
         disabled={disabled}
-        onMouseEnter={() => setShowTooltip(true)}
-        onMouseLeave={() => setShowTooltip(false)}
-        onFocus={() => setShowTooltip(true)}
-        onBlur={() => setShowTooltip(false)}
+        onMouseEnter={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect()
+          setTooltipPos({ top: rect.top - 25, left: rect.left + rect.width / 2 })
+        }}
+        onMouseLeave={() => setTooltipPos(null)}
+        onFocus={(e) => {
+          const rect = e.currentTarget.getBoundingClientRect()
+          setTooltipPos({ top: rect.top - 25, left: rect.left + rect.width / 2 })
+        }}
+        onBlur={() => setTooltipPos(null)}
         className={
           "relative flex items-center justify-center rounded-lg transition-all duration-150 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]}"
         }
@@ -41,10 +47,17 @@ export default function IconButton(props) {
           <span className="absolute inset-0 rounded-lg bg-current opacity-0 active:opacity-10 transition-opacity" />
         </span>
       </button>
-      {showTooltip && label && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 pointer-events-none">
+      {tooltipPos && label && (
+        <div
+          className="fixed z-[9999] pointer-events-none"
+          style={{
+            top: tooltipPos.top,
+            left: tooltipPos.left,
+            transform: 'translateX(-50%)',
+          }}
+        >
           <div
-            className="px-2 py-1 text-xs rounded-lg whitespace-nowrap shadow-lg animate-fade-in"
+            className="px-2 py-1 text-xs rounded-lg whitespace-nowrap shadow-lg"
             style={{ backgroundColor: 'var(--text-primary)', color: 'var(--bg-primary)' }}
           >
             {label}
