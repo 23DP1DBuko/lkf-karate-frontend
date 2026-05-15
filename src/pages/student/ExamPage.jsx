@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import api from '../../api/strapi'
 import MediaDisplay from '../../components/MediaDisplay'
+import { useExamAttempt } from '../../context/ExamAttemptContext'
 
 export default function ExamPage() {
   const { documentId } = useParams()
@@ -18,10 +19,14 @@ export default function ExamPage() {
   const [error, setError] = useState('')
   const [showResults, setShowResults] = useState(true)
   const [completedExam, setCompletedExam] = useState(false)
-
+  const { setActiveAttempt, clearActiveAttempt } = useExamAttempt()
+  const location = useLocation()
+  const examRef = useRef(null)
   useEffect(() => {
     if (startedRef.current) return
     startedRef.current = true
+
+    
 
     api.post('/exams/start', { examId: documentId })
       .then(res => {
@@ -32,6 +37,14 @@ export default function ExamPage() {
         setTimeLeft(res.data.remainingSeconds || res.data.duration * 60)
         setShowResults(res.data.showResults === true)
         setLoading(false)
+
+        examRef.current = {
+          id: res.data.attemptId,
+          exam: {
+            title: res.data.examTitle || 'Exam',
+            documentId,
+          },
+        }
       })
       .catch(err => {
         const message = err.response?.data?.error?.message || 'Failed to start exam'
@@ -43,7 +56,7 @@ export default function ExamPage() {
         }
         setLoading(false)
       })
-  }, [documentId])
+  }, [documentId, setActiveAttempt])
 
   useEffect(() => {
     if (timeLeft === null) return
@@ -81,6 +94,30 @@ export default function ExamPage() {
     return () => clearTimeout(saveTimer.current)
   }, [answers, attempt, loading, questions.length, submitting, completedExam])
 
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (attempt && !submitting && !completedExam) {
+        setActiveAttempt(examRef.current)
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [attempt, submitting, completedExam, setActiveAttempt])
+
+  useEffect(() => {
+    return () => {
+      if (attempt && !submitting && !completedExam) {
+        setActiveAttempt(examRef.current)
+      }
+    }
+  }, [attempt, submitting, completedExam, setActiveAttempt])
+
+  useEffect(() => {
+  // Kad ienākam eksāmena lapā, paslēpjam global banneri
+  clearActiveAttempt()
+}, [clearActiveAttempt])
+
   const handleSubmit = async () => {
     if (submitting) return
     setSubmitting(true)
@@ -99,11 +136,13 @@ export default function ExamPage() {
           }
         }
       })
+      clearActiveAttempt()
     } catch (err) {
       setError('Failed to submit exam: ' + JSON.stringify(err.response?.data?.error))
       setSubmitting(false)
     }
   }
+  
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0')

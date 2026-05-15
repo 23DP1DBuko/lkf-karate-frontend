@@ -7,6 +7,7 @@ import { ThemeProvider } from './context/ThemeContext'
 import './index.css'
 import App from './App.jsx'
 import './i18n'
+import { ExamAttemptProvider } from './context/ExamAttemptContext'
 
 const queryClient = new QueryClient()
 const originalError = console.error
@@ -24,7 +25,9 @@ createRoot(document.getElementById('root')).render(
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <AuthProvider>
-            <App />
+            <ExamAttemptProvider>
+              <App />
+            </ExamAttemptProvider>
           </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>
