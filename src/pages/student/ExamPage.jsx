@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import api from '../../api/strapi'
 import MediaDisplay from '../../components/MediaDisplay'
@@ -6,7 +6,9 @@ import MediaDisplay from '../../components/MediaDisplay'
 export default function ExamPage() {
   const { documentId } = useParams()
   const navigate = useNavigate()
-
+  const saveTimer = useRef(null)
+  const startedRef = useRef(false)
+  const didHydrateAnswers = useRef(false)
   const [attempt, setAttempt] = useState(null)
   const [questions, setQuestions] = useState([])
   const [answers, setAnswers] = useState({})
@@ -18,14 +20,19 @@ export default function ExamPage() {
   const [completedExam, setCompletedExam] = useState(false)
 
   useEffect(() => {
+    if (startedRef.current) return
+    startedRef.current = true
+
     api.post('/exams/start', { examId: documentId })
       .then(res => {
         setAttempt(res.data.attemptId)
         setQuestions(res.data.questions || [])
+        setAnswers(res.data.answers || {})
+        didHydrateAnswers.current = true
         setTimeLeft(res.data.remainingSeconds || res.data.duration * 60)
         setShowResults(res.data.showResults === true)
         setLoading(false)
-        })
+      })
       .catch(err => {
         const message = err.response?.data?.error?.message || 'Failed to start exam'
         if (message.toLowerCase().includes('already completed')) {
@@ -47,6 +54,32 @@ export default function ExamPage() {
     const timer = setInterval(() => setTimeLeft(t => t - 1), 1000)
     return () => clearInterval(timer)
   }, [timeLeft])
+
+  useEffect(() => {
+    if (!attempt || loading || !questions.length) return
+    if (!didHydrateAnswers.current) return
+    if (submitting || completedExam) return
+
+    const hasAnyAnswer = Object.values(answers || {}).some(
+      value => value !== undefined && value !== null && String(value).trim() !== ''
+    )
+
+    if (!hasAnyAnswer) return
+
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(async () => {
+      try {
+        await api.post('/exams/save-progress', {
+          attemptId: attempt,
+          answers,
+        })
+      } catch (err) {
+        console.error('Autosave failed', err)
+      }
+    }, 1000)
+
+    return () => clearTimeout(saveTimer.current)
+  }, [answers, attempt, loading, questions.length, submitting, completedExam])
 
   const handleSubmit = async () => {
     if (submitting) return

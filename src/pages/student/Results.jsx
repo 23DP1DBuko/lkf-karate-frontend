@@ -1,7 +1,7 @@
 /* Results.jsx */
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../api/strapi'
 import { useTranslation } from 'react-i18next'
@@ -20,7 +20,7 @@ export default function Results() {
   queryFn: () => api.get(`/exam-attempts?populate=exam&sort=createdAt:desc`).then(r => r.data.data),
 })
 
-  if (selectedAttempt) {
+  if (selectedAttempt && selectedAttempt.submittedAt !== null && selectedAttempt.showResults !== false && selectedAttempt.exam?.showResults !== false) {
     const questions = selectedAttempt.questions || []
     const answers = selectedAttempt.answers || {}
 
@@ -87,13 +87,15 @@ export default function Results() {
       <SkeletonList count={4} />
     </div>
   )
+  const inProgressAttempts = (attempts || []).filter(a => !a.submittedAt)
+  const submittedAttempts = (attempts || []).filter(a => a.submittedAt)
 
   return (
     <div>
       <h1 className="text-3xl font-bold text-blue-700 mb-2">{t('results.title')}</h1>
       <p className="mb-8" style={{ color: 'var(--text-secondary)' }}>{t('results.subtitle')}</p>
 
-      {attempts?.length === 0 && (
+      {inProgressAttempts.length === 0 && submittedAttempts.length === 0 && (
         <div className="rounded-xl shadow p-8 text-center" style={{ backgroundColor: 'var(--bg-card)' }}>
           <div className="text-5xl mb-4">📝</div>
           <p style={{ color: 'var(--text-muted)' }}>{t('results.noExams')}</p>
@@ -120,15 +122,53 @@ export default function Results() {
             </div>
           ) : (
             <p style={{ color: 'var(--text-secondary)' }}>
-              Exam submitted. Results will appear here after the administrator releases them.
+              Exam submitted successfully. Your result is pending and will appear here after the administrator releases it.
             </p>
           )}
         </div>
       )}
 
+      {inProgressAttempts.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+            In Progress
+          </h2>
+          <div className="space-y-4">
+            {inProgressAttempts.map(attempt => (
+              <div
+                key={attempt.id}
+                className="rounded-xl shadow p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+                style={{ backgroundColor: 'var(--bg-card)' }}
+              >
+                <div>
+                  <h3 className="font-semibold text-lg" style={{ color: 'var(--text-primary)' }}>
+                    {attempt.exam?.title || 'Exam'}
+                  </h3>
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                    {t('results.inProgress')}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">
+                    {t('results.inProgress')}
+                  </span>
+                  <Link
+                    to={`/exam/${attempt.exam?.documentId || attempt.exam?.id}`}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm"
+                  >
+                    Continue exam
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="space-y-4">
-        {attempts?.map(attempt => {
-          const released = attempt.exam?.showResults === true
+        {submittedAttempts.map(attempt => {
+          const released = attempt.submittedAt && attempt.exam?.showResults === true
           return (
             <div
               key={attempt.id}
@@ -149,30 +189,24 @@ export default function Results() {
                 </p>
               </div>
               <div className="text-right">
-                {attempt.submittedAt ? (
-                  <>
-                    <div className="text-3xl font-bold">
-                      {released ? (
-                        <span className={attempt.passed ? 'text-green-600' : 'text-red-600'}>
-                          {attempt.score}%
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)' }}>?</span>
-                      )}
-                    </div>
-                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                      released
-                        ? attempt.passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                        : 'bg-gray-100 text-gray-500'
-                    }`}>
-                      {released ? (attempt.passed ? t('results.passed') : t('results.failed')) : t('results.pending')}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-xs font-medium px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">
-                    {t('results.inProgress')}
+                <>
+                  <div className="text-3xl font-bold">
+                    {released ? (
+                      <span className={attempt.passed ? 'text-green-600' : 'text-red-600'}>
+                        {attempt.score}%
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>?</span>
+                    )}
+                  </div>
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                    released
+                      ? attempt.passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {released ? (attempt.passed ? t('results.passed') : t('results.failed')) : t('results.pending')}
                   </span>
-                )}
+                </>
               </div>
             </div>
           )
