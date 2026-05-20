@@ -327,9 +327,9 @@ export default function BlockEditor({ blocks = [], onChange, courseId }) {
       id: crypto.randomUUID(),
       type,
       content: '',
-      url: '',
+      mediaItems: [],
+      embedUrl: '',
       caption: '',
-      media: null,
       questionType: 'yes_no',
       options: [],
       correctAnswer: '',
@@ -438,8 +438,8 @@ export default function BlockEditor({ blocks = [], onChange, courseId }) {
               questionType: question.type,
               options: question.options || [],
               correctAnswer: question.correctAnswer,
-              media: null,
-              url: '',
+              mediaItems: [],
+              embedUrl: '',
               caption: '',
             }
             onChange([...blocks, newBlock])

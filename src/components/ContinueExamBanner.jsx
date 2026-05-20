@@ -6,8 +6,8 @@ export default function ContinueExamBanner() {
   const location = useLocation()
   const { activeAttempt, clearActiveAttempt } = useExamAttempt()
 
-  const [visible, setVisible] = useState(false)
   const [closing, setClosing] = useState(false)
+  const [mounted, setMounted] = useState(false)
 
   const isAdminRoute = location.pathname.startsWith('/admin')
   const examDocumentId = activeAttempt?.exam?.documentId
@@ -17,14 +17,11 @@ export default function ContinueExamBanner() {
     let timer
 
     if (activeAttempt && !activeAttempt.submittedAt && !isAdminRoute && !isExamRoute) {
-      setClosing(false)
-      setVisible(false)
-
       timer = setTimeout(() => {
-        setVisible(true)
+        setMounted(true)
       }, 500)
     } else {
-      setVisible(false)
+      setMounted(false)
       setClosing(false)
     }
 
@@ -35,6 +32,8 @@ export default function ContinueExamBanner() {
     return null
   }
 
+  if (!mounted && !closing) return null
+
   const examTitle = activeAttempt.exam?.title || 'Exam'
   const examPath = `/exam/${examDocumentId}`
 
@@ -42,16 +41,14 @@ export default function ContinueExamBanner() {
     setClosing(true)
     setTimeout(() => {
       clearActiveAttempt()
-      setVisible(false)
+      setMounted(false)
       setClosing(false)
     }, 260)
   }
 
-  if (!visible && !closing) return null
-
   return (
     <div
-      className={`fixed left-1/2 top-4 z-50 w-[min(92vw,720px)] -translate-x-1/2 rounded-2xl shadow-lg border px-4 py-3 ${
+      className={`continue-banner rounded-2xl shadow-lg border px-4 py-3 ${
         closing ? 'animate-banner-out' : 'animate-banner-in'
       }`}
       style={{
