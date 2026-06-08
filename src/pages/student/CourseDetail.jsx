@@ -28,7 +28,23 @@ export default function CourseDetail() {
   const { data: exams } = useQuery({
     queryKey: ['exams', documentId],
     queryFn: () => api.get(`/exams?filters[course][documentId][$eq]=${documentId}`).then(r => r.data.data)
-})
+  })
+
+  const getExamWindowState = (exam) => {
+    const now = new Date()
+    const openAt = exam.openAt ? new Date(exam.openAt) : null
+    const closeAt = exam.closeAt ? new Date(exam.closeAt) : null
+
+    if (openAt && now < openAt) {
+      return { state: 'upcoming', label: `Opens on ${openAt.toLocaleString()}` }
+    }
+
+    if (closeAt && now > closeAt) {
+      return { state: 'closed', label: 'Closed' }
+    }
+
+    return { state: 'open', label: 'Start Exam' }
+  }
 
   if (courseLoading || chaptersLoading) return (
     <div className="flex items-center justify-center min-h-screen">
@@ -90,30 +106,95 @@ export default function CourseDetail() {
               </Link>
             </div>
           )}
-        {exams?.length > 0 && (
-        <div className="mt-8">
-            <h2 className="text-xl font-semibold mb-4">Exams</h2>
-            <div className="space-y-3">
-            {exams.map(exam => (
-                <Link
-                  key={exam.id}
-                  to={`/exam/${exam.documentId}`}
-                  className="bg-white rounded-xl shadow hover:shadow-md transition p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 block"
-                >
-                  <div>
-                    <h3 className="font-semibold">
-                      {getLocalizedField(exam, i18n.language, 'title') || exam.title}
-                    </h3>
-                    <p className="text-sm text-gray-400">{exam.duration} minutes • {exam.questionCount} questions</p>
+        {(() => {
+          const now = new Date()
+
+          const activeExams = exams?.filter(exam => {
+            const closeAt = exam.closeAt ? new Date(exam.closeAt) : null
+            return !closeAt || closeAt >= now
+          }) || []
+
+          const archivedExams = exams?.filter(exam => {
+            const closeAt = exam.closeAt ? new Date(exam.closeAt) : null
+            return closeAt && closeAt < now
+          }) || []
+
+          return (
+            <>
+              {activeExams.length > 0 && (
+                <div className="mt-8">
+                  <h2 className="text-xl font-semibold mb-4">Active Exams</h2>
+                  <div className="space-y-3">
+                    {activeExams.map(exam => {
+                      const windowState = getExamWindowState(exam)
+                      return (
+                        <div
+                          key={exam.id}
+                          className="bg-white rounded-xl shadow hover:shadow-md transition p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+                        >
+                          <div>
+                            <h3 className="font-semibold">
+                              {getLocalizedField(exam, i18n.language, 'title') || exam.title}
+                            </h3>
+                            <p className="text-sm text-gray-400">
+                              {exam.duration} minutes • {exam.questionCount} questions
+                            </p>
+                          </div>
+
+                          {windowState.state === 'open' ? (
+                            <Link
+                              to={`/exam/${exam.documentId}`}
+                              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium w-full sm:w-auto text-center"
+                            >
+                              Start Exam
+                            </Link>
+                          ) : (
+                            <span className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg text-sm font-medium w-full sm:w-auto text-center">
+                              {windowState.label}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
-                  <span className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium w-full sm:w-auto text-center">
-                    Start Exam
-                  </span>
-                </Link>
-            ))}
-            </div>
-        </div>
-        )}
+                </div>
+              )}
+
+              {archivedExams.length > 0 && (
+                <div className="mt-8">
+                  <details className="rounded-xl border border-gray-200 bg-white">
+                    <summary className="cursor-pointer list-none px-4 py-3 font-semibold text-gray-700">
+                      Archived Exams ({archivedExams.length})
+                    </summary>
+                    <div className="border-t border-gray-100 p-4 space-y-3">
+                      {archivedExams.map(exam => {
+                        return (
+                          <div
+                            key={exam.id}
+                            className="bg-gray-50 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
+                          >
+                            <div>
+                              <h3 className="font-semibold text-gray-700">
+                                {getLocalizedField(exam, i18n.language, 'title') || exam.title}
+                              </h3>
+                              <p className="text-sm text-gray-400">
+                                {exam.duration} minutes • {exam.questionCount} questions
+                              </p>
+                            </div>
+
+                            <span className="bg-gray-100 text-gray-500 px-4 py-2 rounded-lg text-sm font-medium w-full sm:w-auto text-center">
+                              Closed
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </details>
+                </div>
+              )}
+            </>
+          )
+        })()}
     </div>
   )
 }

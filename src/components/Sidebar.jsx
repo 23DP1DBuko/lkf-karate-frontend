@@ -217,12 +217,8 @@ export default function Sidebar() {
         style={{ borderColor: 'var(--border)' }}>
         {!isCollapsed && (
           <Link to="/dashboard" onClick={isMobile ? close : undefined} className="flex items-center gap-2">
-            <span className="text-xl">🥋</span>
             <span className="font-bold text-blue-700">LKF Karate</span>
           </Link>
-        )}
-        {isCollapsed && (
-          <span className="text-xl">🥋</span>
         )}
         {!isMobile && (
           <button

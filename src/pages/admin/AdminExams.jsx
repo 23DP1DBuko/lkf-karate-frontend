@@ -3,6 +3,7 @@ import { useState } from 'react'
 import api from '../../api/strapi'
 import IconButton from '../../components/IconButton'
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
+import DateTimeStepPicker from '../../components/DateTimeStepPicker'
 
 export default function AdminExams() {
   const queryClient = useQueryClient()
@@ -14,6 +15,14 @@ export default function AdminExams() {
     openAt: '', closeAt: '', course: '', showResults: true,
     selectedQuestions: []
   })
+
+  const toDateTimeLocal = (value) => {
+    if (!value) return ''
+    const d = new Date(value)
+    if (Number.isNaN(d.getTime())) return ''
+    const pad = (n) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  }
 
   const { data: exams, isLoading } = useQuery({
     queryKey: ['admin-exams'],
@@ -89,8 +98,8 @@ export default function AdminExams() {
       duration: exam.duration,
       questionCount: exam.questionCount,
       passingScore: exam.passingScore,
-      openAt: exam.openAt ? exam.openAt.slice(0, 16) : '',
-      closeAt: exam.closeAt ? exam.closeAt.slice(0, 16) : '',
+      openAt: toDateTimeLocal(exam.openAt),
+      closeAt: toDateTimeLocal(exam.closeAt),
       course: exam.course?.documentId || '',
       showResults: exam.showResults ?? true,
       selectedQuestions: exam.questions?.map(q => q.documentId) || []
@@ -98,8 +107,44 @@ export default function AdminExams() {
     setShowForm(true)
   }
 
+  const [dateError, setDateError] = useState('')
+
+  const validateDates = (openAt, closeAt, duration) => {
+    if (!openAt || !closeAt) return ''
+
+    const start = new Date(openAt)
+    const end = new Date(closeAt)
+    const mins = Number(duration || 0)
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return 'Please enter valid dates.'
+    }
+
+    if (end <= start) {
+      return 'Close date must be after open date.'
+    }
+
+    if (mins > 0) {
+      const examEndsAt = new Date(start.getTime() + mins * 60 * 1000)
+      if (end < examEndsAt) {
+        return 'Close date must be after the exam duration ends.'
+      }
+    }
+
+    return ''
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
+
+    const error = validateDates(form.openAt, form.closeAt, form.duration)
+    if (error) {
+      setDateError(error)
+      return
+    }
+
+    setDateError('')
+
     const data = {
       title: form.title,
       duration: Number(form.duration),
@@ -107,12 +152,13 @@ export default function AdminExams() {
         ? form.selectedQuestions.length
         : Number(form.questionCount),
       passingScore: Number(form.passingScore),
-      openAt: form.openAt || null,
-      closeAt: form.closeAt || null,
+      openAt: form.openAt ? new Date(form.openAt).toISOString() : null,
+      closeAt: form.closeAt ? new Date(form.closeAt).toISOString() : null,
       course: form.course,
       showResults: form.showResults,
       questions: form.selectedQuestions,
     }
+
     if (editingExam) {
       updateMutation.mutate({ documentId: editingExam.documentId, data })
     } else {
@@ -213,7 +259,11 @@ export default function AdminExams() {
                   type="number"
                   className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={form.duration}
-                  onChange={e => setForm({ ...form, duration: e.target.value })}
+                  onChange={e => {
+                    const next = { ...form, duration: e.target.value }
+                    setForm(next)
+                    setDateError(validateDates(next.openAt, next.closeAt, next.duration))
+                  }}
                   min={1} required
                 />
               </div>
@@ -240,26 +290,41 @@ export default function AdminExams() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Open At (optional)</label>
-                <input
-                  type="datetime-local"
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={form.openAt}
-                  onChange={e => setForm({ ...form, openAt: e.target.value })}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Close At (optional)</label>
-                <input
-                  type="datetime-local"
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={form.closeAt}
-                  onChange={e => setForm({ ...form, closeAt: e.target.value })}
-                />
-              </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <DateTimeStepPicker
+                label="Open At (optional)"
+                value={form.openAt}
+                onChange={(value) => {
+                  const next = { ...form, openAt: value }
+                  setForm(next)
+                  setDateError(validateDates(next.openAt, next.closeAt, next.duration))
+                }}
+                error=""
+                mode="datetime"
+                requiredTime={true}
+                minuteStep={5}
+              />
+
+              <DateTimeStepPicker
+                label="Close At (optional)"
+                value={form.closeAt}
+                onChange={(value) => {
+                  const next = { ...form, closeAt: value }
+                  setForm(next)
+                  setDateError(validateDates(next.openAt, next.closeAt, next.duration))
+                }}
+                error=""
+                mode="datetime"
+                requiredTime={true}
+                minuteStep={5}
+              />
             </div>
+
+            {dateError && (
+              <p className="mt-2 text-sm font-medium text-red-600">
+                {dateError}
+              </p>
+            )}
 
             {/* Question selector */}
             {form.course && (
