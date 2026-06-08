@@ -214,10 +214,10 @@ export default function ExamPage() {
                   {q.options?.map(option => (
                     <label
                       key={option}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition shadow-sm
                         ${answers[q.id] === option
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-blue-300'}`}
+                          ? 'border-blue-600 bg-blue-600 text-white shadow-md'
+                          : 'border-gray-200 bg-white text-slate-800 hover:border-blue-300 hover:bg-blue-50'}`}
                     >
                       <input
                         type="radio"
@@ -238,10 +238,10 @@ export default function ExamPage() {
                   {['true', 'false'].map(val => (
                     <label
                       key={val}
-                      className={`flex items-center gap-2 px-6 py-3 rounded-lg border cursor-pointer transition
+                      className={`flex items-center gap-2 px-6 py-3 rounded-lg border cursor-pointer transition shadow-sm
                         ${answers[q.id] === val
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-blue-300'}`}
+                          ? 'border-blue-600 bg-blue-600 text-white shadow-md'
+                          : 'border-gray-200 bg-white text-slate-800 hover:border-blue-300 hover:bg-blue-50'}`}
                     >
                       <input
                         type="radio"

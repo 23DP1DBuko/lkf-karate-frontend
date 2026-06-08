@@ -176,8 +176,8 @@ export default function QuickQuiz() {
                     key={option}
                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${
                       answers[q.id] === option
-                        ? 'border-blue-600 bg-blue-600 text-white'
-                        : 'border-gray-200 hover:border-blue-300'
+                        ? 'border-blue-600 bg-blue-600 text-white shadow-md'
+                        : 'border-gray-200 bg-white text-slate-800 hover:border-blue-300 hover:bg-blue-50'
                     }`}
                     style={{ color: answers[q.id] === option ? 'white' : 'var(--text-primary)' }}
                   >
@@ -187,7 +187,7 @@ export default function QuickQuiz() {
                       value={option}
                       checked={answers[q.id] === option}
                       onChange={() => setAnswers({ ...answers, [q.id]: option })}
-                      className="accent-blue-600"
+                      className="sr-only"
                     />
                     {option}
                   </label>
@@ -202,8 +202,8 @@ export default function QuickQuiz() {
                     key={val}
                     className={`flex items-center gap-2 px-6 py-3 rounded-lg border cursor-pointer transition ${
                       answers[q.id] === val
-                        ? 'border-blue-600 bg-blue-600 text-white'
-                        : 'border-gray-200 hover:border-blue-300'
+                        ? 'border-blue-600 bg-blue-600 text-white shadow-md'
+                        : 'border-gray-200 bg-white text-slate-800 hover:border-blue-300 hover:bg-blue-50'
                     }`}
                     style={{ color: answers[q.id] === val ? 'white' : 'var(--text-primary)' }}
                   >
@@ -213,7 +213,7 @@ export default function QuickQuiz() {
                       value={val}
                       checked={answers[q.id] === val}
                       onChange={() => setAnswers({ ...answers, [q.id]: val })}
-                      className="accent-blue-600"
+                      className="sr-only"
                     />
                     {val === 'true' ? 'Yes' : 'No'}
                   </label>
