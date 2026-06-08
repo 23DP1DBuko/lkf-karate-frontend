@@ -1,11 +1,12 @@
+// quickquiz.jsx
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import api from '../../api/strapi'
 import { mediaUrl } from '../../api/media'
 import { useTranslation } from 'react-i18next'
 import { getQuestionText, getLocalizedField } from '../../api/strapi'
 
-function QuestionMedia({ media }) {
+function MediaDisplay({ media }) {
   if (!media) return null
   
   // Handle both array and single object
@@ -20,7 +21,7 @@ function QuestionMedia({ media }) {
             <img
               key={i}
               src={mediaUrl(item.url)}
-              alt={item.alternativeText || 'Question media'}
+              alt={item.alternativeText || 'Attached media'}
               className="w-full rounded-lg max-h-64 object-cover"
             />
           )
@@ -40,11 +41,11 @@ function QuestionMedia({ media }) {
 
 export default function QuickQuiz() {
   const { documentId } = useParams()
+  const navigate = useNavigate()
   const [count, setCount] = useState('10')
   const [started, setStarted] = useState(false)
   const [questions, setQuestions] = useState([])
   const [answers, setAnswers] = useState({})
-  const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [courseTitle, setCourseTitle] = useState('')
@@ -69,8 +70,30 @@ export default function QuickQuiz() {
   }
 
   const handleSubmit = () => {
-    setSubmitted(true)
+    const { correct, total, score } = getScore()
+
+    navigate('/results', {
+      state: {
+        justSubmitted: {
+          id: `quick-quiz-${Date.now()}`,
+          title: `Quick Quiz — ${courseTitle}`,
+          score,
+          passed: score >= 70,
+          showResults: true,
+          questions,
+          answers,
+          correct,
+          total,
+          submittedAt: new Date().toISOString(),
+        }
+      }
+    })
   }
+
+  const allAnswered = questions.length > 0 && questions.every(q => {
+    const value = answers[q.id]
+    return value !== undefined && value !== null && String(value).trim() !== ''
+  })
 
   const getScore = () => {
     let correct = 0
@@ -83,8 +106,6 @@ export default function QuickQuiz() {
         }
       }
     })
-    console.log('Answers:', answers)
-    console.log('Questions:', questions.map(q => ({ id: q.id, correctAnswer: q.correctAnswer })))
     return { correct, total: questions.length, score: Math.round((correct / questions.length) * 100) }
   }
 
@@ -132,60 +153,6 @@ export default function QuickQuiz() {
     )
   }
 
-  if (submitted) {
-    const { correct, total, score } = getScore()
-    return (
-      <div className="max-w-lg mx-auto">
-        <div className="bg-white rounded-xl shadow p-8 text-center">
-          <div className="text-6xl mb-4">{score >= 70 ? '🎉' : '📚'}</div>
-          <h1 className="text-2xl font-bold mb-2">{score >= 70 ? 'Great job!' : 'Keep studying!'}</h1>
-          <div className="text-5xl font-bold text-blue-700 my-4">{score}%</div>
-          <p className="text-gray-500 mb-6">{correct} out of {total} correct</p>
-          <div className="w-full bg-gray-200 rounded-full h-3 mb-8">
-            <div
-              className="h-3 rounded-full bg-blue-600 transition-all"
-              style={{ width: `${score}%` }}
-            />
-          </div>
-
-          {/* Review answers */}
-          <div className="text-left space-y-4 mb-6">
-            {questions.map((q, i) => {
-              const userAnswer = answers[q.id]
-              const isCorrect = String(userAnswer).toLowerCase() === String(q.correctAnswer).toLowerCase()
-              return (
-                <div key={q.id} className={`p-4 rounded-lg border`}
-                  style={{
-                    backgroundColor: isCorrect ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
-                    borderColor: isCorrect ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)',
-                  }}>
-                  <p className="text-sm font-medium mb-1">{i + 1}. {getQuestionText(q, i18n.language)}</p>
-                  <p className="text-xs text-gray-500">Your answer: <span className={isCorrect ? 'text-green-600' : 'text-red-600'}>{userAnswer || 'No answer'}</span></p>
-                  {!isCorrect && <p className="text-xs text-green-600">Correct: {q.correctAnswer}</p>}
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => { setStarted(false); setSubmitted(false); setAnswers({}) }}
-              className="flex-1 border px-4 py-2 rounded-lg hover:bg-gray-50"
-            >
-              Try Again
-            </button>
-            <Link
-              to={`/courses/${documentId}`}
-              className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-center"
-            >
-              Back to Course
-            </Link>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -200,7 +167,7 @@ export default function QuickQuiz() {
               <span className="text-blue-600 mr-2">{index + 1}.</span>
               {getQuestionText(q, i18n.language)}
             </p>
-            <QuestionMedia media={q.media} />
+            <MediaDisplay media={q.media} />
 
             {q.type === 'multiple_choice' && (
               <div className="space-y-2">
@@ -267,10 +234,15 @@ export default function QuickQuiz() {
         ))}
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex flex-col items-end gap-2">
+        {!allAnswered && (
+          <p className="text-sm text-red-500">Answer all questions before submitting.</p>
+        )}
         <button
           onClick={handleSubmit}
-          className="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700"
+          disabled={!allAnswered}
+          title={!allAnswered ? 'Answer all questions first' : ''}
+          className="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Submit Quiz
         </button>

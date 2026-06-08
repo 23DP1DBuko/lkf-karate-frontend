@@ -29,7 +29,9 @@ export default function AdminChapters() {
 
   const { data: chapters, isLoading } = useQuery({
     queryKey: ['admin-chapters'],
-    queryFn: () => api.get('/chapters?populate[0]=course&populate[1]=media&populate[2]=questions&sort=order:asc&pagination[limit]=200').then(r => r.data.data)
+    queryFn: () =>
+      api.get('/chapters?populate=*&sort=order:asc&pagination[limit]=200')
+        .then(r => r.data.data)
   })
 
   const { data: courses } = useQuery({
@@ -46,7 +48,11 @@ export default function AdminChapters() {
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ documentId, data }) => api.put(`/chapters/${documentId}`, { data }),
+    mutationFn: ({ documentId, data }) =>
+      api.put(`/chapters/${documentId}`, { data }).catch(err => {
+        console.error('Update error:', JSON.stringify(err.response?.data, null, 2))
+        throw err
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries(['admin-chapters'])
       resetForm()
@@ -103,42 +109,55 @@ export default function AdminChapters() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-const handleSubmit = (e) => {
-  e.preventDefault()
-
-  // Auto-calculate order
-  let order
-  if (editingId) {
-    // Keep existing order when editing
-    const existing = chapters?.find(c => c.documentId === editingId)
-    order = existing?.order || 1
-  } else {
-    // New chapter: max order in this course + 1
-    const courseChapters = chapters?.filter(c => c.course?.documentId === form.course) || []
-    order = courseChapters.length > 0
-      ? Math.max(...courseChapters.map(c => c.order || 0)) + 1
-      : 1
+  function ensureComponentKeyFirst(blocks) {
+    return blocks.map(block => {
+      if (!block.__component) return block
+      const { __component, id, ...rest } = block
+      return { __component, ...rest }  // __component first, no id
+    })
   }
 
-  // Extract question relations from bank_question blocks
-  const bankQuestionIds = (form.blocks || [])
-    .filter(b => b.type === 'bank_question' && b.questionId)
-    .map(b => b.questionId)
+  const handleSubmit = (e) => {
+    e.preventDefault()
 
-  const data = {
-    title: form.title,
-    content: form.content,
-    order,
-    course: form.course,
-    blocks: form.blocks || [],
-    questions: bankQuestionIds,
+    let order
+    if (editingId) {
+      const existing = chapters?.find(c => c.documentId === editingId)
+      order = existing?.order || 1
+    } else {
+      const courseChapters = chapters?.filter(c => c.course?.documentId === form.course) || []
+      order = courseChapters.length > 0
+        ? Math.max(...courseChapters.map(c => c.order || 0)) + 1
+        : 1
+    }
+
+    const bankQuestionIds = (form.blocks || [])
+      .filter(b => b.type === 'bank_question' && b.questionId)
+      .map(b => b.questionId)
+
+    // Strip id, ensure __component is first key
+    const cleanBlocks = (form.blocks || []).map(block => {
+      const { id, __component, ...rest } = block
+      return __component ? { __component, ...rest } : rest
+    })
+
+    const data = {
+      title: form.title,
+      ...(form.content ? { content: form.content } : {}),
+      order,
+      course: form.course ? { connect: [form.course] } : undefined,
+      blocks: cleanBlocks,
+      questions: bankQuestionIds.length > 0
+        ? { connect: bankQuestionIds }
+        : undefined,
+    }
+
+    if (editingId) {
+      updateMutation.mutate({ documentId: editingId, data })
+    } else {
+      createMutation.mutate(data)
+    }
   }
-  if (editingId) {
-    updateMutation.mutate({ documentId: editingId, data })
-  } else {
-    createMutation.mutate(data)
-  }
-}
 
   const handleDelete = (documentId) => {
     if (window.confirm('Delete this chapter?')) {
@@ -264,7 +283,22 @@ const handleSubmit = (e) => {
                 <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{chapter.order}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1 justify-end">
-                    <IconButton icon={EyeIcon} type="button" label="Preview chapter" onClick={() => setPreviewChapter(chapter)} variant="default" size="sm" />
+                    <IconButton
+                        icon={EyeIcon}
+                        type="button"
+                        label="Preview chapter"
+                        onClick={async () => {
+                          try {
+                            const res = await api.get(`/chapters/${chapter.documentId}?populate=*`)
+                            console.log('PREVIEW CHAPTER:', res.data.data)
+                            setPreviewChapter(res.data.data)
+                          } catch (err) {
+                            console.error('Preview load failed:', err.response?.data || err)
+                          }
+                        }}
+                        variant="default"
+                        size="sm"
+                      />
                     <IconButton icon={PencilIcon} type="button" label="Edit chapter" onClick={() => handleEdit(chapter)} variant="default" size="sm" />
                     <IconButton icon={TrashIcon} type="button" label="Delete chapter" onClick={() => handleDelete(chapter.documentId)} variant="danger" size="sm" />
                   </div>

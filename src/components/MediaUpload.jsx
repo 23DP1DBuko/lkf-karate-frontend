@@ -2,7 +2,7 @@ import { useState } from 'react'
 import api from '../api/strapi'
 import { mediaUrl } from '../api/media'
 
-export default function MediaUpload({ onUpload, label = 'Upload Media', multiple = false, current = null }) {
+export default function MediaUpload({ onUpload, label = 'Upload Media', multiple = false, current = null, mediaType = 'image' }) {
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState(null)
 
@@ -24,7 +24,12 @@ export default function MediaUpload({ onUpload, label = 'Upload Media', multiple
         headers: { 'Content-Type': 'multipart/form-data' }
       })
 
-      onUpload(multiple ? res.data : res.data[0])
+      const uploaded = multiple ? res.data : res.data[0]
+      onUpload(
+        multiple
+          ? uploaded.map(file => ({ type: mediaType, file }))
+          : { type: mediaType, file: uploaded }
+      )
     } catch (err) {
       console.error('Upload failed:', err)
     } finally {
@@ -32,7 +37,9 @@ export default function MediaUpload({ onUpload, label = 'Upload Media', multiple
     }
   }
 
-  const currentUrl = current?.url
+  const currentUrl = current?.file?.url
+  ? mediaUrl(current.file.url)
+  : current?.url
     ? mediaUrl(current.url)
     : null
 
@@ -42,7 +49,7 @@ export default function MediaUpload({ onUpload, label = 'Upload Media', multiple
 
       {(preview || currentUrl) && current && (
         <div className="mb-2">
-          {(current?.mime || '').startsWith('video/') ? (
+          {(current?.file?.mime || current?.mime || '').startsWith('video/') || mediaType === 'video' ? (
             <video src={preview || currentUrl} controls className="w-full max-h-40 rounded-lg" />
           ) : (
             <img src={preview || currentUrl} alt="preview" className="w-full max-h-40 object-cover rounded-lg" />
@@ -71,11 +78,9 @@ export default function MediaUpload({ onUpload, label = 'Upload Media', multiple
         <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
           {uploading ? 'Uploading...' : `Click or drag to ${current ? 'change' : 'upload'} ${multiple ? 'files' : 'file'}`}
         </span>
-        <input
+         <input
           type="file"
-          className="hidden"
-          multiple={multiple}
-          accept="image/*,video/*"
+          accept={mediaType === 'image' ? 'image/*' : mediaType === 'video' ? 'video/mp4,video/*' : 'image/*,video/*'}
           onChange={handleFile}
           disabled={uploading}
         />
