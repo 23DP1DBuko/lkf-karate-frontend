@@ -130,7 +130,14 @@ export default function AdminQuestions() {
       course: form.course,
       media: form.media ? form.media.id : null,
       chapter: form.chapter || null,
-      order: form.order ? Number(form.order) : null,
+      order: (() => {
+        if (editingQuestion) return form.order ? Number(form.order) : null
+        // Auto-calculate: max order in this course + 1
+        const courseQuestions = questions?.filter(q => q.course?.documentId === form.course) || []
+        return courseQuestions.length > 0
+          ? Math.max(...courseQuestions.map(q => q.order || 0)) + 1
+          : 1
+      })(),
     }
     if (editingQuestion) {
       updateMutation.mutate({ documentId: editingQuestion.documentId, data })
@@ -195,21 +202,23 @@ export default function AdminQuestions() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold text-blue-700">Manage Questions</h1>
-          <p className="text-gray-500">{questions?.length} questions total</p>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{filtered?.length} of {questions?.length} questions</p>
         </div>
-        <button
-          onClick={() => setDeleteModal(true)}
-          className="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 text-sm flex items-center gap-2"
-        >
-          <TrashIcon className="w-4 h-4" />
-          Delete All
-        </button>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-        >
-          + New Question
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setDeleteModal(true)}
+            className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm flex items-center gap-1.5"
+          >
+            <TrashIcon className="w-4 h-4" />
+            Delete All
+          </button>
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+          >
+            + New Question
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -292,6 +301,8 @@ export default function AdminQuestions() {
                 min={1}
                 placeholder="e.g. 42"
                 style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                disabled={!editingQuestion}
+                placeholder={editingQuestion ? 'e.g. 42' : 'Auto-calculated'}
               />
             </div>
             <MediaUpload
@@ -428,24 +439,25 @@ export default function AdminQuestions() {
         </select>
       </div>
 
-      <div className="bg-white rounded-xl shadow overflow-hidden overflow-x-auto">
+      <div className="rounded-xl overflow-hidden overflow-x-auto" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
         <table className="w-full min-w-[600px]">
-          <thead className="bg-gray-50 border-b">
+          <thead style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <tr>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Question</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Type</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Course</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Correct Answer</th>
-              <th className="text-left px-6 py-3 text-sm font-medium text-gray-500">Actions</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Question</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Type</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Course</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Answer</th>
+              <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody>
             {filtered?.map(question => (
-              <tr key={question.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 max-w-xs">
-                  <p className="truncate text-sm">{question.text}</p>
+              <tr key={question.id} className="border-t transition hover:opacity-80"
+                style={{ borderColor: 'var(--border)' }}>
+                <td className="px-4 py-3 max-w-xs">
+                  <p className="truncate text-sm" style={{ color: 'var(--text-primary)' }}>{question.text || question.textLv}</p>
                 </td>
-                <td className="px-6 py-4">
+                <td className="px-4 py-3">
                   <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${
                     question.type === 'multiple_choice' ? 'bg-blue-100 text-blue-700'
                     : question.type === 'yes_no' ? 'bg-purple-100 text-purple-700'
@@ -454,22 +466,12 @@ export default function AdminQuestions() {
                     {question.type === 'multiple_choice' ? 'MC' : question.type === 'yes_no' ? 'Y/N' : 'Text'}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-500">{question.course?.title || '—'}</td>
-                <td className="px-6 py-4 text-sm text-green-600 font-medium">{question.correctAnswer}</td>
-                <td className="px-4 py-4">
-                  <div className="flex gap-1">
-                    <IconButton
-                      icon={PencilIcon}
-                      label="Edit question"
-                      onClick={() => handleEdit(question)}
-                      variant="default"
-                    />
-                    <IconButton
-                      icon={TrashIcon}
-                      label="Delete course"
-                      onClick={() => handleDelete(question.documentId)}
-                      variant="danger"
-                    />
+                <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{question.course?.title || '—'}</td>
+                <td className="px-4 py-3 text-sm text-green-600 font-medium">{question.correctAnswer}</td>
+                <td className="px-4 py-3">
+                  <div className="flex gap-1 justify-end">
+                    <IconButton icon={PencilIcon} label="Edit question" onClick={() => handleEdit(question)} variant="default" size="sm" />
+                    <IconButton icon={TrashIcon} label="Delete question" onClick={() => handleDelete(question.documentId)} variant="danger" size="sm" />
                   </div>
                 </td>
               </tr>

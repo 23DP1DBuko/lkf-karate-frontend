@@ -11,7 +11,7 @@ export default function AdminExams() {
   const [form, setForm] = useState({
     title: '', duration: 30, questionCount: 10, passingScore: 70,
     openAt: '', closeAt: '', course: '', showResults: true,
-    resultsReleased: false, selectedQuestions: []
+    selectedQuestions: []
   })
 
   const { data: exams, isLoading } = useQuery({
@@ -75,7 +75,7 @@ export default function AdminExams() {
     setForm({
       title: '', duration: 30, questionCount: 10, passingScore: 70,
       openAt: '', closeAt: '', course: '', showResults: true,
-      resultsReleased: false, selectedQuestions: []
+      selectedQuestions: []
     })
     setShowForm(false)
     setEditingExam(null)
@@ -92,7 +92,6 @@ export default function AdminExams() {
       closeAt: exam.closeAt ? exam.closeAt.slice(0, 16) : '',
       course: exam.course?.documentId || '',
       showResults: exam.showResults ?? true,
-      resultsReleased: exam.resultsReleased ?? false,
       selectedQuestions: exam.questions?.map(q => q.documentId) || []
     })
     setShowForm(true)
@@ -111,7 +110,6 @@ export default function AdminExams() {
       closeAt: form.closeAt || null,
       course: form.course,
       showResults: form.showResults,
-      resultsReleased: form.resultsReleased,
       questions: form.selectedQuestions,
     }
     if (editingExam) {

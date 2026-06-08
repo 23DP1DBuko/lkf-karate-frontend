@@ -76,7 +76,7 @@ export default function Register() {
   return (
     <div className="min-h-screen flex items-center justify-center" role="main" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <div className="p-8 rounded-xl shadow-md w-full max-w-md" style={{ backgroundColor: 'var(--bg-card)' }}>
-        <h1 className="text-2xl font-bold text-center text-blue-700 mb-6">LKF Karate LMS</h1>
+        <h1 className="text-2xl font-bold text-center text-blue-700 mb-6">LKF Academy</h1>
         <h2 className="text-xl font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>{t('auth.createAccount')}</h2>
 
         {errors.general && (

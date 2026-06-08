@@ -324,12 +324,12 @@ export default function BlockEditor({ blocks = [], onChange, courseId }) {
 
   const addBlock = (type) => {
     const newBlock = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       type,
       content: '',
-      url: '',
+      mediaItems: [],
+      embedUrl: '',
       caption: '',
-      media: null,
       questionType: 'yes_no',
       options: [],
       correctAnswer: '',
@@ -438,8 +438,8 @@ export default function BlockEditor({ blocks = [], onChange, courseId }) {
               questionType: question.type,
               options: question.options || [],
               correctAnswer: question.correctAnswer,
-              media: null,
-              url: '',
+              mediaItems: [],
+              embedUrl: '',
               caption: '',
             }
             onChange([...blocks, newBlock])

@@ -1,12 +1,15 @@
-import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import api from '../../api/strapi'
-import { mediaUrl } from '../../api/media'
+import MediaDisplay from '../../components/MediaDisplay'
+import { useExamAttempt } from '../../context/ExamAttemptContext'
 
 export default function ExamPage() {
   const { documentId } = useParams()
   const navigate = useNavigate()
-
+  const saveTimer = useRef(null)
+  const startedRef = useRef(false)
+  const didHydrateAnswers = useRef(false)
   const [attempt, setAttempt] = useState(null)
   const [questions, setQuestions] = useState([])
   const [answers, setAnswers] = useState({})
@@ -15,55 +18,45 @@ export default function ExamPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [showResults, setShowResults] = useState(true)
-
-  function QuestionMedia({ media }) {
-  if (!media) return null
-  
-  // Handle both array and single object
-  const items = Array.isArray(media) ? media : [media]
-  if (items.length === 0) return null
-
-  return (
-    <div className="mb-4 space-y-2">
-      {items.map((item, i) => {
-        if (item.mime?.startsWith('image/')) {
-          return (
-            <img
-              key={i}
-              src={mediaUrl(item.url)}
-              alt={item.alternativeText || 'Question media'}
-              className="w-full rounded-lg max-h-64 object-cover"
-            />
-          )
-        }
-        if (item.mime?.startsWith('video/')) {
-          return (
-            <video key={i} controls className="w-full rounded-lg max-h-64">
-              <source src={mediaUrl(item.url)} type={item.mime} />
-            </video>
-          )
-        }
-        return null
-      })}
-    </div>
-  )
-}
-
+  const [completedExam, setCompletedExam] = useState(false)
+  const { setActiveAttempt, clearActiveAttempt } = useExamAttempt()
+  const location = useLocation()
+  const examRef = useRef(null)
   useEffect(() => {
+    if (startedRef.current) return
+    startedRef.current = true
+
+    
+
     api.post('/exams/start', { examId: documentId })
       .then(res => {
-        console.log('Questions:', JSON.stringify(res.data.questions))
         setAttempt(res.data.attemptId)
         setQuestions(res.data.questions || [])
+        setAnswers(res.data.answers || {})
+        didHydrateAnswers.current = true
         setTimeLeft(res.data.remainingSeconds || res.data.duration * 60)
         setShowResults(res.data.showResults === true)
         setLoading(false)
-        })
+
+        examRef.current = {
+          id: res.data.attemptId,
+          exam: {
+            title: res.data.examTitle || 'Exam',
+            documentId,
+          },
+        }
+      })
       .catch(err => {
-        setError(err.response?.data?.error?.message || 'Failed to start exam')
+        const message = err.response?.data?.error?.message || 'Failed to start exam'
+        if (message.toLowerCase().includes('already completed')) {
+          setCompletedExam(true)
+          setError('')
+        } else {
+          setError(message)
+        }
         setLoading(false)
       })
-  }, [documentId])
+  }, [documentId, setActiveAttempt])
 
   useEffect(() => {
     if (timeLeft === null) return
@@ -75,19 +68,81 @@ export default function ExamPage() {
     return () => clearInterval(timer)
   }, [timeLeft])
 
+  useEffect(() => {
+    if (!attempt || loading || !questions.length) return
+    if (!didHydrateAnswers.current) return
+    if (submitting || completedExam) return
+
+    const hasAnyAnswer = Object.values(answers || {}).some(
+      value => value !== undefined && value !== null && String(value).trim() !== ''
+    )
+
+    if (!hasAnyAnswer) return
+
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(async () => {
+      try {
+        await api.post('/exams/save-progress', {
+          attemptId: attempt,
+          answers,
+        })
+      } catch (err) {
+        console.error('Autosave failed', err)
+      }
+    }, 1000)
+
+    return () => clearTimeout(saveTimer.current)
+  }, [answers, attempt, loading, questions.length, submitting, completedExam])
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (attempt && !submitting && !completedExam) {
+        setActiveAttempt(examRef.current)
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [attempt, submitting, completedExam, setActiveAttempt])
+
+  useEffect(() => {
+    return () => {
+      if (attempt && !submitting && !completedExam) {
+        setActiveAttempt(examRef.current)
+      }
+    }
+  }, [attempt, submitting, completedExam, setActiveAttempt])
+
+  useEffect(() => {
+  // Kad ienākam eksāmena lapā, paslēpjam global banneri
+  clearActiveAttempt()
+}, [clearActiveAttempt])
+
   const handleSubmit = async () => {
     if (submitting) return
     setSubmitting(true)
     try {
       const res = await api.post('/exams/submit', { attemptId: attempt, answers })
-      console.log('Submit response:', res.data)
-      navigate('/exam-result', { state: res.data })
+
+      navigate('/results', {
+        state: {
+          justSubmitted: {
+            ...res.data,
+            id: attempt,
+            title: res.data.title || 'Exam',
+            questions,
+            answers,
+            showResults: res.data.showResults === true,
+          }
+        }
+      })
+      clearActiveAttempt()
     } catch (err) {
-      console.log('Submit error:', err.response?.data)
       setError('Failed to submit exam: ' + JSON.stringify(err.response?.data?.error))
       setSubmitting(false)
     }
   }
+  
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0')
@@ -101,11 +156,36 @@ export default function ExamPage() {
     </div>
   )
 
-  if (error) return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="bg-red-100 text-red-700 px-6 py-4 rounded-xl">{error}</div>
+  if (completedExam) return (
+    <div className="flex items-center justify-center min-h-screen p-6">
+      <div className="bg-white rounded-xl shadow p-8 max-w-md w-full text-center">
+        <div className="text-5xl mb-4">✅</div>
+        <h1 className="text-2xl font-bold text-blue-700 mb-2">Exam already completed</h1>
+        <p className="text-gray-500 mb-6">
+          You have already submitted this exam. You cannot start it again.
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => navigate('/results')}
+            className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            Go to Results
+          </button>
+          <button
+            onClick={() => navigate(-1)}
+            className="flex-1 border px-4 py-2 rounded-lg hover:bg-gray-50"
+          >
+            Go Back
+          </button>
+        </div>
+      </div>
     </div>
   )
+
+  const allAnswered = questions.length > 0 && questions.every(q => {
+    const value = answers[q.id]
+    return value !== undefined && value !== null && String(value).trim() !== ''
+  })
 
   return (
     <div className="min-h-screen bg-gray-100 p-8">
@@ -127,7 +207,7 @@ export default function ExamPage() {
                 <span className="text-blue-600 mr-2">{index + 1}.</span>
                 {q.text}
               </p>
-              <QuestionMedia media={q.media} />
+              <MediaDisplay media={q.media} />
 
               {q.type === 'multiple_choice' && (
                 <div className="space-y-2">
@@ -191,11 +271,15 @@ export default function ExamPage() {
         </div>
 
         {/* Submit */}
-        <div className="mt-8 flex justify-end">
+        <div className="mt-8 flex flex-col items-end gap-2">
+          {!allAnswered && (
+            <p className="text-sm text-red-500">Answer all questions before submitting the exam.</p>
+          )}
           <button
             onClick={handleSubmit}
-            disabled={submitting}
-            className="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50"
+            disabled={submitting || !allAnswered}
+            title={!allAnswered ? 'Answer all questions first' : ''}
+            className="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? 'Submitting...' : 'Submit Exam'}
           </button>

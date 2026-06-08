@@ -119,9 +119,12 @@ export default function AdminExamResults() {
   const [search, setSearch] = useState('')
 
   const { data: attempts, isLoading } = useQuery({
-  queryKey: ['admin-attempts'],
-  queryFn: () => api.get('/exam-attempts/all').then(r => r.data.data),
-})
+    queryKey: ['admin-attempts'],
+    queryFn: () => api.get('/exam-attempts/all').then(r => {
+      console.log('attempts[0].exam:', r.data.data?.[0]?.exam)
+      return r.data.data
+    }),
+  })
 
 
 
@@ -145,7 +148,7 @@ export default function AdminExamResults() {
 
   const releaseMutation = useMutation({
     mutationFn: (examDocumentId) =>
-      api.put(`/exams/${examDocumentId}`, { data: { resultsReleased: true } }),
+      api.put(`/exams/${examDocumentId}`, { data: { showResults: true } }),
     onSuccess: () => queryClient.invalidateQueries(['admin-attempts'])
   })
 
@@ -153,12 +156,9 @@ export default function AdminExamResults() {
     const questions = attempt.questions || []
     const answers = attempt.answers || {}
     let autoCorrect = 0
-    let openTextCount = 0
 
     questions.forEach(q => {
-      if (q.type === 'open_text') {
-        openTextCount++
-      } else {
+      if (q.type !== 'open_text') {
         const userAnswer = answers[q.id]
         if (userAnswer && String(userAnswer).toLowerCase() === String(q.correctAnswer).toLowerCase()) {
           autoCorrect++
@@ -314,9 +314,7 @@ export default function AdminExamResults() {
             exams[a.exam.documentId] = a.exam
           }
         })
-        const unreleased = Object.values(exams).filter(
-          exam => !exam.resultsReleased && !exam.showResults
-        )
+        const unreleased = Object.values(exams).filter(exam => !exam.showResults)
         if (unreleased.length === 0) return null
         return (
           <div className="mb-6 space-y-2">
