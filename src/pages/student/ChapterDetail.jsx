@@ -6,10 +6,7 @@ import api from '../../api/strapi'
 import { mediaUrl } from '../../api/media'
 import { useTranslation } from 'react-i18next'
 import { getQuestionText, getLocalizedField } from '../../api/strapi'
-<<<<<<< HEAD
-=======
 import MediaDisplay from '../../components/MediaDisplay'
->>>>>>> 99bf7476fc1429b51903eb74e0b7d4818e990eed
 
 // ─── RichText viewer (NOT the editor – just renders saved HTML) ───────────────
 function RichText({ content }) {

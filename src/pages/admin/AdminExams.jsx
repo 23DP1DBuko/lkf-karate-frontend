@@ -8,6 +8,7 @@ export default function AdminExams() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editingExam, setEditingExam] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const [form, setForm] = useState({
     title: '', duration: 30, questionCount: 10, passingScore: 70,
     openAt: '', closeAt: '', course: '', showResults: true,
@@ -119,10 +120,14 @@ export default function AdminExams() {
     }
   }
 
-  const handleDelete = (documentId) => {
-    if (window.confirm('Delete this exam?')) {
-      deleteMutation.mutate(documentId)
-    }
+  const handleDelete = (exam) => {
+    setDeleteTarget(exam)
+  }
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return
+    deleteMutation.mutate(deleteTarget.documentId)
+    setDeleteTarget(null)
   }
 
   const toggleQuestion = (documentId) => {
@@ -380,7 +385,7 @@ export default function AdminExams() {
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-end">
                       <IconButton icon={PencilIcon} label="Edit exam" onClick={() => handleEdit(exam)} variant="default" size="sm" />
-                      <IconButton icon={TrashIcon} label="Delete exam" onClick={() => handleDelete(exam.documentId)} variant="danger" size="sm" />
+                      <IconButton icon={TrashIcon} label="Delete exam" onClick={() => handleDelete(exam)} variant="danger" size="sm" />
                     </div>
                   </td>
                 </tr>
@@ -389,6 +394,38 @@ export default function AdminExams() {
           </tbody>
         </table>
       </div>
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="text-lg font-semibold text-slate-900">
+              Delete exam?
+            </h3>
+
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              You are about to delete <span className="font-semibold">{deleteTarget.title}</span>.
+              This will also delete all related exam attempts and exam results.
+              This action cannot be undone.
+            </p>
+
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteTarget(null)}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              >
+                Delete exam
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
