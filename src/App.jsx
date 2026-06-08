@@ -63,20 +63,43 @@ function Dashboard() {
         {t('dashboard.loggedInAs')} <span className="font-medium">{user?.email}</span>
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6">
-        <Link to="/courses" className="bg-blue-50 border border-blue-200 rounded-xl p-5 hover:bg-blue-100 transition dark:bg-blue-900/20 dark:border-blue-800">
-          <div className="text-3xl mb-2">📚</div>
-          <h3 className="font-semibold text-blue-700">{t('dashboard.courses')}</h3>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('dashboard.browseStudy')}</p>
+        <Link
+          to="/courses"
+          className="group rounded-xl border border-blue-200 bg-blue-50 p-5 text-slate-900 transition hover:bg-blue-100 hover:border-blue-300 dark:border-blue-800 dark:bg-blue-900/20 dark:text-slate-100 dark:hover:bg-blue-900/30"
+        >
+          <div className="mb-2 text-3xl transition-transform duration-200 group-hover:scale-105">
+            📚
+          </div>
+          <h3 className="font-semibold text-slate-900 transition-colors group-hover:text-slate-950 dark:text-slate-100 dark:group-hover:text-white">
+            {t('dashboard.courses')}
+          </h3>
+          <p className="text-sm text-slate-700 transition-colors group-hover:text-slate-900 dark:text-slate-300 dark:group-hover:text-slate-100">
+            {t('dashboard.browseStudy')}
+          </p>
         </Link>
-        <Link to="/results" className="bg-green-50 border border-green-200 rounded-xl p-5 hover:bg-green-100 transition dark:bg-green-900/20 dark:border-green-800">
-          <div className="text-3xl mb-2">📊</div>
-          <h3 className="font-semibold text-green-700">{t('dashboard.myResults')}</h3>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('dashboard.viewHistory')}</p>
+        <Link
+          to="/results"
+          className="group rounded-xl border border-green-200 bg-green-50 p-5 text-slate-900 transition hover:bg-green-100 hover:border-green-300 dark:border-green-800 dark:bg-green-900/20 dark:text-slate-100 dark:hover:bg-green-900/30"
+        >
+          <div className="text-3xl mb-2 transition-transform duration-200 group-hover:scale-105">📊</div>
+          <h3 className="font-semibold text-green-700 transition-colors group-hover:text-green-900 dark:group-hover:text-green-200">
+            {t('dashboard.myResults')}
+          </h3>
+          <p className="text-sm text-slate-600 transition-colors group-hover:text-slate-800 dark:text-slate-300 dark:group-hover:text-white">
+            {t('dashboard.viewHistory')}
+          </p>
         </Link>
-        <Link to="/profile" className="bg-purple-50 border border-purple-200 rounded-xl p-5 hover:bg-purple-100 transition dark:bg-purple-900/20 dark:border-purple-800">
-          <div className="text-3xl mb-2">👤</div>
-          <h3 className="font-semibold text-purple-700">{t('dashboard.profile')}</h3>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('dashboard.manageAccount')}</p>
+        <Link
+          to="/profile"
+          className="group rounded-xl border border-purple-200 bg-purple-50 p-5 text-slate-900 transition hover:bg-purple-100 hover:border-purple-300 dark:border-purple-800 dark:bg-purple-900/20 dark:text-slate-100 dark:hover:bg-purple-900/30"
+        >
+          <div className="text-3xl mb-2 transition-transform duration-200 group-hover:scale-105">👤</div>
+          <h3 className="font-semibold text-purple-700 transition-colors group-hover:text-purple-900 dark:group-hover:text-purple-200">
+            {t('dashboard.profile')}
+          </h3>
+          <p className="text-sm text-slate-600 transition-colors group-hover:text-slate-800 dark:text-slate-300 dark:group-hover:text-white">
+            {t('dashboard.manageAccount')}
+          </p>
         </Link>
       </div>
     </div>
