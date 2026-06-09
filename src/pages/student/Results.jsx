@@ -31,14 +31,6 @@ function formatTimeSpent(seconds) {
 
 function getAttemptMeta(attempt, t) {
   const isQuickQuiz = !!attempt.course && !attempt.exam
-
-  const released =
-    attempt.submittedAt &&
-    (
-      isQuickQuiz ||                           // quick quizzes are always reviewable
-      attempt.exam?.showResults === true ||
-      attempt.showResults === true
-    )
   const isExam = !!attempt?.exam
 
   // Quick quiz: neutral blue
@@ -125,11 +117,25 @@ function formatAnswerValue(value, q) {
   return v
 }
 
+// Shared rule for “can we show score + review?”
+function canShowScoreAndReview(attempt) {
+  if (!attempt) return false
+  const isQuickQuiz = !!attempt.course && !attempt.exam
+  return (
+    isQuickQuiz ||
+    (attempt.exam && attempt.exam.showResults === true) ||
+    attempt.showResults === true
+  )
+}
+
 function SummaryCard({ attempt, onShowReview, t }) {
   const meta = getAttemptMeta(attempt, t)
   const Icon = meta.icon
-  const score = typeof attempt?.score === 'number' ? `${attempt.score}%` : '—'
   const timeSpent = formatTimeSpent(attempt?.timeSpentSeconds)
+
+  const canShow = canShowScoreAndReview(attempt)
+  const score =
+    canShow && typeof attempt?.score === 'number' ? `${attempt.score}%` : '—'
 
   return (
     <div
@@ -183,12 +189,14 @@ function SummaryCard({ attempt, onShowReview, t }) {
             </p>
           ) : null}
 
-          <button
-            onClick={onShowReview}
-            className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:underline"
-          >
-            {t('results.showDetailedReview') || 'Show detailed review'} →
-          </button>
+          {canShow && (
+            <button
+              onClick={onShowReview}
+              className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:underline"
+            >
+              {t('results.showDetailedReview') || 'Show detailed review'} →
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -426,7 +434,11 @@ export default function Results() {
         <div className="mb-6">
           <SummaryCard
             attempt={justSubmitted}
-            onShowReview={() => setSelectedAttempt(justSubmitted)}
+            onShowReview={() => {
+              if (canShowScoreAndReview(justSubmitted)) {
+                setSelectedAttempt(justSubmitted)
+              }
+            }}
             t={t}
           />
         </div>
