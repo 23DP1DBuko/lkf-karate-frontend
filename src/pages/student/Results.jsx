@@ -55,9 +55,11 @@ function getAttemptMeta(attempt, t) {
     }
   }
 
-  // Exam, submitted and results shown
-  if (isExam && attempt.submittedAt && attempt.exam?.showResults === true) {
-    if (typeof attempt.score === 'number' && attempt.passed === true) {
+  // Exam, submitted
+  if (isExam && attempt.submittedAt) {
+    const canShowResults = attempt.exam?.showResults === true
+
+    if (canShowResults && typeof attempt.score === 'number' && attempt.passed === true) {
       return {
         kind: 'passed',
         typeLabel: t('results.exam') || 'Exam',
@@ -70,7 +72,7 @@ function getAttemptMeta(attempt, t) {
       }
     }
 
-    if (typeof attempt.score === 'number' && attempt.passed === false) {
+    if (canShowResults && typeof attempt.score === 'number' && attempt.passed === false) {
       return {
         kind: 'failed',
         typeLabel: t('results.exam') || 'Exam',
@@ -83,6 +85,7 @@ function getAttemptMeta(attempt, t) {
       }
     }
 
+    // Submitted exam, but results hidden
     return {
       kind: 'unreleased',
       typeLabel: t('results.exam') || 'Exam',
@@ -92,20 +95,6 @@ function getAttemptMeta(attempt, t) {
       border: 'border-gray-500',
       scoreColor: 'text-gray-400',
       statusLabel: t('results.unreleased') || 'unreleased',
-    }
-  }
-
-  // Exam, not submitted yet → pending
-  if (isExam && !attempt.submittedAt) {
-    return {
-      kind: 'pending',
-      typeLabel: t('results.exam') || 'Exam',
-      title: attempt.exam?.title || '—',
-      icon: ClockIcon,
-      color: 'text-yellow-500',
-      border: 'border-yellow-400',
-      scoreColor: 'text-yellow-500',
-      statusLabel: t('results.pending') || 'pending',
     }
   }
 
@@ -243,7 +232,7 @@ export default function Results() {
   // prefer API attempt (exam), otherwise use raw (quick quiz)
   const justSubmitted = justSubmittedFromApi || rawJustSubmitted
 
-  const justSubmittedId = justSubmitted?.id
+  const justSubmittedId = justSubmitted?.id || null
 
   const submittedListAttempts = useMemo(
     () =>
