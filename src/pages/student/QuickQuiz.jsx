@@ -51,6 +51,9 @@ export default function QuickQuiz() {
   const [courseTitle, setCourseTitle] = useState('')
   const { i18n } = useTranslation()
 
+  // QuickQuiz.jsx
+  const [attemptId, setAttemptId] = useState(null)
+
   const handleStart = async () => {
     setLoading(true)
     setError('')
@@ -61,6 +64,7 @@ export default function QuickQuiz() {
       })
       setQuestions(res.data.questions)
       setCourseTitle(res.data.courseTitle)
+      setAttemptId(res.data.attemptId)   // <-- keep real attempt id
       setStarted(true)
     } catch (err) {
       setError(err.response?.data?.error?.message || 'Failed to start quiz')
@@ -69,24 +73,21 @@ export default function QuickQuiz() {
     }
   }
 
-  const handleSubmit = () => {
-    const { correct, total, score } = getScore()
+  const handleSubmit = async () => {
+    if (!attemptId) return
+
+    const res = await api.post('/exams/submit', {
+      attemptId,
+      answers,
+    })
+
+    const { score, correct, total, timeSpentSeconds, submittedAt, showResults } = res.data
 
     navigate('/results', {
       state: {
-        justSubmitted: {
-          id: `quick-quiz-${Date.now()}`,
-          title: `Quick Quiz — ${courseTitle}`,
-          score,
-          passed: score >= 70,
-          showResults: true,
-          questions,
-          answers,
-          correct,
-          total,
-          submittedAt: new Date().toISOString(),
-        }
-      }
+        justSubmittedAttemptId: attemptId,           // real id
+        justSubmitted: null,                        // not needed anymore
+      },
     })
   }
 

@@ -124,18 +124,15 @@ export default function ExamPage() {
     try {
       const res = await api.post('/exams/submit', { attemptId: attempt, answers })
 
-      navigate('/results', {
-        state: {
-          justSubmitted: {
-            ...res.data,
-            id: attempt,
-            title: res.data.title || 'Exam',
-            questions,
-            answers,
-            showResults: res.data.showResults === true,
-          }
-        }
-      })
+    navigate('/results', {
+      state: {
+        justSubmittedAttemptId: attempt,
+        justSubmittedMeta: {
+          ...res.data,
+          type: 'exam',
+        },
+      },
+    })
       clearActiveAttempt()
     } catch (err) {
       setError('Failed to submit exam: ' + JSON.stringify(err.response?.data?.error))
