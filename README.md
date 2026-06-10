@@ -13,7 +13,7 @@ LKF Karate LMS ir pilna steka tīmekļa lietojumprogramma, kas paredzēta Latvij
 
 ### 🌐 Publicētās saites
 - **Frontend:** https://lkf-karate-frontend.vercel.app
-- **Backend Admin:** https://lkf-karate-backend-production.up.railway.app/admin
+- **Backend Admin:** https://lkf-karate-backend.onrender.com/admin
 
 ---
 
