@@ -446,13 +446,4 @@ lkf-karate-backend/
 - 🌐 Pilns daudzvalodīgs saturs (kursi/jautājumi LV/RU/EN)
 - 📄 PDF parsēšana — WKF noteikumu automātiska sadalīšana nodaļās
 
----
-
-## 👨‍💻 Autors
-
-**Deniss Bukovskis**  
-DP3-1 | Rīgas Valsts tehnikums | 3. kurss | 2026
-
----
-
 *Projekts izstrādāts kā diploma darbs Rīgas Valsts tehnikumā.*
