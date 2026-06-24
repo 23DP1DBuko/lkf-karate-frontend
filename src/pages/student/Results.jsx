@@ -103,16 +103,22 @@ function getAttemptMeta(attempt, t) {
   }
 }
 
-function formatAnswerValue(value, q) {
+function formatAnswerValue(value, q, t) {
   if (value === undefined || value === null || value === '') return '—'
 
+  // Open text stays as typed
   if (q?.type === 'open_text') return String(value)
 
-  if (typeof value === 'boolean') return value ? 'True' : 'False'
+  const yesLabel = t('exam.yes') || 'Yes'
+  const noLabel = t('exam.no') || 'No'
 
+  // Actual booleans
+  if (typeof value === 'boolean') return value ? yesLabel : noLabel
+
+  // String values that are "true"/"false"
   const v = String(value).trim()
-  if (v.toLowerCase() === 'true') return 'True'
-  if (v.toLowerCase() === 'false') return 'False'
+  if (v.toLowerCase() === 'true') return yesLabel
+  if (v.toLowerCase() === 'false') return noLabel
 
   return v
 }
@@ -325,6 +331,12 @@ export default function Results() {
               String(userAnswer ?? '').toLowerCase() ===
                 String(correctAnswer ?? '').toLowerCase()
 
+            const pillColor = isCorrect
+              ? 'bg-green-100 text-green-700'
+              : 'bg-red-100 text-red-700'
+
+            const answerColor = isCorrect ? 'text-green-600' : 'text-red-600'
+
             return (
               <div
                 key={q.id || i}
@@ -335,7 +347,9 @@ export default function Results() {
                 }}
               >
                 <div className="flex items-start gap-4">
-                  <div className="shrink-0 mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-blue-100 text-blue-700 font-semibold">
+                  <div
+                    className={`shrink-0 mt-1 flex h-9 w-9 items-center justify-center rounded-full font-semibold ${pillColor}`}
+                  >
                     {i + 1}
                   </div>
 
@@ -347,46 +361,26 @@ export default function Results() {
                       {q.text}
                     </p>
 
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <div
-                        className="rounded-xl p-4"
-                        style={{ backgroundColor: 'rgba(148,163,184,0.10)' }}
-                      >
-                        <p
-                          className="text-xs uppercase tracking-[0.18em] mb-2"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          {t('results.yourChoice') || 'Your choice'}
-                        </p>
-                        <p
-                          className={`text-sm sm:text-base font-semibold ${
-                            isCorrect ? 'text-green-600' : 'text-red-600'
-                          }`}
-                        >
-                          {isCorrect ? '✓ ' : '✕ '}
-                          {formatAnswerValue(userAnswer, q)}
-                        </p>
-                      </div>
+                    <p className={`mt-2 text-sm sm:text-base font-semibold ${answerColor}`}>
+                      {t('results.correctChoice') || 'Correct answer'}:{' '}
+                      {formatAnswerValue(correctAnswer, q, t)}
+                    </p>
 
-                      <div
-                        className="rounded-xl p-4"
-                        style={{ backgroundColor: 'rgba(34,197,94,0.08)' }}
+                    {!isCorrect && (
+                      <p
+                        className="mt-1 text-sm"
+                        style={{ color: 'var(--text-muted)' }}
                       >
-                        <p
-                          className="text-xs uppercase tracking-[0.18em] mb-2"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          {t('results.correctChoice') || 'Correct choice'}
-                        </p>
-                        <p className="text-sm sm:text-base font-semibold text-green-600">
-                          ✓ {formatAnswerValue(correctAnswer, q)}
-                        </p>
-                      </div>
-                    </div>
+                        {t('results.yourChoice') || 'Your answer'}:{' '}
+                        <span className="font-semibold">
+                          {formatAnswerValue(userAnswer, q, t)}
+                        </span>
+                      </p>
+                    )}
 
                     {isOpenText && (
                       <p
-                        className="mt-3 text-sm"
+                        className="mt-2 text-xs"
                         style={{ color: 'var(--text-muted)' }}
                       >
                         {t('results.openTextNote') ||
