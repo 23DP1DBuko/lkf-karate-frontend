@@ -22,8 +22,8 @@ import ResetPassword from './pages/auth/ResetPassword'
 import Profile from './pages/student/Profile'
 import Landing from './pages/Landing'
 import AdminImport from './pages/admin/AdminImport'
-import { useTranslation } from 'react-i18next'
 import Rules from './pages/landing/Rules'
+import UserDashboard from './pages/student/UserDashboard'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -51,60 +51,7 @@ function AdminRoute({ children }) {
   return <Layout>{children}</Layout>
 }
 
-function Dashboard() {
-  const { user } = useAuth()
-  const { t } = useTranslation()
-  return (
-    <div className="rounded-xl shadow p-6" style={{ backgroundColor: 'var(--bg-card)' }}>
-      <h1 className="text-2xl font-bold text-blue-700 mb-2">
-        {t('dashboard.welcome')}, {user?.firstName ? `${user.firstName} ${user.lastName}` : user?.username}! 👋
-      </h1>
-      <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>
-        {t('dashboard.loggedInAs')} <span className="font-medium">{user?.email}</span>
-      </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-6">
-        <Link
-          to="/courses"
-          className="group rounded-xl border border-blue-200 bg-blue-50 p-5 text-slate-900 transition hover:bg-blue-100 hover:border-blue-300 dark:border-blue-800 dark:bg-blue-900/20 dark:text-slate-100 dark:hover:bg-blue-900/30"
-        >
-          <div className="mb-2 text-3xl transition-transform duration-200 group-hover:scale-105">
-            📚
-          </div>
-          <h3 className="font-semibold text-slate-900 transition-colors group-hover:text-slate-950 dark:text-slate-100 dark:group-hover:text-white">
-            {t('dashboard.courses')}
-          </h3>
-          <p className="text-sm text-slate-700 transition-colors group-hover:text-slate-900 dark:text-slate-300 dark:group-hover:text-slate-100">
-            {t('dashboard.browseStudy')}
-          </p>
-        </Link>
-        <Link
-          to="/results"
-          className="group rounded-xl border border-green-200 bg-green-50 p-5 text-slate-900 transition hover:bg-green-100 hover:border-green-300 dark:border-green-800 dark:bg-green-900/20 dark:text-slate-100 dark:hover:bg-green-900/30"
-        >
-          <div className="text-3xl mb-2 transition-transform duration-200 group-hover:scale-105">📊</div>
-          <h3 className="font-semibold text-green-700 transition-colors group-hover:text-green-900 dark:group-hover:text-green-200">
-            {t('dashboard.myResults')}
-          </h3>
-          <p className="text-sm text-slate-600 transition-colors group-hover:text-slate-800 dark:text-slate-300 dark:group-hover:text-white">
-            {t('dashboard.viewHistory')}
-          </p>
-        </Link>
-        <Link
-          to="/profile"
-          className="group rounded-xl border border-purple-200 bg-purple-50 p-5 text-slate-900 transition hover:bg-purple-100 hover:border-purple-300 dark:border-purple-800 dark:bg-purple-900/20 dark:text-slate-100 dark:hover:bg-purple-900/30"
-        >
-          <div className="text-3xl mb-2 transition-transform duration-200 group-hover:scale-105">👤</div>
-          <h3 className="font-semibold text-purple-700 transition-colors group-hover:text-purple-900 dark:group-hover:text-purple-200">
-            {t('dashboard.profile')}
-          </h3>
-          <p className="text-sm text-slate-600 transition-colors group-hover:text-slate-800 dark:text-slate-300 dark:group-hover:text-white">
-            {t('dashboard.manageAccount')}
-          </p>
-        </Link>
-      </div>
-    </div>
-  )
-}
+
 
 export default function App() {
   return (
@@ -116,9 +63,14 @@ export default function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/dashboard" element={
-        <ProtectedRoute><Dashboard /></ProtectedRoute>
-      } />
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <UserDashboard />
+          </ProtectedRoute>
+        }
+      />
       <Route path="/profile" element={
         <ProtectedRoute><Profile /></ProtectedRoute>
       } />

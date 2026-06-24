@@ -34,14 +34,14 @@
     "hidePassword": "Hide password"
   },
   "dashboard": {
-    "welcome": "Welcome",
-    "loggedInAs": "You are logged in as",
-    "courses": "Courses",
-    "browseStudy": "Browse and study courses",
-    "myResults": "My Results",
-    "viewHistory": "View your exam history",
-    "profile": "Profile",
-    "manageAccount": "Manage your account"
+    "quizzes": "Quizzes completed",
+    "studyHours": "Study hours",
+    "chapters": "Chapters done",
+    "exams": "Exams completed",
+    "recentResults": "Recent results",
+    "upcomingExam": "Upcoming exam",
+    "achievements": "Achievements",
+    "calendar": "Calendar"
   },
   "courses": {
     "title": "Courses",
