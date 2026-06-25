@@ -140,16 +140,16 @@ function ProgressCard({ stats }) {
   const { t } = useTranslation()
   const {
     quizCount = 0,
+    examCount = 0,
     studyHours = 0,
-    completedChapters = 0,
     completedExams = 0,
-  } = stats || {}
+    } = stats || {}
 
-  const items = [
+    const items = [
     { label: t('dashboard.quizzes', 'Quizzes completed'), value: quizCount },
+    { label: t('dashboard.examsTaken', 'Exams taken (year)'), value: examCount },
     { label: t('dashboard.studyHours', 'Study hours'), value: studyHours },
-    { label: t('dashboard.chapters', 'Chapters done'), value: completedChapters },
-    { label: t('dashboard.exams', 'Exams completed'), value: completedExams },
+    { label: t('dashboard.examsCompleted', 'Exams passed (year)'), value: completedExams },
     ]
 
   return (
