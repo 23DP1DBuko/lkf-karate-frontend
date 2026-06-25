@@ -11,13 +11,13 @@ import {
 } from '@heroicons/react/24/outline'
 import { useNavigate } from 'react-router-dom'
 import { SkeletonCard, SkeletonList, SkeletonTable } from '../../components/Skeleton'
+import { useState } from 'react'
 
 export default function UserDashboard() {
   const { user } = useAuth()
   const { t } = useTranslation()
-
+    const [selectedExam, setSelectedExam] = useState(null)
   
-
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', user?.id],
     queryFn: () => api.get('/dashboard').then(r => {
@@ -82,7 +82,10 @@ export default function UserDashboard() {
       {/* Row 3: Upcoming Exam (4) + Achievements (8) */}
       <div className="grid grid-cols-12 gap-6">
         <div className="col-span-12 md:col-span-5 xl:col-span-4">
-          <UpcomingExamCard exam={upcomingExam} />
+          <UpcomingExamCard
+            exam={upcomingExam}
+            onClick={() => setSelectedExam(upcomingExam)}
+          />
         </div>
         <div className="col-span-12 md:col-span-7 xl:col-span-8">
           <AchievementsCard />
@@ -95,6 +98,13 @@ export default function UserDashboard() {
           <CalendarPlaceholderCard />
         </div>
       </div>
+    {/* Modal */}
+      {selectedExam && (
+        <UpcomingExamModal
+          exam={selectedExam}
+          onClose={() => setSelectedExam(null)}
+        />
+      )}
     </div>
   )
 }
@@ -238,7 +248,7 @@ function LastResultsCard({ results }) {
   )
 }
 
-function UpcomingExamCard({ exam }) {
+function UpcomingExamCard({ exam, onClick }) {
   const { t } = useTranslation()
     const navigate = useNavigate()
 
@@ -261,7 +271,7 @@ function UpcomingExamCard({ exam }) {
   return (
     <button
       className={`${cardBase} p-6 w-full text-left`}
-      onClick={() => navigate(`/exam/${exam.documentId || exam.id}`)}
+      onClick={onClick}   // open modal
     >
       <header className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
@@ -273,9 +283,73 @@ function UpcomingExamCard({ exam }) {
         <ChevronRightIcon className="h-5 w-5 text-zinc-500" />
       </header>
       <p className="text-sm text-zinc-400">
-        Opens in {exam.opensInHuman /* e.g. "4 days 12 hours" */}
+        Opens in {exam.opensInHuman}
       </p>
     </button>
+  )
+}
+
+function UpcomingExamModal({ exam, onClose }) {
+  const navigate = useNavigate()
+  const { t } = useTranslation()
+
+  if (!exam) return null
+
+  const handleGoToExam = () => {
+    navigate(`/exam/${exam.documentId || exam.id}`)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
+      <div className={`${cardBase} max-w-lg w-full mx-4 p-6 relative`}>
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 text-zinc-500 hover:text-zinc-300 text-xl leading-none"
+          aria-label="Close"
+        >
+          ×
+        </button>
+
+        <header className="mb-4">
+          <div className="flex items-center gap-2">
+            <AcademicCapIcon className="h-6 w-6 text-zinc-500" />
+            <h2 className="text-lg font-semibold text-zinc-100">
+              {exam.title}
+            </h2>
+          </div>
+          <p className="mt-1 text-sm text-zinc-400">
+            {t('dashboard.examOpensIn', 'Exam opens in')}: {exam.opensInHuman}
+          </p>
+        </header>
+
+        {/* You can extend this with more info from your exam model later */}
+        <div className="space-y-2 text-sm text-zinc-300">
+          <p>
+            {t(
+              'dashboard.examInfoHint',
+              'This is your next scheduled exam. Make sure you have completed the required practice and are ready on time.'
+            )}
+          </p>
+        </div>
+
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm rounded-lg border border-zinc-700 text-zinc-200 hover:bg-zinc-800/80"
+          >
+            {t('common.close', 'Close')}
+          </button>
+          <button
+            onClick={handleGoToExam}
+            className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500"
+          >
+            {t('dashboard.goToExam', 'Go to exam')}
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }
 
