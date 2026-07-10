@@ -16,7 +16,7 @@ import { useState } from 'react'
 export default function UserDashboard() {
   const { user } = useAuth()
   const { t } = useTranslation()
-    const [selectedExam, setSelectedExam] = useState(null)
+    const [showExamModal, setShowExamModal] = useState(false)
   
   const { data, isLoading } = useQuery({
     queryKey: ['dashboard', user?.id],
@@ -84,7 +84,7 @@ export default function UserDashboard() {
         <div className="col-span-12 md:col-span-5 xl:col-span-4">
           <UpcomingExamCard
             exam={upcomingExam}
-            onClick={() => setSelectedExam(upcomingExam)}
+            onClick={() => setShowExamModal(true)}  
           />
         </div>
         <div className="col-span-12 md:col-span-7 xl:col-span-8">
@@ -99,10 +99,10 @@ export default function UserDashboard() {
         </div>
       </div>
     {/* Modal */}
-      {selectedExam && (
+      {showExamModal && upcomingExam && (
         <UpcomingExamModal
-          exam={selectedExam}
-          onClose={() => setSelectedExam(null)}
+          exam={upcomingExam}
+          onClose={() => setShowExamModal(false)}
         />
       )}
     </div>
@@ -126,12 +126,25 @@ function GreetingCard({ user, greeting }) {
   const initials =
     (user?.firstName?.[0] || '') + (user?.lastName?.[0] || '')
 
+  const avatarUrl = user?.profilePicture?.url
+    ? `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:1337'}${user.profilePicture.url}`
+    : null
+
   return (
     <section className={`${cardBase} p-6 flex items-center justify-between`}>
       <div className="flex items-center gap-4">
-        <div className="h-12 w-12 rounded-full bg-zinc-800 flex items-center justify-center text-lg font-semibold text-zinc-100">
-          {initials || '?'}
-        </div>
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Profile picture'}
+            className="h-12 w-12 rounded-full object-cover border border-zinc-700"
+          />
+        ) : (
+          <div className="h-12 w-12 rounded-full bg-zinc-800 flex items-center justify-center text-lg font-semibold text-zinc-100">
+            {initials || '?'}
+          </div>
+        )}
+
         <div>
           <h1 className="text-xl md:text-2xl font-semibold tracking-tight text-zinc-50">
             {greeting}, {user?.firstName || user?.username}
@@ -250,7 +263,6 @@ function LastResultsCard({ results }) {
 
 function UpcomingExamCard({ exam, onClick }) {
   const { t } = useTranslation()
-    const navigate = useNavigate()
 
   if (!exam) {
     return (
@@ -290,20 +302,13 @@ function UpcomingExamCard({ exam, onClick }) {
 }
 
 function UpcomingExamModal({ exam, onClose }) {
-  const navigate = useNavigate()
   const { t } = useTranslation()
 
   if (!exam) return null
 
-  const handleGoToExam = () => {
-    navigate(`/exam/${exam.documentId || exam.id}`)
-    onClose()
-  }
-
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
       <div className={`${cardBase} max-w-lg w-full mx-4 p-6 relative`}>
-        {/* Close button */}
         <button
           onClick={onClose}
           className="absolute top-3 right-3 text-zinc-500 hover:text-zinc-300 text-xl leading-none"
@@ -320,19 +325,47 @@ function UpcomingExamModal({ exam, onClose }) {
             </h2>
           </div>
           <p className="mt-1 text-sm text-zinc-400">
-            {t('dashboard.examOpensIn', 'Exam opens in')}: {exam.opensInHuman}
+            {t('dashboard.examOpensIn', 'Opens in')}: {exam.opensInHuman}
           </p>
         </header>
 
-        {/* You can extend this with more info from your exam model later */}
-        <div className="space-y-2 text-sm text-zinc-300">
-          <p>
-            {t(
-              'dashboard.examInfoHint',
-              'This is your next scheduled exam. Make sure you have completed the required practice and are ready on time.'
-            )}
-          </p>
-        </div>
+        <dl className="grid grid-cols-2 gap-4 mb-4">
+          {exam.courseTitle && (
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-zinc-500">
+                {t('dashboard.course', 'Course')}
+              </dt>
+              <dd className="mt-1 text-sm font-medium text-zinc-100">
+                {exam.courseTitle}
+              </dd>
+            </div>
+          )}
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-zinc-500">
+              {t('dashboard.questionCount', 'Questions')}
+            </dt>
+            <dd className="mt-1 text-sm font-medium text-zinc-100">
+              {exam.questionCount}
+            </dd>
+          </div>
+          {exam.passingScore != null && (
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-zinc-500">
+                {t('dashboard.passingScore', 'Passing score')}
+              </dt>
+              <dd className="mt-1 text-sm font-medium text-zinc-100">
+                {exam.passingScore}%
+              </dd>
+            </div>
+          )}
+        </dl>
+
+        <p className="text-sm text-zinc-300">
+          {t(
+            'dashboard.examInfoHint',
+            'This exam has not started yet. Come back once it opens to begin your attempt.'
+          )}
+        </p>
 
         <div className="mt-6 flex justify-end gap-3">
           <button
@@ -340,12 +373,6 @@ function UpcomingExamModal({ exam, onClose }) {
             className="px-4 py-2 text-sm rounded-lg border border-zinc-700 text-zinc-200 hover:bg-zinc-800/80"
           >
             {t('common.close', 'Close')}
-          </button>
-          <button
-            onClick={handleGoToExam}
-            className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500"
-          >
-            {t('dashboard.goToExam', 'Go to exam')}
           </button>
         </div>
       </div>

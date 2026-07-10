@@ -239,37 +239,11 @@ export default function Sidebar() {
         )}
       </div>
 
-      {/* User info */}
-      {!isCollapsed && (
-        <div className="px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs flex-shrink-0">
-              {user?.firstName?.[0]}{user?.lastName?.[0]}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
-                {user?.firstName} {user?.lastName}
-              </p>
-              <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{user?.email}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isCollapsed && (
-        <div className="px-3 py-3 border-b flex justify-center" style={{ borderColor: 'var(--border)' }}>
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs">
-            {user?.firstName?.[0]}{user?.lastName?.[0]}
-          </div>
-        </div>
-      )}
-
       {/* Nav */}
       <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-visible">
         <NavItem to="/dashboard" icon={HomeIcon} label={t('nav.dashboard')} active={isActive('/dashboard')} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
         <NavItem to="/courses" icon={BookOpenIcon} label={t('nav.courses')} active={isActive('/courses')} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
         <NavItem to="/results" icon={ChartBarIcon} label={t('nav.results')} active={isActive('/results')} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
-        <NavItem to="/profile" icon={UserIcon} label={t('nav.profile')} active={isActive('/profile')} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
 
         {user?.isAdmin && (
           <div className="pt-1">
@@ -308,6 +282,58 @@ export default function Sidebar() {
         )}
       </nav>
 
+      
+      {!isCollapsed && (
+      <button
+        onClick={() => { navigate('/profile'); if (isMobile) close() }}
+        className="w-full px-4 py-3 border-b flex items-center gap-3 text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+        style={{ borderColor: 'var(--border)' }}
+      >
+        {user?.profilePicture?.url ? (
+          <img
+            src={`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:1337'}${user.profilePicture.url}`}
+            alt={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Profile picture'}
+            className="w-8 h-8 rounded-full object-cover flex-shrink-0 border"
+            style={{ borderColor: 'var(--border)' }}
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs flex-shrink-0">
+            {user?.firstName?.[0]}{user?.lastName?.[0]}
+          </div>
+        )}
+
+        <div className="min-w-0">
+          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+            {user?.firstName} {user?.lastName}
+          </p>
+          <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+            {user?.email}
+          </p>
+        </div>
+      </button>
+    )}
+
+    {isCollapsed && (
+      <button
+        onClick={() => { navigate('/profile'); if (isMobile) close() }}
+        className="w-full px-3 py-3 border-b flex justify-center hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+        style={{ borderColor: 'var(--border)' }}
+        aria-label="Go to profile"
+      >
+        {user?.profilePicture?.url ? (
+          <img
+            src={`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:1337'}${user.profilePicture.url}`}
+            alt={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Profile picture'}
+            className="w-8 h-8 rounded-full object-cover border"
+            style={{ borderColor: 'var(--border)' }}
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs">
+            {user?.firstName?.[0]}{user?.lastName?.[0]}
+          </div>
+        )}
+      </button>
+    )}
       {/* Logout */}
       <div className="px-2 pb-3 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
         <NavButton onClick={handleLogout} icon={ArrowRightOnRectangleIcon} label={t('nav.logout')} danger collapsed={isCollapsed} />
