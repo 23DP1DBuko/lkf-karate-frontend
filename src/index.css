@@ -1,6 +1,12 @@
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
+/* Make Tailwind's dark: variant follow the app's .dark class on <html>
+   (ThemeContext/AuthContext toggle the class) instead of the OS
+   prefers-color-scheme media query. Without this, OS-dark + app-light
+   would render dark: colors (e.g. white titles) on light backgrounds. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --bg-primary: #f3f4f6;
   --bg-secondary: #e5e7eb;
@@ -12,6 +18,10 @@
   --input-bg: #ffffff;
   --nav-bg: #ffffff;
   --nav-border: #e5e7eb;
+  --hero-bg: #1e40af;
+  --hero-text: #ffffff;
+  --hero-text-secondary: #bfdbfe;
+  --icon-color: #2563eb;
   color-scheme: light;
 }
 
@@ -26,8 +36,19 @@
   --input-bg: #1e293b;
   --nav-bg: #1e293b;
   --nav-border: #334155;
+  --hero-bg: #0f172a;
+  --hero-text: #f1f5f9;
+  --hero-text-secondary: #94a3b8;
+  --icon-color: #60a5fa;
   color-scheme: dark;
 }
+
+/* ── Light-mode text contrast fixes ── */
+.text-slate-400 { color: #5b6b7d !important; }  /* bump to pass WCAG AA 4.5:1 on #f1f5f9 */
+.text-gray-400  { color: #6b7280 !important; }   /* bump to gray-500 for readability */
+
+.dark .text-slate-400 { color: #94a3b8 !important; }  /* keep original slate-400 in dark (7.4:1 on dark bg) */
+.dark .text-gray-400  { color: #9ca3af !important; }   /* keep original gray-400 in dark */
 
 body {
   background-color: var(--bg-primary);
@@ -123,6 +144,71 @@ nav { background-color: var(--nav-bg) !important; border-color: var(--nav-border
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+
+/* Hero entrance */
+@keyframes hero-fade-in {
+  from { opacity: 0; transform: translateY(32px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-hero-fade-in {
+  animation: hero-fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-hero-fade-in {
+    animation: none;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Chevron scroll bounce */
+@keyframes chevron-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(8px); }
+}
+.animate-chevron-bounce {
+  animation: chevron-bounce 2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-chevron-bounce {
+    animation: none;
+  }
+}
+
+/* ── Skip navigation link ── */
+.skip-link {
+  position: fixed;
+  top: -100%;
+  left: 0;
+  z-index: 9999;
+  padding: 10px 20px;
+  background: #1d4ed8;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 0 0 8px 0;
+  text-decoration: none;
+  transition: top 0.15s ease;
+  outline: none;
+}
+.skip-link:focus {
+  top: 0;
+}
+.skip-link:hover {
+  background: #2563eb;
+  color: #fff;
+}
+.dark .skip-link {
+  background: #3b82f6;
+}
+.dark .skip-link:hover {
+  background: #60a5fa;
+}
+
+/* Suppress focus ring on main content after skip navigation — the skip link's position change is the focus indicator */
+#main-content:focus {
+  outline: none;
+}
 
 /* Safe area iPhone */
 .safe-area-pb { padding-bottom: env(safe-area-inset-bottom, 0px); }

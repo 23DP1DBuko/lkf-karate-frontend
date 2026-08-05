@@ -2,12 +2,14 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
+import viteCompression from "vite-plugin-compression";
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     react(),
     tailwindcss(),
-    VitePWA({
+    // Only enable PWA service worker in production builds
+    ...(command === 'build' ? [VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "apple-touch-icon.png"],
       manifest: {
@@ -39,6 +41,16 @@ export default defineConfig({
           },
         ],
       },
+    })] : []),
+    viteCompression({
+      algorithm: "gzip",
+      ext: ".gz",
+      threshold: 1024, // only compress files > 1 kB
+    }),
+    viteCompression({
+      algorithm: "brotliCompress",
+      ext: ".br",
+      threshold: 1024,
     }),
   ],
   build: {
@@ -48,6 +60,8 @@ export default defineConfig({
           if (id.includes("node_modules")) {
             if (id.includes("@tiptap")) return "tiptap-vendor";
             if (id.includes("@tanstack")) return "query-vendor";
+            if (id.includes("@heroicons")) return "icons-vendor";
+            if (id.includes("motion")) return "motion-vendor";
             if (id.includes("react-dom") || id.includes("react-router"))
               return "react-vendor";
             if (id.includes("axios")) return "axios";
@@ -62,4 +76,4 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: "./src/test/setup.js",
   },
-});
+}));

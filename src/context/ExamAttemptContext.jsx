@@ -1,6 +1,5 @@
-import { createContext, useContext, useState } from 'react'
-
-const ExamAttemptContext = createContext(null)
+import { useState } from 'react'
+import { ExamAttemptContext } from './useExamAttempt'
 
 export function ExamAttemptProvider({ children }) {
   const [activeAttempt, setActiveAttempt] = useState(null)
@@ -12,10 +11,4 @@ export function ExamAttemptProvider({ children }) {
       {children}
     </ExamAttemptContext.Provider>
   )
-}
-
-export function useExamAttempt() {
-  const ctx = useContext(ExamAttemptContext)
-  if (!ctx) throw new Error('useExamAttempt must be used inside ExamAttemptProvider')
-  return ctx
 }

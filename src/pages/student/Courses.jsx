@@ -5,6 +5,7 @@ import api, { getLocalizedField } from '../../api/strapi'
 import { usePageTitle } from '../../hooks/usePageTitle'
 import { useTranslation } from 'react-i18next'
 import { createRipple } from '../../hooks/useRipple'
+import { MagnifyingGlassIcon, AcademicCapIcon } from '@heroicons/react/24/outline'
 
 const categoryColors = {
   kata: 'from-blue-600 to-blue-800',
@@ -49,7 +50,7 @@ function CourseCard({ course, chapters, progress }) {
       className="group rounded-2xl border cursor-pointer transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 overflow-hidden flex flex-col md:flex-row"
       style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
       role="article"
-      aria-label={`Course: ${course.title}`}
+      aria-label={`Course: ${getLocalizedField(course, i18n.language, 'title')}`}
     >
       {/* Left — course name */}
       <div className={`bg-gradient-to-br ${gradient} p-6 md:w-52 flex-shrink-0 flex flex-col justify-between`}>
@@ -57,7 +58,7 @@ function CourseCard({ course, chapters, progress }) {
           <p className="text-white/70 text-xs font-medium uppercase tracking-wider mb-2">
             {t(`courses.categories.${course.category}`)}
           </p>
-          <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>{getLocalizedField(course, i18n.language, 'title') || course.title}</h2>
+          <h2 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>{getLocalizedField(course, i18n.language, 'title') || course.titleLv}</h2>
         </div>
         <Link
           data-inner="true"
@@ -84,7 +85,7 @@ function CourseCard({ course, chapters, progress }) {
               </div>
 
               <h3 className="text-base font-semibold mb-3 line-clamp-2" style={{ color: 'var(--text-primary)' }}>
-                {nextChapter.title}
+                {getLocalizedField(nextChapter, i18n.language, 'title') || nextChapter.titleLv}
               </h3>
 
               {/* Progress bar */}
@@ -115,7 +116,7 @@ function CourseCard({ course, chapters, progress }) {
                 }, 150)
               }}
               className={`px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r ${gradient} hover:opacity-90 transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500`}
-              aria-label={`Continue ${course.title}`}
+              aria-label={`Continue ${getLocalizedField(course, i18n.language, 'title')}`}
             >
               {lastVisited ? 'Continue →' : 'Start →'}
             </button>
@@ -135,12 +136,12 @@ function CourseCard({ course, chapters, progress }) {
 export default function Courses() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('all')
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   usePageTitle(t('courses.title'))
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['courses'],
-    queryFn: () => api.get('/courses?filters[published][$eq]=true&sort=title:asc').then(r => r.data.data)
+    queryFn: () => api.get('/courses?sort=titleLv:asc').then(r => r.data.data)
   })
 
   const { data: allChapters } = useQuery({
@@ -154,8 +155,10 @@ export default function Courses() {
   })
 
   const filtered = data?.filter(course => {
-    const matchesSearch = course.title.toLowerCase().includes(search.toLowerCase()) ||
-      course.description?.toLowerCase().includes(search.toLowerCase())
+    const courseTitle = getLocalizedField(course, i18n.language, 'title')
+    const courseDesc = getLocalizedField(course, i18n.language, 'description')
+    const matchesSearch = (courseTitle || '').toLowerCase().includes(search.toLowerCase()) ||
+      (courseDesc || '').toLowerCase().includes(search.toLowerCase())
     const matchesCategory = category === 'all' || course.category === category
     return matchesSearch && matchesCategory
   })
@@ -176,7 +179,7 @@ export default function Courses() {
 
   return (
     <div>
-      <h1 className="text-3xl font-bold text-blue-700 mb-2">{t('courses.title')}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-2">{t('courses.title')}</h1>
       <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>{t('courses.subtitle')}</p>
 
       {/* Search and Filter */}
@@ -221,14 +224,27 @@ export default function Courses() {
 
       {filtered?.length === 0 && (
         <div className="text-center py-12">
-          <div className="text-5xl mb-4">🔍</div>
-          <p style={{ color: 'var(--text-muted)' }}>{t('courses.noMatch')}</p>
-          <button
-            onClick={() => { setSearch(''); setCategory('all') }}
-            className="mt-4 text-blue-600 hover:underline text-sm"
-          >
-            {t('courses.clearFilters')}
-          </button>
+          {data?.length === 0 ? (
+            <>
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                <AcademicCapIcon className="w-8 h-8" style={{ color: 'var(--text-muted)' }} />
+              </div>
+              <p style={{ color: 'var(--text-muted)' }}>{t('courses.noCourses')}</p>
+            </>
+          ) : (
+            <>
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                <MagnifyingGlassIcon className="w-8 h-8" style={{ color: 'var(--text-muted)' }} />
+              </div>
+              <p style={{ color: 'var(--text-muted)' }}>{t('courses.noMatch')}</p>
+              <button
+                onClick={() => { setSearch(''); setCategory('all') }}
+                className="mt-4 text-blue-600 hover:underline text-sm"
+              >
+                {t('courses.clearFilters')}
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

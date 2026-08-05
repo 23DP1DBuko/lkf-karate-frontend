@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
-import { useAuth } from '../../context/AuthContext'
+import { useAuth } from '../../context/useAuth'
 import api from '../../api/strapi'
 import { useTranslation } from 'react-i18next'
 import { SkeletonList } from '../../components/Skeleton'
@@ -28,36 +28,37 @@ function SummaryCard({ attempt, onShowReview, t }) {
 
   return (
     <div
-      className={`rounded-2xl shadow-lg p-6 border ${meta.border}`}
+      className={`rounded-2xl shadow-lg p-5 sm:p-6 border relative overflow-hidden ${meta.border}`}
       style={{ backgroundColor: 'var(--bg-card)' }}
     >
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+
+      <div className="flex items-start justify-between gap-4">
         {/* Left: icon + labels */}
-        <div className="min-w-0 flex items-start gap-4">
-          <div className={`shrink-0 mt-1 ${meta.color}`}>
-            <Icon className="h-10 w-10" />
+        <div className="min-w-0 flex items-start gap-3 sm:gap-4 flex-1">
+          <div className={`shrink-0 mt-0.5 ${meta.color}`}>
+            <Icon className="h-8 w-8 sm:h-10 sm:w-10" />
           </div>
 
           <div className="min-w-0">
             <p
-              className="text-xs uppercase tracking-[0.22em] mb-2"
+              className="text-[11px] sm:text-xs uppercase tracking-[0.18em] mb-1"
               style={{ color: 'var(--text-muted)' }}
             >
               {meta.typeLabel}
             </p>
 
             <h1
-              className="text-3xl sm:text-4xl font-bold leading-tight"
+              className="text-lg sm:text-2xl lg:text-3xl font-bold leading-tight truncate"
               style={{ color: 'var(--text-primary)' }}
             >
               {meta.title}
             </h1>
 
             <div
-              className="mt-4 flex items-center gap-2 text-sm"
+              className="mt-2 sm:mt-3 flex items-center gap-1.5 text-xs sm:text-sm"
               style={{ color: 'var(--text-muted)' }}
             >
-              <TimeIcon className="h-4 w-4" />
+              <TimeIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
               <span>
                 {t('results.timeSpent') || 'Time spent'}: {timeSpent || '—'}
               </span>
@@ -66,22 +67,24 @@ function SummaryCard({ attempt, onShowReview, t }) {
         </div>
 
         {/* Right: score + tiny status + CTA */}
-        <div className="sm:text-right">
-          <div className={`text-5xl font-bold ${meta.scoreColor}`}>{score}</div>
+        <div className="text-right shrink-0 min-w-[52px]">
+          <div className={`text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight ${meta.scoreColor}`}>
+            {score}
+          </div>
 
           {meta.statusLabel ? (
             <p
-              className="mt-1 text-sm font-light capitalize"
+              className="mt-0.5 text-[11px] sm:text-sm font-light capitalize"
               style={{ color: 'var(--text-muted)' }}
             >
               {meta.statusLabel}
             </p>
           ) : null}
 
-          {canShow && (
+          {canShow && onShowReview && (
             <button
               onClick={onShowReview}
-              className="mt-4 inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:underline"
+              className="mt-2 sm:mt-3 inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium text-blue-600 hover:underline whitespace-nowrap"
             >
               {t('results.showDetailedReview') || 'Show detailed review'} →
             </button>
@@ -109,16 +112,6 @@ export default function Results() {
     enabled: !!user?.id,
   })
 
-  const inProgressAttempts = useMemo(
-    () => (attempts || []).filter(a => !a.submittedAt),
-    [attempts],
-  )
-
-  const submittedAttempts = useMemo(
-    () => (attempts || []).filter(a => a.submittedAt),
-    [attempts],
-  )
-
   // from API
   const justSubmittedFromApi = useMemo(
     () =>
@@ -128,6 +121,24 @@ export default function Results() {
 
   // prefer API attempt (exam), otherwise use raw (quick quiz)
   const justSubmitted = justSubmittedFromApi || rawJustSubmitted
+
+  // Auto-navigate to detailed review after submission if results are visible
+  useEffect(() => {
+    if (justSubmitted && canShowScoreAndReview(justSubmitted)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedAttempt(justSubmitted);
+    }
+  }, [justSubmitted, setSelectedAttempt]);
+
+  const inProgressAttempts = useMemo(
+    () => (attempts || []).filter(a => !a.submittedAt),
+    [attempts],
+  )
+
+  const submittedAttempts = useMemo(
+    () => (attempts || []).filter(a => a.submittedAt),
+    [attempts],
+  )
 
   const justSubmittedId = justSubmitted?.id || null
 
@@ -186,7 +197,7 @@ export default function Results() {
 
         <SummaryCard
           attempt={activeAttempt}
-          onShowReview={() => {}}
+          onShowReview={null}
           t={t}
         />
 
@@ -283,7 +294,7 @@ export default function Results() {
   // List page
   return (
     <div>
-      <h1 className="text-3xl font-bold text-blue-700 mb-2">
+      <h1 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-2">
         {t('results.title') || 'Results'}
       </h1>
       <p className="mb-8" style={{ color: 'var(--text-secondary)' }}>
@@ -300,7 +311,7 @@ export default function Results() {
               borderColor: 'var(--border)',
             }}
           >
-            <div className="text-5xl mb-4">📝</div>
+            <div className="text-4xl sm:text-5xl mb-4">📝</div>
             <p style={{ color: 'var(--text-muted)' }}>
               {t('results.noExams') || 'No attempts yet.'}
             </p>
@@ -347,73 +358,75 @@ export default function Results() {
               onClick={() => {
                 if (released) setSelectedAttempt(attempt)
               }}
-              className={`rounded-2xl shadow-lg p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border ${
+              className={`rounded-2xl shadow-lg p-4 sm:p-5 flex items-start justify-between gap-3 border ${
                 released ? 'cursor-pointer hover:opacity-80 transition' : ''
               } ${meta.border}`}
               style={{
                 backgroundColor: 'var(--bg-card)',
               }}
             >
-              <div className="flex items-start gap-4 min-w-0">
-                <div className={`shrink-0 mt-1 ${meta.color}`}>
-                  <Icon className="h-8 w-8" />
+              <div className="flex items-start gap-3 min-w-0 flex-1">
+                <div className={`shrink-0 mt-0.5 ${meta.color}`}>
+                  <Icon className="h-7 w-7 sm:h-8 sm:w-8" />
                 </div>
 
                 <div className="min-w-0">
                   <p
-                    className="text-xs uppercase tracking-[0.18em] mb-1"
+                    className="text-[11px] sm:text-xs uppercase tracking-[0.18em] mb-0.5"
                     style={{ color: 'var(--text-muted)' }}
                   >
                     {meta.typeLabel}
                   </p>
 
                   <h3
-                    className="font-semibold text-lg sm:text-xl truncate"
+                    className="font-semibold text-sm sm:text-lg truncate"
                     style={{ color: 'var(--text-primary)' }}
                   >
                     {meta.title}
                   </h3>
 
-                  <p
-                    className="text-sm mt-1"
-                    style={{ color: 'var(--text-muted)' }}
-                  >
-                    {attempt.submittedAt
-                      ? new Date(attempt.submittedAt).toLocaleDateString()
-                      : t('results.inProgress') || 'In progress'}
-                  </p>
-
-                  {timeSpent && (
-                    <p
-                      className="text-sm mt-1 flex items-center gap-1"
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                    <span
+                      className="text-xs sm:text-sm"
                       style={{ color: 'var(--text-muted)' }}
                     >
-                      <TimeIcon className="h-4 w-4" />
-                      <span>
-                        {t('results.timeSpent') || 'Time spent'}: {timeSpent}
+                      {attempt.submittedAt
+                        ? new Date(attempt.submittedAt).toLocaleDateString()
+                        : t('results.inProgress') || 'In progress'}
+                    </span>
+
+                    {timeSpent && (
+                      <span
+                        className="text-xs sm:text-sm flex items-center gap-1"
+                        style={{ color: 'var(--text-muted)' }}
+                      >
+                        <TimeIcon className="h-3 w-3 sm:h-4 sm:w-4" />
+                        <span>
+                          {t('results.timeSpent') || 'Time spent'}: {timeSpent}
+                        </span>
                       </span>
-                    </p>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <div className="text-right">
+              <div className="text-right shrink-0 min-w-[48px]">
                 <div
-                  className={`text-3xl sm:text-4xl font-bold ${meta.scoreColor}`}
+                  className={`text-xl sm:text-3xl lg:text-4xl font-bold leading-tight ${meta.scoreColor}`}
                 >
                   {score}
                 </div>
 
                 {meta.statusLabel && (
                   <p
-                    className="mt-1 text-sm font-light capitalize"
+                    className="mt-0.5 text-[11px] sm:text-sm font-light capitalize"
                     style={{ color: 'var(--text-muted)' }}
                   >
                     {released ? meta.statusLabel : ''}
                   </p>
                 )}
 
-                <div className="mt-3 text-sm text-blue-600 font-medium">
+                <div className="mt-2 text-[11px] sm:text-sm text-blue-600 font-medium whitespace-nowrap">
                   {released
                     ? (t('results.showDetailedReview') ||
                         'Show detailed review') + ' →'

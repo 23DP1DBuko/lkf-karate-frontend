@@ -1,9 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import api from '../../api/strapi'
+import api, { getLocalizedField } from '../../api/strapi'
 import MediaUpload from '../../components/MediaUpload'
 import IconButton from '../../components/IconButton'
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 import { SkeletonTable } from '../../components/Skeleton'
 
 async function fetchAllQuestions(params = {}) {
@@ -31,6 +32,7 @@ async function fetchAllQuestions(params = {}) {
 }
 
 export default function AdminQuestions() {
+  const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editingQuestion, setEditingQuestion] = useState(null)
@@ -58,7 +60,7 @@ export default function AdminQuestions() {
 
   const { data: courses } = useQuery({
     queryKey: ['courses-list'],
-    queryFn: () => api.get('/courses?sort=title:asc').then(r => r.data.data)
+    queryFn: () => api.get('/courses?sort=titleLv:asc').then(r => r.data.data)
   })
   const { data: chapters } = useQuery({
     queryKey: ['chapters-list', form.course],
@@ -147,7 +149,7 @@ export default function AdminQuestions() {
   }
 
   const handleDelete = (documentId) => {
-    if (window.confirm('Delete this question?')) {
+    if (window.confirm(t('admin.questions.deleteConfirm') || 'Delete this question?')) {
       deleteMutation.mutate(documentId)
     }
   }
@@ -201,8 +203,8 @@ export default function AdminQuestions() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-blue-700">Manage Questions</h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{filtered?.length} of {questions?.length} questions</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">{t('admin.questions.title')}</h1>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('admin.questions.count', { filtered: filtered?.length || 0, total: questions?.length || 0 })}</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -210,39 +212,39 @@ export default function AdminQuestions() {
             className="px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm flex items-center gap-1.5"
           >
             <TrashIcon className="w-4 h-4" />
-            Delete All
+            {t('admin.questions.deleteAll') || 'Delete All'}
           </button>
           <button
             onClick={() => setShowForm(!showForm)}
             className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
           >
-            + New Question
+            {t('admin.questions.new')}
           </button>
         </div>
       </div>
 
       {showForm && (
-        <div className="bg-white rounded-xl shadow p-6 mb-6">
+        <div className="rounded-xl shadow p-5 sm:p-6 mb-6" style={{ backgroundColor: 'var(--bg-card)' }}>
           <h2 className="text-lg font-semibold mb-4">
-            {editingQuestion ? 'Edit Question' : 'Create New Question'}
+            {editingQuestion ? t('admin.questions.edit') : t('admin.questions.create')}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Course</label>
+              <label className="block text-sm font-medium mb-1">{t('admin.questions.courseLabel')}</label>
               <select
                 className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 value={form.course}
                 onChange={e => setForm({ ...form, course: e.target.value })}
                 required
               >
-                <option value="">Select a course</option>
+                <option value="">{t('admin.questions.selectCourse') || 'Select a course'}</option>
                 {courses?.map(course => (
-                  <option key={course.id} value={course.documentId}>{course.title}</option>
+                  <option key={course.id} value={course.documentId}>{getLocalizedField(course, i18n.language, 'title')}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1">Question Text</label>
+              <label className="block text-sm font-medium mb-1">{t('admin.questions.textLabel')}</label>
               <textarea
                 className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows={3}
@@ -254,10 +256,10 @@ export default function AdminQuestions() {
             {/* Translations */}
             <div className="space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
-                Translations (optional)
+                {t('admin.questions.translations')}
               </p>
               <div>
-                <label className="block text-sm font-medium mb-1">🇱🇻 Latvian text</label>
+                <label className="block text-sm font-medium mb-1">{t('admin.questions.lvText')}</label>
                 <textarea
                   className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   rows={2}
@@ -267,7 +269,7 @@ export default function AdminQuestions() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">🇷🇺 Russian text</label>
+                <label className="block text-sm font-medium mb-1">{t('admin.questions.ruText')}</label>
                 <textarea
                   className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   rows={2}
@@ -277,7 +279,7 @@ export default function AdminQuestions() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">🇬🇧 English text</label>
+                <label className="block text-sm font-medium mb-1">{t('admin.questions.enText')}</label>
                 <textarea
                   className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                   rows={2}
@@ -291,7 +293,7 @@ export default function AdminQuestions() {
             {/* Order */}
             <div>
               <label className="block text-sm font-medium mb-1">
-                Order <span style={{ color: 'var(--text-muted)' }}>(from source document)</span>
+                {t('admin.questions.orderLabel')} <span style={{ color: 'var(--text-muted)' }}>{t('admin.questions.orderHint')}</span>
               </label>
               <input
                 type="number"
@@ -302,17 +304,17 @@ export default function AdminQuestions() {
                 placeholder="e.g. 42"
                 style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                 disabled={!editingQuestion}
-                placeholder={editingQuestion ? 'e.g. 42' : 'Auto-calculated'}
+                placeholder={editingQuestion ? 'e.g. 42' : t('admin.questions.autoCalculated')}
               />
             </div>
             <MediaUpload
-              label="Question Media (optional image/video)"
+              label={t('admin.questions.mediaLabel')}
               multiple={false}
               current={form.media}
               onUpload={(file) => setForm({ ...form, media: file })}
             />
             <div>
-              <label className="block text-sm font-medium mb-1">Type</label>
+              <label className="block text-sm font-medium mb-1">{t('admin.questions.typeLabel')}</label>
               <select
                 className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 value={form.type}
@@ -323,15 +325,15 @@ export default function AdminQuestions() {
                   correctAnswer: ''
                 })}
               >
-                <option value="multiple_choice">Multiple Choice</option>
-                <option value="yes_no">Yes / No</option>
-                <option value="open_text">Open Text</option>
+                <option value="multiple_choice">{t('admin.questions.typeMultipleChoice') || 'Multiple Choice'}</option>
+                <option value="yes_no">{t('admin.questions.typeYesNo') || 'Yes / No'}</option>
+                <option value="open_text">{t('admin.questions.typeOpenText') || 'Open Text'}</option>
               </select>
             </div>
 
             {form.type === 'multiple_choice' && (
               <div>
-                <label className="block text-sm font-medium mb-2">Options</label>
+                <label className="block text-sm font-medium mb-2">{t('admin.questions.optionsLabel')}</label>
                 <div className="space-y-2">
                   {form.options.map((opt, i) => (
                     <input
@@ -353,7 +355,7 @@ export default function AdminQuestions() {
 
             {form.type !== 'open_text' && (
               <div>
-                <label className="block text-sm font-medium mb-1">Correct Answer</label>
+                <label className="block text-sm font-medium mb-1">{t('admin.questions.correctAnswerLabel')}</label>
                 {form.type === 'yes_no' ? (
                   <select
                     className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
@@ -361,9 +363,9 @@ export default function AdminQuestions() {
                     onChange={e => setForm({ ...form, correctAnswer: e.target.value })}
                     required
                   >
-                    <option value="">Select correct answer</option>
-                    <option value="true">Yes (true)</option>
-                    <option value="false">No (false)</option>
+                    <option value="">{t('admin.questions.selectCorrect')}</option>
+                    <option value="true">{t('admin.questions.yesTrue')}</option>
+                    <option value="false">{t('admin.questions.noFalse')}</option>
                   </select>
                 ) : (
                   <select
@@ -372,7 +374,7 @@ export default function AdminQuestions() {
                     onChange={e => setForm({ ...form, correctAnswer: e.target.value })}
                     required
                   >
-                    <option value="">Select correct answer</option>
+                    <option value="">{t('admin.questions.selectCorrect')}</option>
                     {form.options.filter(o => o.trim()).map((opt, i) => (
                       <option key={i} value={opt}>{opt}</option>
                     ))}
@@ -384,7 +386,7 @@ export default function AdminQuestions() {
             {form.type === 'open_text' && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                 <p className="text-sm text-yellow-700">
-                  ⚠️ Open text questions require manual grading by the head judge after exam submission.
+                  {t('admin.questions.openTextWarning')}
                 </p>
               </div>
             )}
@@ -392,14 +394,14 @@ export default function AdminQuestions() {
             {form.course && (
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  Chapter (optional — for chapter quiz)
+                  {t('admin.questions.chapterLabel')}
                 </label>
                 <select
                   className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800"
                   value={form.chapter}
                   onChange={e => setForm({ ...form, chapter: e.target.value })}
                 >
-                  <option value="">No specific chapter (exam only)</option>
+                  <option value="">{t('admin.questions.noChapter')}</option>
                   {chapters?.map(chapter => (
                     <option key={chapter.id} value={chapter.documentId}>
                       {chapter.order}. {chapter.title}
@@ -415,10 +417,10 @@ export default function AdminQuestions() {
                 disabled={createMutation.isPending || updateMutation.isPending}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {editingQuestion ? 'Update Question' : 'Create Question'}
+                {editingQuestion ? t('admin.questions.updateBtn') : t('admin.questions.createBtn')}
               </button>
               <button type="button" onClick={resetForm} className="border px-6 py-2 rounded-lg hover:bg-gray-50">
-                Cancel
+                {t('admin.questions.cancel')}
               </button>
             </div>
           </form>
@@ -432,9 +434,9 @@ export default function AdminQuestions() {
           value={filterCourse}
           onChange={e => setFilterCourse(e.target.value)}
         >
-          <option value="all">All Courses</option>
+          <option value="all">{t('admin.questions.allCourses')}</option>
           {courses?.map(course => (
-            <option key={course.id} value={course.documentId}>{course.title}</option>
+            <option key={course.id} value={course.documentId}>{getLocalizedField(course, i18n.language, 'title')}</option>
           ))}
         </select>
       </div>
@@ -443,11 +445,11 @@ export default function AdminQuestions() {
         <table className="w-full min-w-[600px]">
           <thead style={{ backgroundColor: 'var(--bg-secondary)' }}>
             <tr>
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Question</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Type</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Course</th>
-              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Answer</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Actions</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{t('admin.questions.colQuestion')}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{t('admin.questions.colType')}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{t('admin.questions.colCourse')}</th>
+              <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{t('admin.questions.colAnswer')}</th>
+              <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{t('admin.questions.colActions')}</th>
             </tr>
           </thead>
           <tbody>
@@ -463,15 +465,15 @@ export default function AdminQuestions() {
                     : question.type === 'yes_no' ? 'bg-purple-100 text-purple-700'
                     : 'bg-orange-100 text-orange-700'
                   }`}>
-                    {question.type === 'multiple_choice' ? 'MC' : question.type === 'yes_no' ? 'Y/N' : 'Text'}
+                    {question.type === 'multiple_choice' ? t('admin.questions.mcBadge') : question.type === 'yes_no' ? t('admin.questions.ynBadge') : t('admin.questions.textBadge')}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{question.course?.title || '—'}</td>
+                <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{getLocalizedField(question.course, i18n.language, 'title') || '—'}</td>
                 <td className="px-4 py-3 text-sm text-green-600 font-medium">{question.correctAnswer}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1 justify-end">
-                    <IconButton icon={PencilIcon} label="Edit question" onClick={() => handleEdit(question)} variant="default" size="sm" />
-                    <IconButton icon={TrashIcon} label="Delete question" onClick={() => handleDelete(question.documentId)} variant="danger" size="sm" />
+                    <IconButton icon={PencilIcon} label={t('admin.questions.iconEdit')} onClick={() => handleEdit(question)} variant="default" size="sm" />
+                    <IconButton icon={TrashIcon} label={t('admin.questions.iconDelete')} onClick={() => handleDelete(question.documentId)} variant="danger" size="sm" />
                   </div>
                 </td>
               </tr>
@@ -489,21 +491,20 @@ export default function AdminQuestions() {
                 <TrashIcon className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <h2 className="font-bold text-lg text-red-600">Delete All Questions</h2>
+                <h2 className="font-bold text-lg text-red-600">{t('admin.questions.deleteAllTitle')}</h2>
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {filterCourse === 'all' ? 'All courses' : courses?.find(c => c.documentId === filterCourse)?.title}
+                  {filterCourse === 'all' ? t('admin.questions.allCourses') : getLocalizedField(courses?.find(c => c.documentId === filterCourse), i18n.language, 'title')}
                 </p>
               </div>
             </div>
 
             <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-              This will permanently delete <strong>all questions</strong> for the selected course. 
-              This cannot be undone.
+              {t('admin.questions.deleteAllWarning')}
             </p>
 
             <div className="p-3 rounded-lg mb-4 bg-red-50 border border-red-200">
               <p className="text-xs text-red-700 font-medium">
-                Type <code className="bg-red-100 px-1 rounded font-mono">DELETE ALL QUESTIONS</code> to confirm
+                {t('admin.questions.deleteAllConfirm')}
               </p>
             </div>
 
@@ -511,7 +512,7 @@ export default function AdminQuestions() {
               type="text"
               value={deleteConfirmText}
               onChange={e => setDeleteConfirmText(e.target.value)}
-              placeholder="DELETE ALL QUESTIONS"
+              placeholder={t('admin.questions.deleteAllConfirmPlaceholder') || 'DELETE ALL QUESTIONS'}
               className="w-full border rounded-lg px-3 py-2.5 text-sm font-mono mb-4 focus:outline-none focus:ring-2 focus:ring-red-500"
               style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
             />
@@ -522,7 +523,7 @@ export default function AdminQuestions() {
                 className="flex-1 py-2.5 rounded-xl border text-sm font-medium"
                 style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-secondary)' }}
               >
-                Cancel
+                {t('admin.questions.cancel')}
               </button>
               <button
                 onClick={handleDeleteAll}
@@ -532,9 +533,9 @@ export default function AdminQuestions() {
                 {deleting ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Deleting...
+                    {t('admin.questions.deleting') || 'Deleting...'}
                   </>
-                ) : 'Delete All'}
+                ) : t('admin.questions.deleteAllBtn')}
               </button>
             </div>
           </div>

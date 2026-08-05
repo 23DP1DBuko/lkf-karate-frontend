@@ -1,51 +1,67 @@
-import { Routes, Route, Navigate, Link } from 'react-router-dom'
-import { useAuth } from './context/AuthContext'
-import Login from './pages/auth/Login'
-import Register from './pages/auth/Register'
-import Courses from './pages/student/Courses'
-import CourseDetail from './pages/student/CourseDetail'
-import ChapterDetail from './pages/student/ChapterDetail'
-import ExamPage from './pages/student/ExamPage'
-import ExamResult from './pages/student/ExamResult'
+import { lazy, Suspense } from 'react'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { useAuth } from './context/useAuth'
 import Layout from './components/Layout'
-import Results from './pages/student/Results'
-import AdminCourses from './pages/admin/AdminCourses'
-import AdminChapters from './pages/admin/AdminChapters'
-import AdminQuestions from './pages/admin/AdminQuestions'
-import AdminExams from './pages/admin/AdminExams'
-import PendingApproval from './pages/auth/PendingApproval'
-import AdminUsers from './pages/admin/AdminUsers'
-import QuickQuiz from './pages/student/QuickQuiz'
-import AdminExamResults from './pages/admin/AdminExamResults'
-import ForgotPassword from './pages/auth/ForgotPassword'
-import ResetPassword from './pages/auth/ResetPassword'
-import Profile from './pages/student/Profile'
-import Landing from './pages/Landing'
-import AdminImport from './pages/admin/AdminImport'
-import Rules from './pages/landing/Rules'
-import UserDashboard from './pages/student/UserDashboard'
+import ErrorBoundary from './components/ErrorBoundary'
+
+// ── Lazy-loaded pages (code-split by route) ────────────────────────────
+const Login = lazy(() => import('./pages/auth/Login'))
+const Register = lazy(() => import('./pages/auth/Register'))
+const ForgotPassword = lazy(() => import('./pages/auth/ForgotPassword'))
+const ResetPassword = lazy(() => import('./pages/auth/ResetPassword'))
+const PendingApproval = lazy(() => import('./pages/auth/PendingApproval'))
+const Landing = lazy(() => import('./pages/Landing'))
+const Rules = lazy(() => import('./pages/landing/Rules'))
+const Privacy = lazy(() => import('./pages/landing/Privacy'))
+const Terms = lazy(() => import('./pages/landing/Terms'))
+const Gdpr = lazy(() => import('./pages/landing/Gdpr'))
+const UserDashboard = lazy(() => import('./pages/student/UserDashboard'))
+const Profile = lazy(() => import('./pages/student/Profile'))
+const Courses = lazy(() => import('./pages/student/Courses'))
+const CourseDetail = lazy(() => import('./pages/student/CourseDetail'))
+const ChapterDetail = lazy(() => import('./pages/student/ChapterDetail'))
+const ExamPage = lazy(() => import('./pages/student/ExamPage'))
+const ExamResult = lazy(() => import('./pages/student/ExamResult'))
+const Results = lazy(() => import('./pages/student/Results'))
+const QuickQuiz = lazy(() => import('./pages/student/QuickQuiz'))
+const AdminCourses = lazy(() => import('./pages/admin/AdminCourses'))
+const AdminChapters = lazy(() => import('./pages/admin/AdminChapters'))
+const AdminChaptersImport = lazy(() => import('./pages/admin/AdminChaptersImport'))
+const AdminQuestions = lazy(() => import('./pages/admin/AdminQuestions'))
+const AdminExams = lazy(() => import('./pages/admin/AdminExams'))
+const AdminExamResults = lazy(() => import('./pages/admin/AdminExamResults'))
+const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
+const AdminImport = lazy(() => import('./pages/admin/AdminImport'))
+
+// ── Loading fallback ───────────────────────────────────────────────────
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-screen" style={{ backgroundColor: 'var(--bg-primary)' }}>
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</p>
+      </div>
+    </div>
+  )
+}
+
+function LoadingFallback({ children }) {
+  return <Suspense fallback={<PageLoader />}>{children}</Suspense>
+}
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
-  if (loading) return (
-    <div className="flex items-center justify-center min-h-screen">
-      <p className="text-gray-500">Loading...</p>
-    </div>
-  )
+  if (loading) return <PageLoader />
   if (!user) return <Navigate to="/login" />
   if (user.verification === 'pending' || user.verification === 'rejected') {
-    return <PendingApproval />
+    return <LoadingFallback><PendingApproval /></LoadingFallback>
   }
   return <Layout>{children}</Layout>
 }
 
 function AdminRoute({ children }) {
   const { user, loading } = useAuth()
-  if (loading) return (
-    <div className="flex items-center justify-center min-h-screen">
-      <p className="text-gray-500">Loading...</p>
-    </div>
-  )
+  if (loading) return <PageLoader />
   if (!user) return <Navigate to="/login" />
   if (!user.isAdmin) return <Navigate to="/dashboard" />
   return <Layout>{children}</Layout>
@@ -55,68 +71,38 @@ function AdminRoute({ children }) {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/rules" element={<Rules />} />
-      <Route path="*" element={<Navigate to="/" />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <UserDashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="/profile" element={
-        <ProtectedRoute><Profile /></ProtectedRoute>
-      } />
-      <Route path="/courses" element={
-        <ProtectedRoute><Courses /></ProtectedRoute>
-      } />
-      <Route path="/courses/:documentId" element={
-        <ProtectedRoute><CourseDetail /></ProtectedRoute>
-      } />
-      <Route path="/courses/:documentId/chapters/:chapterDocumentId" element={
-        <ProtectedRoute><ChapterDetail /></ProtectedRoute>
-      } />
-      <Route path="/exam/:documentId" element={
-        <ProtectedRoute><ExamPage /></ProtectedRoute>
-      } />
-      <Route path="/exam-result" element={
-        <ProtectedRoute><ExamResult /></ProtectedRoute>
-      } />
-      <Route path="*" element={<Navigate to="/dashboard" />} />
-      <Route path="/results" element={
-        <ProtectedRoute><Results /></ProtectedRoute>
-      } />
-      <Route path="/admin/courses" element={
-        <AdminRoute><AdminCourses /></AdminRoute>
-      } />
-      <Route path="/admin/chapters" element={
-        <AdminRoute><AdminChapters /></AdminRoute>
-      } />
-      <Route path="/admin/questions" element={
-        <AdminRoute><AdminQuestions /></AdminRoute>
-      } />
-      <Route path="/admin/exams" element={
-        <AdminRoute><AdminExams /></AdminRoute>
-      } />
-      <Route path="/admin/users" element={
-        <AdminRoute><AdminUsers /></AdminRoute>
-      } />
-      <Route path="/courses/:documentId/quiz" element={
-        <ProtectedRoute><QuickQuiz /></ProtectedRoute>
-      } />
-      <Route path="/admin/results" element={
-        <AdminRoute><AdminExamResults /></AdminRoute>
-      } />
-      <Route path="/admin/import" element={
-        <AdminRoute><AdminImport /></AdminRoute>
-      } />
-    </Routes>
+    <ErrorBoundary>
+      <LoadingFallback>
+        <Routes>
+          <Route path="/" element={<Landing />} />
+          <Route path="/rules" element={<Rules />} />
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/gdpr" element={<Gdpr />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
+          <Route path="/courses/:documentId" element={<ProtectedRoute><CourseDetail /></ProtectedRoute>} />
+          <Route path="/courses/:documentId/chapters/:chapterDocumentId" element={<ProtectedRoute><ChapterDetail /></ProtectedRoute>} />
+          <Route path="/courses/:documentId/quiz" element={<ProtectedRoute><QuickQuiz /></ProtectedRoute>} />
+          <Route path="/exam/:documentId" element={<ProtectedRoute><ExamPage /></ProtectedRoute>} />
+          <Route path="/exam-result" element={<ProtectedRoute><ExamResult /></ProtectedRoute>} />
+          <Route path="/results" element={<ProtectedRoute><Results /></ProtectedRoute>} />
+          <Route path="/admin/courses" element={<AdminRoute><AdminCourses /></AdminRoute>} />
+          <Route path="/admin/chapters" element={<AdminRoute><AdminChapters /></AdminRoute>} />
+          <Route path="/admin/chapters/import" element={<AdminRoute><AdminChaptersImport /></AdminRoute>} />
+          <Route path="/admin/questions" element={<AdminRoute><AdminQuestions /></AdminRoute>} />
+          <Route path="/admin/exams" element={<AdminRoute><AdminExams /></AdminRoute>} />
+          <Route path="/admin/results" element={<AdminRoute><AdminExamResults /></AdminRoute>} />
+          <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+          <Route path="/admin/import" element={<AdminRoute><AdminImport /></AdminRoute>} />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </LoadingFallback>
+    </ErrorBoundary>
   )
 }

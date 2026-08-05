@@ -1,5 +1,17 @@
 import { mediaUrl } from '../api/media'
 
+function getYouTubeEmbedUrl(url) {
+  if (!url) return null
+  try {
+    const u = new URL(url)
+    if (u.hostname.includes('youtu.be')) return `https://www.youtube.com/embed${u.pathname}`
+    const v = u.searchParams.get('v')
+    return v ? `https://www.youtube.com/embed/${v}` : null
+  } catch {
+    return null
+  }
+}
+
 export default function MediaDisplay({ items = [] }) {
   if (!items || !Array.isArray(items) || items.length === 0) return null
 

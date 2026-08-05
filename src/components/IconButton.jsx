@@ -37,9 +37,7 @@ export default function IconButton(props) {
           setTooltipPos({ top: rect.top - 25, left: rect.left + rect.width / 2 })
         }}
         onBlur={() => setTooltipPos(null)}
-        className={
-          "relative flex items-center justify-center rounded-lg transition-all duration-150 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]}"
-        }
+        className={`relative flex items-center justify-center rounded-lg transition-all duration-150 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed ${variants[variant]} ${sizes[size]}`}
         aria-label={label}
       >
         {Icon && <Icon className="w-4 h-4" />}

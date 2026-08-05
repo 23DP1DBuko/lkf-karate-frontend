@@ -10,15 +10,6 @@ import './i18n'
 import { ExamAttemptProvider } from './context/ExamAttemptContext'
 
 const queryClient = new QueryClient()
-const originalError = console.error
-console.error = (...args) => {
-  if (
-    typeof args[0] === 'string' &&
-    (args[0].includes('non-boolean attribute `jsx`') ||
-     args[0].includes('non-boolean attribute `global`'))
-  ) return
-  originalError(...args)
-}
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>

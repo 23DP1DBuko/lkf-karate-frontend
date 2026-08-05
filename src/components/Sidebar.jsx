@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import { useTranslation } from 'react-i18next'
+import Card from './Card'
 import {
   HomeIcon,
   BookOpenIcon,
@@ -18,9 +19,175 @@ import {
   ChevronDoubleLeftIcon,
   ChevronDoubleRightIcon,
   ChevronDownIcon,
-  ArrowUpTrayIcon
+  ArrowUpTrayIcon,
+  DocumentArrowUpIcon
 } from '@heroicons/react/24/outline'
 import { createRipple } from '../hooks/useRipple'
+
+function SidebarContent({
+  isCollapsed,
+  isMobile,
+  user,
+  logout,
+  navigate,
+  location,
+  t,
+  setCollapsed,
+  setMobileOpen,
+  adminOpen,
+  setAdminOpen,
+}) {
+  const isActive = (path) => location.pathname === path
+  const isAdminActive = location.pathname.startsWith('/admin')
+  const close = () => setMobileOpen(false)
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+    setMobileOpen(false)
+  }
+
+  const adminLinks = [
+    { to: '/admin/courses', icon: BookOpenIcon, label: t('nav.admin.courses') },
+    { to: '/admin/chapters', icon: DocumentTextIcon, label: t('nav.admin.chapters') },
+    { to: '/admin/questions', icon: QuestionMarkCircleIcon, label: t('nav.admin.questions') },
+    { to: '/admin/exams', icon: ClipboardDocumentListIcon, label: t('nav.admin.exams') },
+    { to: '/admin/results', icon: ChartBarIcon, label: t('nav.admin.results') },
+    { to: '/admin/users', icon: UsersIcon, label: t('nav.admin.users') },
+    { to: '/admin/import', icon: ArrowUpTrayIcon, label: 'Import Questions' },
+    { to: '/admin/chapters/import', icon: DocumentArrowUpIcon, label: 'Import Chapters' },
+  ]
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Logo + collapse button */}
+      <div className={`flex items-center border-b py-4 ${isCollapsed ? 'justify-center px-3' : 'justify-between px-4'}`}
+        style={{ borderColor: 'var(--border)' }}>
+        {!isCollapsed && (
+          <Link to="/dashboard" onClick={isMobile ? close : undefined} className="flex items-center gap-2">
+            <span className="font-bold text-blue-700">LKF Karate</span>
+          </Link>
+        )}
+        {!isMobile && (
+          <button
+            onClick={() => setCollapsed(!isCollapsed)}
+            className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 flex-shrink-0 group"
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isCollapsed
+              ? <ChevronDoubleRightIcon className="w-4 h-4 text-slate-400 group-hover:text-blue-600 dark:text-slate-500 dark:group-hover:text-blue-400 transition-colors" />
+              : <ChevronDoubleLeftIcon className="w-4 h-4 text-slate-400 group-hover:text-blue-600 dark:text-slate-500 dark:group-hover:text-blue-400 transition-colors" />
+            }
+          </button>
+        )}
+        {isMobile && (
+          <button onClick={close} className="p-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20">
+            <XMarkIcon className="w-5 h-5" style={{ color: 'var(--text-primary)' }} />
+          </button>
+        )}
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-visible">
+        <NavItem to="/dashboard" icon={HomeIcon} label={t('nav.dashboard')} active={isActive('/dashboard')} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
+        <NavItem to="/courses" icon={BookOpenIcon} label={t('nav.courses')} active={isActive('/courses')} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
+        <NavItem to="/results" icon={ChartBarIcon} label={t('nav.results')} active={isActive('/results')} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
+
+        {user?.isAdmin && (
+          <div className="pt-1">
+            {isCollapsed ? (
+              <div className="space-y-0.5">
+                {adminLinks.map(link => (
+                  <NavItem key={link.to} to={link.to} icon={link.icon} label={link.label}
+                    active={isActive(link.to)} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
+                ))}
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={() => setAdminOpen(!adminOpen)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                    isAdminActive ? 'text-blue-600' : ''
+                  } hover:bg-blue-50 dark:hover:bg-blue-900/20`}
+                  style={{ color: isAdminActive ? '#2563eb' : 'var(--text-secondary)' }}
+                >
+                  <AcademicCapIcon className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-sm font-medium flex-1 text-left">Admin</span>
+                  <ChevronDownIcon className={`w-4 h-4 transition-transform ${adminOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {adminOpen && (
+                  <div className="ml-4 mt-0.5 space-y-0.5 border-l-2 border-blue-200 dark:border-blue-800 pl-2">
+                    {adminLinks.map(link => (
+                      <NavItem key={link.to} to={link.to} icon={link.icon} label={link.label}
+                        active={isActive(link.to)} onClick={isMobile ? close : undefined} collapsed={false} />
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </nav>
+
+      
+      {!isCollapsed && (
+      <button
+        onClick={() => { navigate('/profile'); if (isMobile) close() }}
+        className="w-full px-4 py-3 border-b flex items-center gap-3 text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+        style={{ borderColor: 'var(--border)' }}
+      >
+        {user?.profilePicture?.url ? (
+          <img
+            src={`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:1337'}${user.profilePicture.url}`}
+            alt={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Profile picture'}
+            className="w-8 h-8 rounded-full object-cover flex-shrink-0 border"
+            style={{ borderColor: 'var(--border)' }}
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs flex-shrink-0">
+            {user?.firstName?.[0]}{user?.lastName?.[0]}
+          </div>
+        )}
+
+        <div className="min-w-0">
+          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+            {user?.firstName} {user?.lastName}
+          </p>
+          <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+            {user?.email}
+          </p>
+        </div>
+      </button>
+    )}
+
+    {isCollapsed && (
+      <button
+        onClick={() => { navigate('/profile'); if (isMobile) close() }}
+        className="w-full px-3 py-3 border-b flex justify-center hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+        style={{ borderColor: 'var(--border)' }}
+        aria-label="Go to profile"
+      >
+        {user?.profilePicture?.url ? (
+          <img
+            src={`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:1337'}${user.profilePicture.url}`}
+            alt={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Profile picture'}
+            className="w-8 h-8 rounded-full object-cover border"
+            style={{ borderColor: 'var(--border)' }}
+          />
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs">
+            {user?.firstName?.[0]}{user?.lastName?.[0]}
+          </div>
+        )}
+      </button>
+    )}
+      {/* Logout */}
+      <div className="px-2 pb-3 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
+        <NavButton onClick={handleLogout} icon={ArrowRightOnRectangleIcon} label={t('nav.logout')} danger collapsed={isCollapsed} />
+      </div>
+    </div>
+  )
+}
 
 function NavItem({ to, icon: Icon, label, onClick, active, collapsed }) {
   const [tooltipPos, setTooltipPos] = useState(null)
@@ -190,156 +357,19 @@ export default function Sidebar() {
     }
   }, [mobileOpen])
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
-    setMobileOpen(false)
-  }
-
-  const isActive = (path) => location.pathname === path
-  const isAdminActive = location.pathname.startsWith('/admin')
   const close = () => setMobileOpen(false)
 
-  const adminLinks = [
-    { to: '/admin/courses', icon: BookOpenIcon, label: t('nav.admin.courses') },
-    { to: '/admin/chapters', icon: DocumentTextIcon, label: t('nav.admin.chapters') },
-    { to: '/admin/questions', icon: QuestionMarkCircleIcon, label: t('nav.admin.questions') },
-    { to: '/admin/exams', icon: ClipboardDocumentListIcon, label: t('nav.admin.exams') },
-    { to: '/admin/results', icon: ChartBarIcon, label: t('nav.admin.results') },
-    { to: '/admin/users', icon: UsersIcon, label: t('nav.admin.users') },
-    { to: '/admin/import', icon: ArrowUpTrayIcon, label: 'Import Questions' },
-  ]
-
-  const SidebarContent = ({ isCollapsed, isMobile }) => (
-    <div className="flex flex-col h-full">
-      {/* Logo + collapse button */}
-      <div className={`flex items-center border-b py-4 ${isCollapsed ? 'justify-center px-3' : 'justify-between px-4'}`}
-        style={{ borderColor: 'var(--border)' }}>
-        {!isCollapsed && (
-          <Link to="/dashboard" onClick={isMobile ? close : undefined} className="flex items-center gap-2">
-            <span className="font-bold text-blue-700">LKF Karate</span>
-          </Link>
-        )}
-        {!isMobile && (
-          <button
-            onClick={() => setCollapsed(!isCollapsed)}
-            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0"
-            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {isCollapsed
-              ? <ChevronDoubleRightIcon className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-              : <ChevronDoubleLeftIcon className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
-            }
-          </button>
-        )}
-        {isMobile && (
-          <button onClick={close} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-            <XMarkIcon className="w-5 h-5" style={{ color: 'var(--text-primary)' }} />
-          </button>
-        )}
-      </div>
-
-      {/* Nav */}
-      <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-visible">
-        <NavItem to="/dashboard" icon={HomeIcon} label={t('nav.dashboard')} active={isActive('/dashboard')} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
-        <NavItem to="/courses" icon={BookOpenIcon} label={t('nav.courses')} active={isActive('/courses')} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
-        <NavItem to="/results" icon={ChartBarIcon} label={t('nav.results')} active={isActive('/results')} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
-
-        {user?.isAdmin && (
-          <div className="pt-1">
-            {isCollapsed ? (
-              <div className="space-y-0.5">
-                {adminLinks.map(link => (
-                  <NavItem key={link.to} to={link.to} icon={link.icon} label={link.label}
-                    active={isActive(link.to)} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
-                ))}
-              </div>
-            ) : (
-              <>
-                <button
-                  onClick={() => setAdminOpen(!adminOpen)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
-                    isAdminActive ? 'text-blue-600' : ''
-                  } hover:bg-blue-50 dark:hover:bg-blue-900/20`}
-                  style={{ color: isAdminActive ? '#2563eb' : 'var(--text-secondary)' }}
-                >
-                  <AcademicCapIcon className="w-5 h-5 flex-shrink-0" />
-                  <span className="text-sm font-medium flex-1 text-left">Admin</span>
-                  <ChevronDownIcon className={`w-4 h-4 transition-transform ${adminOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {adminOpen && (
-                  <div className="ml-4 mt-0.5 space-y-0.5 border-l-2 border-blue-200 dark:border-blue-800 pl-2">
-                    {adminLinks.map(link => (
-                      <NavItem key={link.to} to={link.to} icon={link.icon} label={link.label}
-                        active={isActive(link.to)} onClick={isMobile ? close : undefined} collapsed={false} />
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        )}
-      </nav>
-
-      
-      {!isCollapsed && (
-      <button
-        onClick={() => { navigate('/profile'); if (isMobile) close() }}
-        className="w-full px-4 py-3 border-b flex items-center gap-3 text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
-        style={{ borderColor: 'var(--border)' }}
-      >
-        {user?.profilePicture?.url ? (
-          <img
-            src={`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:1337'}${user.profilePicture.url}`}
-            alt={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Profile picture'}
-            className="w-8 h-8 rounded-full object-cover flex-shrink-0 border"
-            style={{ borderColor: 'var(--border)' }}
-          />
-        ) : (
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs flex-shrink-0">
-            {user?.firstName?.[0]}{user?.lastName?.[0]}
-          </div>
-        )}
-
-        <div className="min-w-0">
-          <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
-            {user?.firstName} {user?.lastName}
-          </p>
-          <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-            {user?.email}
-          </p>
-        </div>
-      </button>
-    )}
-
-    {isCollapsed && (
-      <button
-        onClick={() => { navigate('/profile'); if (isMobile) close() }}
-        className="w-full px-3 py-3 border-b flex justify-center hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
-        style={{ borderColor: 'var(--border)' }}
-        aria-label="Go to profile"
-      >
-        {user?.profilePicture?.url ? (
-          <img
-            src={`${import.meta.env.VITE_API_URL || 'http://127.0.0.1:1337'}${user.profilePicture.url}`}
-            alt={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Profile picture'}
-            className="w-8 h-8 rounded-full object-cover border"
-            style={{ borderColor: 'var(--border)' }}
-          />
-        ) : (
-          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-xs">
-            {user?.firstName?.[0]}{user?.lastName?.[0]}
-          </div>
-        )}
-      </button>
-    )}
-      {/* Logout */}
-      <div className="px-2 pb-3 border-t pt-2" style={{ borderColor: 'var(--border)' }}>
-        <NavButton onClick={handleLogout} icon={ArrowRightOnRectangleIcon} label={t('nav.logout')} danger collapsed={isCollapsed} />
-      </div>
-    </div>
-  )
+  const sidebarContentProps = {
+    user,
+    logout,
+    navigate,
+    location,
+    t,
+    setCollapsed,
+    setMobileOpen,
+    adminOpen,
+    setAdminOpen,
+  }
 
   return (
     <>
@@ -353,7 +383,7 @@ export default function Sidebar() {
         </Link>
         <button
           onClick={() => setMobileOpen(true)}
-          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+          className="p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20"
           aria-label="Open menu"
         >
           <Bars3Icon className="w-6 h-6" style={{ color: 'var(--text-primary)' }} />
@@ -371,18 +401,19 @@ export default function Sidebar() {
         className={`md:hidden fixed top-0 left-0 h-full w-72 z-50 transform transition-transform duration-300 ease-in-out ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`} style={{ backgroundColor: 'var(--bg-card)' }}>
-        <SidebarContent isCollapsed={false} isMobile={true} />
+        <SidebarContent {...sidebarContentProps} isCollapsed={false} isMobile={true} />
       </div>
 
       {/* Desktop sidebar — only renders on md+ */}
-      <aside
+      <Card
+        as="aside"
         className={`hidden md:flex flex-col flex-shrink-0 border-r sticky top-0 h-screen transition-all duration-300 ${
           collapsed ? 'w-16' : 'w-64'
         }`}
-        style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', overflow: 'visible' }}
+        style={{ overflow: 'visible' }}
       >
-        <SidebarContent isCollapsed={collapsed} isMobile={false} />
-      </aside>
+        <SidebarContent {...sidebarContentProps} isCollapsed={collapsed} isMobile={false} />
+      </Card>
     </>
   )
 }

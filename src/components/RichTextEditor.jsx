@@ -3,6 +3,28 @@ import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline' 
 import { useEffect, useMemo } from 'react'
 
+// Inject ProseMirror styles globally via useEffect for Vite compatibility
+// (plain <style> tags in JSX can be unreliable across React/Vite versions)
+function ProseMirrorStyles() {
+  useEffect(() => {
+    if (document.getElementById('prosemirror-styles')) return
+    const el = document.createElement('style')
+    el.textContent = `
+      .ProseMirror {
+        min-height: 150px;
+        outline: none !important;
+      }
+      .ProseMirror ul { list-style-type: disc; padding-left: 1.5em; }
+      .ProseMirror ol { list-style-type: decimal; padding-left: 1.5em; }
+      .ProseMirror blockquote { border-left: 3px solid #ccc; padding-left: 1rem; font-style: italic; }
+    `
+    el.setAttribute('id', 'prosemirror-styles')
+    document.head.appendChild(el)
+  }, [])
+
+  return null
+}
+
 export default function RichTextEditor({ content, onChange, label }) {
   // 1. Оборачиваем расширения в useMemo, чтобы избежать дублирования при ререндерах
   const extensions = useMemo(() => [
@@ -49,9 +71,10 @@ export default function RichTextEditor({ content, onChange, label }) {
 
   return (
     <div className="w-full">
+      <ProseMirrorStyles />
       {label && <label className="block text-sm font-medium mb-1 text-gray-700">{label}</label>}
       <div className="border rounded-lg overflow-hidden border-gray-300">
-        {/* Панель инструментов */}
+        {/* Toolbar */}
         <div className="flex flex-wrap gap-1 p-2 border-b bg-gray-50 border-gray-300">
           {btn(() => editor.chain().focus().toggleBold().run(), 'B', editor.isActive('bold'))}
           {btn(() => editor.chain().focus().toggleItalic().run(), 'I', editor.isActive('italic'))}
@@ -81,16 +104,6 @@ export default function RichTextEditor({ content, onChange, label }) {
         />
       </div>
       
-      {/* Стили для того, чтобы список и заголовки выглядели корректно внутри Tiptap */}
-      <style jsx global>{`
-        .ProseMirror {
-          min-height: 150px;
-          outline: none !important;
-        }
-        .ProseMirror ul { list-style-type: disc; padding-left: 1.5em; }
-        .ProseMirror ol { list-style-type: decimal; padding-left: 1.5em; }
-        .ProseMirror blockquote { border-left: 3px solid #ccc; padding-left: 1rem; font-style: italic; }
-      `}</style>
     </div>
   )
 }

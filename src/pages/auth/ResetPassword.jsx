@@ -1,8 +1,16 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import api from '../../api/strapi'
+import { useTranslation } from 'react-i18next'
+import { useTheme } from '../../context/useTheme'
+import AuthLayout from '../../components/AuthLayout'
+import { LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 
 export default function ResetPassword() {
+  const { t } = useTranslation()
+  const { theme } = useTheme()
+  const isDark = theme === 'dark' ||
+    (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const code = searchParams.get('code')
@@ -12,37 +20,28 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const inputClasses = `w-full border transition-all outline-none rounded-xl pl-10 text-sm ${
+    isDark
+      ? 'bg-white/[0.04] border-white/[0.1] focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/80 text-slate-100 placeholder-slate-500'
+      : 'bg-white border-slate-200 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/40 text-slate-700 placeholder-slate-400'
+  }`
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-
-    if (form.password.length < 8) {
-      setError('Password must be at least 8 characters')
-      return
-    }
-    if (!/[A-Z]/.test(form.password)) {
-      setError('Password must contain at least one uppercase letter')
-      return
-    }
-    if (!/[0-9]/.test(form.password)) {
-      setError('Password must contain at least one number')
-      return
-    }
-    if (form.password !== form.confirmPassword) {
-      setError('Passwords do not match')
-      return
-    }
+    if (form.password.length < 8) { setError(t('profile.passwordMinLength')); return }
+    if (!/[A-Z]/.test(form.password)) { setError(t('profile.passwordUppercase')); return }
+    if (!/[0-9]/.test(form.password)) { setError(t('profile.passwordNumber')); return }
+    if (form.password !== form.confirmPassword) { setError(t('profile.passwordMatch')); return }
 
     setLoading(true)
     try {
       await api.post('/auth/reset-password', {
-        code,
-        password: form.password,
-        passwordConfirmation: form.confirmPassword,
+        code, password: form.password, passwordConfirmation: form.confirmPassword,
       })
-      navigate('/login', { state: { message: 'Password reset successfully. Please sign in.' } })
-    } catch (err) {
-      setError('Reset link is invalid or expired. Please request a new one.')
+      navigate('/login', { state: { message: t('auth.passwordResetSuccess') } })
+    } catch {
+      setError(t('auth.invalidResetLinkDesc'))
     } finally {
       setLoading(false)
     }
@@ -50,72 +49,81 @@ export default function ResetPassword() {
 
   if (!code) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md text-center">
-          <div className="text-6xl mb-4">❌</div>
-          <h1 className="text-2xl font-bold text-red-600 mb-2">Invalid Reset Link</h1>
-          <p className="text-gray-500 mb-6">This reset link is invalid or has expired.</p>
-          <Link to="/forgot-password" className="text-blue-600 hover:underline">
-            Request a new reset link
+      <AuthLayout>
+        <div className="text-center space-y-4">
+          <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto ${
+            isDark ? 'bg-red-500/10 border border-red-500/20' : 'bg-red-50 border border-red-200'
+          }`}>
+            <svg className={`w-8 h-8 ${isDark ? 'text-red-400' : 'text-red-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.072 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+          <h1 className={`text-xl font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{t('auth.invalidResetLink')}</h1>
+          <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t('auth.invalidResetLinkDesc')}</p>
+          <Link to="/forgot-password" className={`text-sm transition-colors font-medium ${
+            isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-500 hover:text-indigo-600'
+          }`}>
+            {t('auth.requestNewLink')}
           </Link>
         </div>
-      </div>
+      </AuthLayout>
     )
   }
 
-return (
-  <div className="min-h-screen bg-gray-100 flex items-center justify-center" role="main">
-      <div className="bg-white p-8 rounded-xl shadow-md w-full max-w-md">
-        <h1 className="text-2xl font-bold text-center text-blue-700 mb-6">LKF Academy</h1>
-        <h2 className="text-xl font-semibold mb-2">Reset Password</h2>
-        <p className="text-gray-500 text-sm mb-6">Enter your new password below.</p>
+  return (
+    <AuthLayout title={t('auth.resetPasswordTitle')} subtitle={t('auth.resetPasswordDesc')}>
+      {error && (
+        <div className={`px-4 py-2.5 rounded-xl text-sm ${
+          isDark
+            ? 'bg-red-500/10 border border-red-500/20 text-red-400'
+            : 'bg-red-50 border border-red-200 text-red-600'
+        }`}>{error}</div>
+      )}
 
-        {error && (
-          <div className="bg-red-100 text-red-700 px-4 py-2 rounded mb-4 text-sm">{error}</div>
-        )}
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <div>
+          <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} htmlFor="password">{t('auth.newPasswordLabel')}</label>
+          <div className="relative">
+            <LockClosedIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="new-password"
+              className={inputClasses + ' pr-11 py-3'}
+              placeholder="••••••••"
+              value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} required />
+            <button type="button" onClick={() => setShowPassword(!showPassword)}
+              className={`absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors ${
+                isDark ? 'text-slate-500 hover:text-slate-300' : 'text-slate-400 hover:text-slate-600'
+              }`}
+              aria-label={showPassword ? t('auth.hidePassword') : t('auth.showPassword')}>
+              {showPassword ? <EyeSlashIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+            </button>
+          </div>
+          <p className={`text-xs mt-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{t('profile.passwordHint')}</p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1" htmlFor="password">New Password</label>
-            <div className="relative">
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                className="w-full border rounded-lg px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? '🙈' : '👁️'}
-              </button>
-            </div>
-            <p className="text-xs text-gray-400 mt-1">Min 8 characters, 1 uppercase, 1 number</p>
+        <div>
+          <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} htmlFor="confirmPassword">{t('auth.confirmPasswordLabel')}</label>
+          <div className="relative">
+            <LockClosedIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <input id="confirmPassword" type={showPassword ? 'text' : 'password'} autoComplete="new-password"
+              className={inputClasses + ' pr-4 py-3'}
+              placeholder="••••••••"
+              value={form.confirmPassword} onChange={e => setForm({ ...form, confirmPassword: e.target.value })} required />
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1" htmlFor="confirmPassword">Confirm Password</label>
-            <input
-              id="confirmPassword"
-              type={showPassword ? 'text' : 'password'}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={form.confirmPassword}
-              onChange={e => setForm({ ...form, confirmPassword: e.target.value })}
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? 'Resetting...' : 'Reset Password'}
-          </button>
-        </form>
-      </div>
-    </div>
+        </div>
+
+        <button type="submit" disabled={loading}
+          className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-medium text-sm py-3 px-4 rounded-xl shadow-lg shadow-indigo-600/20 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+          {loading ? (
+            <span className="inline-flex items-center gap-2">
+              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              {t('auth.resetting')}
+            </span>
+          ) : t('auth.resetPasswordButton')}
+        </button>
+      </form>
+    </AuthLayout>
   )
 }

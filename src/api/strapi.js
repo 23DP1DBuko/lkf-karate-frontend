@@ -2,7 +2,6 @@ import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:1337";
 
-console.log("API_URL:", API_URL);
 
 const api = axios.create({
   baseURL: `${API_URL}/api`,
@@ -32,4 +31,20 @@ export function getLocalizedField(item, language, fieldBase) {
   return (
     item[`${fieldBase}Lv`] || item[`${fieldBase}En`] || item[fieldBase] || ""
   );
+}
+
+/**
+ * Get localized array field (e.g. optionsLv, blocksRu).
+ * Returns an array, falling back through lv → en → [].
+ */
+export function getLocalizedArray(item, language, fieldBase) {
+  if (!item) return [];
+  const langMap = { lv: "Lv", ru: "Ru", en: "En" };
+  const suffix = langMap[language] || "Lv";
+  const localizedKey = `${fieldBase}${suffix}`;
+  if (Array.isArray(item[localizedKey])) return item[localizedKey];
+  if (Array.isArray(item[`${fieldBase}Lv`])) return item[`${fieldBase}Lv`];
+  if (Array.isArray(item[`${fieldBase}En`])) return item[`${fieldBase}En`];
+  if (Array.isArray(item[fieldBase])) return item[fieldBase];
+  return [];
 }

@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 
-vi.mock('../context/AuthContext', () => ({
+vi.mock('../context/useAuth', () => ({
   useAuth: () => ({
     login: vi.fn(),
     register: vi.fn(),
@@ -89,6 +89,6 @@ describe('Exam Result Page', () => {
 
   it('shows correct out of total', () => {
     render(<MemoryRouter><ExamResult /></MemoryRouter>)
-    expect(screen.getByText(/8 out of 10/i)).toBeInTheDocument()
+    expect(screen.getByText(/8 examResult\.outOf 10/)).toBeInTheDocument()
   })
 })

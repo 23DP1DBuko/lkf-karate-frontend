@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import api from '../../api/strapi'
 import { mediaUrl } from '../../api/media'
 import { useTranslation } from 'react-i18next'
-import { getQuestionText, getLocalizedField } from '../../api/strapi'
+import { getQuestionText, getLocalizedField, getLocalizedArray } from '../../api/strapi'
 import MediaDisplay from '../../components/MediaDisplay'
 
 // ─── RichText viewer (NOT the editor – just renders saved HTML) ───────────────
@@ -228,8 +228,11 @@ function BlockRenderer({ block, i, onCorrect, language }) {
   if (block.type === 'note') return (
     <div
       key={i}
-      className="border-l-4 border-blue-500 pl-4 py-3 rounded-r-lg"
-      style={{ backgroundColor: 'rgba(59,130,246,0.08)' }}
+      className="rounded-lg px-4 py-3 border"
+      style={{
+        backgroundColor: 'rgba(59,130,246,0.06)',
+        borderColor: 'rgba(59,130,246,0.15)',
+      }}
     >
       <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{block.content}</p>
     </div>
@@ -326,6 +329,7 @@ export default function ChapterDetail() {
     if (chapter?.documentId && totalQuestions === 0) {
       markSeenMutation.mutate(chapter.documentId)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapter?.documentId, totalQuestions])
 
   const handleCorrect = (questionId) => {
@@ -350,7 +354,8 @@ export default function ChapterDetail() {
       </div>
     )
 
-  const hasBlocks = chapter?.blocks?.length > 0
+  const blocks = getLocalizedArray(chapter, i18n.language, 'blocks')
+  const hasBlocks = blocks.length > 0
   const hasLegacyContent =
     chapter?.videoUrl || chapter?.content || chapter?.media?.length
 
@@ -364,8 +369,8 @@ export default function ChapterDetail() {
       </Link>
 
       <div className="flex items-center gap-3 mb-6">
-        <h1 className="text-3xl font-bold text-blue-700">
-          {getLocalizedField(chapter, i18n.language, 'title') || chapter?.title}
+        <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">
+          {getLocalizedField(chapter, i18n.language, 'title') || chapter?.titleLv}
         </h1>
         {isSeen && (
           <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">
@@ -377,7 +382,7 @@ export default function ChapterDetail() {
       {/* ── Block-based content (new chapters) ── */}
       {hasBlocks && (
         <div className="space-y-6 mb-6">
-          {chapter.blocks.map((block, i) => (
+          {blocks.map((block, i) => (
             <BlockRenderer
               key={i}
               block={block}
@@ -436,7 +441,7 @@ export default function ChapterDetail() {
       {/* ── Empty state ── */}
       {!hasBlocks && !hasLegacyContent && (
         <div className="text-center py-12">
-          <p className="text-4xl mb-3">📄</p>
+          <p className="text-3xl sm:text-4xl mb-3">📄</p>
           <p style={{ color: 'var(--text-muted)' }}>This chapter has no content yet.</p>
         </div>
       )}
@@ -476,7 +481,7 @@ export default function ChapterDetail() {
             }
             className="px-6 py-3 rounded-xl font-semibold transition bg-green-600 text-white hover:bg-green-700"
           >
-            Next Chapter → {nextChapter.title}
+            Next Chapter → {getLocalizedField(nextChapter, i18n.language, 'title') || nextChapter.titleLv}
           </button>
         ) : (
           <Link

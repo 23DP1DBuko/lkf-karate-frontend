@@ -2,6 +2,8 @@ import { useState, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../api/strapi'
 import { DocumentArrowUpIcon } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
+import { getLocalizedField } from '../../api/strapi'
 
 async function parseDocx(file) {
   const JSZip = (await import('jszip')).default
@@ -74,6 +76,7 @@ async function fetchAllExistingQuestions(courseId) {
 }
 
 export default function AdminImport() {
+  const { t, i18n } = useTranslation()
   const [file, setFile] = useState(null)
   const [questions, setQuestions] = useState([])
   const [selectedCourse, setSelectedCourse] = useState('')
@@ -86,7 +89,7 @@ export default function AdminImport() {
 
   const { data: courses } = useQuery({
     queryKey: ['courses-list'],
-    queryFn: () => api.get('/courses?sort=title:asc').then(r => r.data.data)
+    queryFn: () => api.get('/courses?sort=titleLv:asc').then(r => r.data.data)
   })
 
   const handleFileChange = async (e) => {
@@ -192,14 +195,14 @@ export default function AdminImport() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-3xl font-bold text-blue-700 mb-2">Import Questions</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-2">{t('admin.import.title') || 'Import Questions'}</h1>
       <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
-        Import yes/no questions from .docx. Green = true, Red = false.
+        {t('admin.import.description') || 'Import yes/no questions from .docx. Green = true, Red = false.'}
       </p>
 
       <div className="space-y-4">
         <div className="rounded-xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-          <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>1. Upload .docx file</h2>
+          <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>1. {t('admin.import.uploadStep') || 'Upload .docx file'}</h2>
           <div
             onClick={() => fileRef.current.click()}
             className="border-2 border-dashed rounded-xl p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
@@ -207,10 +210,10 @@ export default function AdminImport() {
           >
             <DocumentArrowUpIcon className="w-10 h-10 mx-auto mb-2 text-blue-500" />
             <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-              {file ? file.name : 'Click to select .docx file'}
+              {file ? file.name : t('admin.import.selectFile') || 'Click to select .docx file'}
             </p>
             <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-              Include year in filename e.g. Kata_2025.docx
+              {t('admin.import.fileHint') || 'Include year in filename e.g. Kata_2025.docx'}
             </p>
             <input ref={fileRef} type="file" accept=".docx" onChange={handleFileChange} className="hidden" />
           </div>
@@ -235,7 +238,7 @@ export default function AdminImport() {
 
         {questions.length > 0 && (
           <div className="rounded-xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-            <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>2. Course & Language</h2>
+            <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>2. {t('admin.import.courseLangStep') || 'Course & Language'}</h2>
             <div className="space-y-3">
               <select
                 value={selectedCourse}
@@ -245,7 +248,7 @@ export default function AdminImport() {
               >
                 <option value="">Select course</option>
                 {courses?.map(c => (
-                  <option key={c.id} value={c.documentId}>{c.title}</option>
+                  <option key={c.id} value={c.documentId}>{getLocalizedField(c, i18n.language, 'title')}</option>
                 ))}
               </select>
 
@@ -283,7 +286,7 @@ export default function AdminImport() {
 
         {questions.length > 0 && selectedCourse && (
           <div className="rounded-xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-            <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>3. Preview & Import</h2>
+            <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>3. {t('admin.import.previewStep') || 'Preview & Import'}</h2>
 
             <div className="max-h-48 overflow-y-auto space-y-1.5 mb-4">
               {questions.slice(0, 15).map((q, i) => (
@@ -306,23 +309,23 @@ export default function AdminImport() {
 
             {results ? (
               <div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-                <p className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>Import complete</p>
+                <p className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>{t('admin.import.complete') || 'Import complete'}</p>
                 <div className="grid grid-cols-4 gap-2 text-center text-sm mb-3">
                   <div className="p-2 rounded bg-green-100 text-green-700">
                     <div className="font-bold text-xl">{results.created}</div>
-                    <div className="text-xs">Created</div>
+                    <div className="text-xs">{t('admin.import.created') || 'Created'}</div>
                   </div>
                   <div className="p-2 rounded bg-blue-100 text-blue-700">
                     <div className="font-bold text-xl">{results.updated}</div>
-                    <div className="text-xs">Updated</div>
+                    <div className="text-xs">{t('admin.import.updated') || 'Updated'}</div>
                   </div>
                   <div className="p-2 rounded" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-secondary)' }}>
                     <div className="font-bold text-xl">{results.skipped}</div>
-                    <div className="text-xs">Skipped</div>
+                    <div className="text-xs">{t('admin.import.skipped') || 'Skipped'}</div>
                   </div>
                   <div className="p-2 rounded bg-red-100 text-red-600">
                     <div className="font-bold text-xl">{results.failed}</div>
-                    <div className="text-xs">Failed</div>
+                    <div className="text-xs">{t('admin.import.failed') || 'Failed'}</div>
                   </div>
                 </div>
                 <button
@@ -330,7 +333,7 @@ export default function AdminImport() {
                   className="w-full py-2 rounded-lg text-sm border transition"
                   style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-card)' }}
                 >
-                  Import another file
+                  {t('admin.import.importAnother') || 'Import another file'}
                 </button>
               </div>
             ) : (
@@ -345,7 +348,7 @@ export default function AdminImport() {
                     Importing...
                   </>
                 ) : (
-                  <>Import {questions.length} questions</>
+                  <>{t('admin.import.importQuestions', { count: questions.length }) || `Import ${questions.length} questions`}</>
                 )}
               </button>
             )}

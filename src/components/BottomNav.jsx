@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { useAuth } from '../context/useAuth'
 import { useTranslation } from 'react-i18next'
 import { createRipple } from '../hooks/useRipple'
 import {
   HomeIcon, BookOpenIcon, ChartBarIcon, UserIcon, AcademicCapIcon,
   DocumentTextIcon, QuestionMarkCircleIcon,
   ClipboardDocumentListIcon, UsersIcon, ChevronUpIcon,
-  ArrowUpTrayIcon
+  ArrowUpTrayIcon,
+  DocumentArrowUpIcon
 } from '@heroicons/react/24/outline'
 import {
   HomeIcon as HomeSolid, BookOpenIcon as BookSolid,
@@ -31,7 +32,8 @@ export default function BottomNav() {
     { to: '/admin/exams', icon: ClipboardDocumentListIcon, label: t('nav.admin.exams') },
     { to: '/admin/results', icon: ChartBarIcon, label: t('nav.admin.results') },
     { to: '/admin/users', icon: UsersIcon, label: t('nav.admin.users') },
-    { to: '/admin/import', icon: ArrowUpTrayIcon, label: 'Import' },
+    { to: '/admin/import', icon: ArrowUpTrayIcon, label: 'Import Questions' },
+    { to: '/admin/chapters/import', icon: DocumentArrowUpIcon, label: 'Import Chapters' },
   ]
 
   const tabs = [
