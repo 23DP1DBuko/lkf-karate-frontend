@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { useExamAttempt } from '../context/ExamAttemptContext'
+import { useExamAttempt } from '../context/useExamAttempt'
 
 export default function ContinueExamBanner() {
   const location = useLocation()
@@ -14,18 +14,19 @@ export default function ContinueExamBanner() {
   const isExamRoute = examDocumentId && location.pathname === `/exam/${examDocumentId}`
 
   useEffect(() => {
-    let timer
+    const shouldShow = activeAttempt && !activeAttempt.submittedAt && !isAdminRoute && !isExamRoute
 
-    if (activeAttempt && !activeAttempt.submittedAt && !isAdminRoute && !isExamRoute) {
-      timer = setTimeout(() => {
-        setMounted(true)
-      }, 500)
-    } else {
-      setMounted(false)
-      setClosing(false)
+    if (shouldShow) {
+      const timer = setTimeout(() => setMounted(true), 500)
+      return () => clearTimeout(timer)
     }
 
-    return () => clearTimeout(timer)
+    // Defer reset so it's not synchronous in the effect body
+    const resetTimer = setTimeout(() => {
+      setMounted(false)
+      setClosing(false)
+    }, 0)
+    return () => clearTimeout(resetTimer)
   }, [activeAttempt, isAdminRoute, isExamRoute])
 
   if (!activeAttempt || activeAttempt.submittedAt || isAdminRoute || isExamRoute || !examDocumentId) {

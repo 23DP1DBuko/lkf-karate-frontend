@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState } from 'react'
 
 function pad(n) {
   return String(n).padStart(2, '0')
@@ -35,10 +35,8 @@ export default function DateTimeStepPicker({
 
   const parsed = useMemo(() => toLocalDateParts(value), [value])
 
-  useEffect(() => {
-    if (mode === 'dateOnly') setStep('date')
-    if (!parsed.date) setStep('date')
-  }, [mode, parsed.date])
+  // Derive effective step — clamp to 'date' when mode/date constraints apply
+  const effectiveStep = (mode === 'dateOnly' || !parsed.date) ? 'date' : step
 
   const emit = (date, hour, minute) => {
     if (!date) {
@@ -65,48 +63,75 @@ export default function DateTimeStepPicker({
 
   return (
     <div className="space-y-3">
-      <label className="block text-sm font-medium text-slate-200">{label}</label>
+      <label className="block text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{label}</label>
 
-      <div className="rounded-2xl border border-slate-700 bg-slate-900 p-3">
+      <div
+        className="rounded-2xl p-3"
+        style={{
+          backgroundColor: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+        }}
+      >
         {mode !== 'dateOnly' && (
-          <div className="mb-3 flex gap-2">
+          <div
+            className="mb-3 flex gap-1.5 p-1 rounded-xl"
+            style={{ backgroundColor: 'var(--bg-secondary)' }}
+          >
             <button
               type="button"
               onClick={() => setStep('date')}
-              className={`rounded-xl px-3 py-2 text-sm font-medium ${
-                step === 'date' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
+                effectiveStep === 'date'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'hover:opacity-70'
               }`}
+              style={effectiveStep !== 'date' ? { color: 'var(--text-secondary)' } : {}}
             >
               Date
             </button>
             <button
               type="button"
               onClick={() => setStep('time')}
-              className={`rounded-xl px-3 py-2 text-sm font-medium ${
-                step === 'time' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-300'
-              }`}
               disabled={!parsed.date || (mode === 'dateOnly')}
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
+                effectiveStep === 'time'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'hover:opacity-70'
+              } ${
+                !parsed.date ? 'opacity-40 cursor-not-allowed' : ''
+              }`}
+              style={effectiveStep !== 'time' ? { color: 'var(--text-secondary)' } : {}}
             >
               Time
             </button>
           </div>
         )}
 
-        {(mode === 'dateOnly' || step === 'date') && (
+        {(mode === 'dateOnly' || effectiveStep === 'date') && (
           <input
             type="date"
             value={parsed.date}
             onChange={(e) => emit(e.target.value, parsed.hour, parsed.minute)}
-            className="w-full rounded-xl border border-slate-600 bg-slate-950 px-4 py-3 text-slate-100"
+            className="w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+            style={{
+              backgroundColor: 'var(--input-bg, var(--bg-secondary))',
+              borderColor: 'var(--border)',
+              color: 'var(--text-primary)',
+            }}
           />
         )}
 
-        {mode !== 'dateOnly' && step === 'time' && (
+        {mode !== 'dateOnly' && effectiveStep === 'time' && (
           <div className="grid grid-cols-2 gap-3">
             <select
               value={parsed.hour}
               onChange={(e) => emit(parsed.date, e.target.value, parsed.minute)}
-              className="rounded-xl border border-slate-600 bg-slate-950 px-4 py-3 text-slate-100"
+              className="rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+              style={{
+                backgroundColor: 'var(--input-bg, var(--bg-secondary))',
+                borderColor: 'var(--border)',
+                color: 'var(--text-primary)',
+              }}
             >
               {Array.from({ length: 24 }, (_, i) => pad(i)).map((h) => (
                 <option key={h} value={h}>{h}</option>
@@ -116,7 +141,12 @@ export default function DateTimeStepPicker({
             <select
               value={parsed.minute}
               onChange={(e) => emit(parsed.date, parsed.hour, e.target.value)}
-              className="rounded-xl border border-slate-600 bg-slate-950 px-4 py-3 text-slate-100"
+              className="rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+              style={{
+                backgroundColor: 'var(--input-bg, var(--bg-secondary))',
+                borderColor: 'var(--border)',
+                color: 'var(--text-primary)',
+              }}
             >
               {minuteOptions.map((m) => (
                 <option key={m} value={m}>{m}</option>
@@ -126,7 +156,7 @@ export default function DateTimeStepPicker({
         )}
       </div>
 
-      {error && <p className="text-sm font-medium text-red-400">{error}</p>}
+      {error && <p className="text-sm font-medium" style={{ color: 'var(--error, #ef4444)' }}>{error}</p>}
     </div>
   )
 }

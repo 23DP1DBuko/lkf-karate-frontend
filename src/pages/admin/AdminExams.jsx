@@ -1,11 +1,15 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import api from '../../api/strapi'
+import api, { getLocalizedField } from '../../api/strapi'
 import IconButton from '../../components/IconButton'
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import DateTimeStepPicker from '../../components/DateTimeStepPicker'
+import { SkeletonTable } from '../../components/Skeleton'
+import ErrorState from '../../components/ErrorState'
+import { useTranslation } from 'react-i18next'
 
 export default function AdminExams() {
+  const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editingExam, setEditingExam] = useState(null)
@@ -24,14 +28,14 @@ export default function AdminExams() {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
   }
 
-  const { data: exams, isLoading } = useQuery({
+  const { data: exams, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin-exams'],
-    queryFn: () => api.get('/exams?populate[0]=course&populate[1]=questions&sort=createdAt:desc').then(r => r.data.data)
+    queryFn: () => api.get('/exams?populate[course]=true&populate[questions]=true&sort=createdAt:desc').then(r => r.data.data)
   })
 
   const { data: courses } = useQuery({
     queryKey: ['courses-list'],
-    queryFn: () => api.get('/courses?sort=title:asc').then(r => r.data.data)
+    queryFn: () => api.get('/courses?sort=titleLv:asc&pagination[page]=1&pagination[pageSize]=200').then(r => r.data.data)
   })
 
   const { data: courseQuestions } = useQuery({
@@ -45,7 +49,7 @@ export default function AdminExams() {
             'filters[course][documentId][$eq]': form.course,
             'pagination[page]': page,
             'pagination[pageSize]': 100,
-            'populate[0]': 'media',
+            'populate[media]': 'true',
             'sort': 'order:asc',
           },
         })
@@ -63,7 +67,7 @@ export default function AdminExams() {
   const createMutation = useMutation({
     mutationFn: (data) => api.post('/exams', { data }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['admin-exams'])
+      queryClient.invalidateQueries({ queryKey: ['admin-exams'] })
       resetForm()
     }
   })
@@ -71,14 +75,14 @@ export default function AdminExams() {
   const updateMutation = useMutation({
     mutationFn: ({ documentId, data }) => api.put(`/exams/${documentId}`, { data }),
     onSuccess: () => {
-      queryClient.invalidateQueries(['admin-exams'])
+      queryClient.invalidateQueries({ queryKey: ['admin-exams'] })
       resetForm()
     }
   })
 
   const deleteMutation = useMutation({
     mutationFn: (documentId) => api.delete(`/exams/${documentId}`),
-    onSuccess: () => queryClient.invalidateQueries(['admin-exams'])
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-exams'] })
   })
 
   const resetForm = () => {
@@ -117,17 +121,17 @@ export default function AdminExams() {
     const mins = Number(duration || 0)
 
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-      return 'Please enter valid dates.'
+      return t('admin.exams.dateErrorInvalid')
     }
 
     if (end <= start) {
-      return 'Close date must be after open date.'
+      return t('admin.exams.dateErrorCloseAfterOpen')
     }
 
     if (mins > 0) {
       const examEndsAt = new Date(start.getTime() + mins * 60 * 1000)
       if (end < examEndsAt) {
-        return 'Close date must be after the exam duration ends.'
+        return t('admin.exams.dateErrorDuration')
       }
     }
 
@@ -154,9 +158,11 @@ export default function AdminExams() {
       passingScore: Number(form.passingScore),
       openAt: form.openAt ? new Date(form.openAt).toISOString() : null,
       closeAt: form.closeAt ? new Date(form.closeAt).toISOString() : null,
-      course: form.course,
+      course: form.course ? { connect: [form.course] } : undefined,
       showResults: form.showResults,
-      questions: form.selectedQuestions,
+      questions: form.selectedQuestions.length > 0
+        ? { set: form.selectedQuestions }
+        : undefined,
     }
 
     if (editingExam) {
@@ -198,37 +204,42 @@ export default function AdminExams() {
 
   const getExamStatus = (exam) => {
     const now = new Date()
-    if (exam.openAt && new Date(exam.openAt) > now) return { label: 'Scheduled', color: 'bg-yellow-100 text-yellow-700' }
-    if (exam.closeAt && new Date(exam.closeAt) < now) return { label: 'Closed', color: 'bg-gray-100 text-gray-500' }
-    return { label: 'Open', color: 'bg-green-100 text-green-700' }
+    if (exam.openAt && new Date(exam.openAt) > now) return { label: t('admin.exams.statusScheduled'), color: 'bg-yellow-100 text-yellow-700' }
+    if (exam.closeAt && new Date(exam.closeAt) < now) return { label: t('admin.exams.statusClosed'), color: 'bg-gray-100 text-gray-500' }
+    return { label: t('admin.exams.statusOpen'), color: 'bg-green-100 text-green-700' }
   }
 
-  if (isLoading) return <p className="text-gray-500">Loading...</p>
+  if (isError) {
+    return <ErrorState error={error} onRetry={refetch} title="Failed to load exams" />
+  }
+
+  if (isLoading) return <SkeletonTable rows={5} cols={6} />
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-blue-700">Manage Exams</h1>
-          <p className="text-gray-500">{exams?.length} exams total</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">{t('admin.exams.title')}</h1>
+          <p className="text-gray-500">{t('admin.exams.total', { count: exams?.length || 0 })}</p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
         >
-          + New Exam
+          {t('admin.exams.new')}
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-white rounded-xl shadow p-6 mb-6">
+        <div className="rounded-xl shadow p-5 sm:p-6 mb-6" style={{ backgroundColor: 'var(--bg-card)' }}>
           <h2 className="text-lg font-semibold mb-4">
-            {editingExam ? 'Edit Exam' : 'Create New Exam'}
+            {editingExam ? t('admin.exams.edit') : t('admin.exams.create')}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Course</label>
+              <label className="block text-sm font-medium mb-1" htmlFor="exam-course">{t('admin.exams.courseLabel')}</label>
               <select
+                id="exam-course"
                 className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 value={form.course}
                 onChange={e => setForm({ ...form, course: e.target.value, selectedQuestions: [] })}
@@ -236,14 +247,15 @@ export default function AdminExams() {
               >
                 <option value="">Select a course</option>
                 {courses?.map(course => (
-                  <option key={course.id} value={course.documentId}>{course.title}</option>
+                  <option key={course.id} value={course.documentId}>{getLocalizedField(course, i18n.language, 'title') || course.titleLv}</option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Title</label>
+              <label className="block text-sm font-medium mb-1" htmlFor="exam-title">{t('admin.exams.titleLabel')}</label>
               <input
+                id="exam-title"
                 type="text"
                 className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={form.title}
@@ -252,10 +264,11 @@ export default function AdminExams() {
               />
             </div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Duration (minutes)</label>
+                <label className="block text-sm font-medium mb-1" htmlFor="exam-duration">{t('admin.exams.durationLabel')}</label>
                 <input
+                  id="exam-duration"
                   type="number"
                   className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={form.duration}
@@ -268,8 +281,9 @@ export default function AdminExams() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Passing Score (%)</label>
+                <label className="block text-sm font-medium mb-1" htmlFor="exam-passing-score">{t('admin.exams.passingScoreLabel')}</label>
                 <input
+                  id="exam-passing-score"
                   type="number"
                   className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={form.passingScore}
@@ -285,7 +299,7 @@ export default function AdminExams() {
                     onChange={e => setForm({ ...form, showResults: e.target.checked })}
                     className="w-4 h-4 accent-blue-600"
                   />
-                  <span className="text-sm font-medium">Show results</span>
+                  <span className="text-sm font-medium">{t('admin.exams.showResults')}</span>
                 </label>
               </div>
             </div>
@@ -331,9 +345,9 @@ export default function AdminExams() {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-sm font-medium">
-                    Select Questions
+                    {t('admin.exams.selectQuestions')}
                     <span className="ml-2 text-blue-600 font-bold">
-                      ({form.selectedQuestions.length} selected)
+                      ({form.selectedQuestions.length} {t('admin.exams.selected')})
                     </span>
                   </label>
                   <div className="flex gap-2">
@@ -342,21 +356,21 @@ export default function AdminExams() {
                       onClick={selectAll}
                       className="text-xs text-blue-600 hover:underline"
                     >
-                      Select all
+                      {t('admin.exams.selectAll')}
                     </button>
                     <button
                       type="button"
                       onClick={deselectAll}
                       className="text-xs text-red-500 hover:underline"
                     >
-                      Deselect all
+                      {t('admin.exams.deselectAll')}
                     </button>
                   </div>
                 </div>
 
                 {!courseQuestions?.length ? (
                   <p className="text-sm text-gray-400 border rounded-lg p-4">
-                    No questions found for this course. Add questions first.
+                    {t('admin.exams.noQuestions')}
                   </p>
                 ) : (
                   <div className="border rounded-lg divide-y max-h-96 overflow-y-auto">
@@ -378,7 +392,7 @@ export default function AdminExams() {
                           <div className="flex-1">
                             <p className="text-sm font-medium">
                               <span className="text-gray-400 mr-1">{i + 1}.</span>
-                              {question.text}
+                              {getLocalizedField(question, i18n.language, 'text') || question.textLv}
                             </p>
                             <div className="flex gap-2 mt-1">
                               <span className={`text-xs px-2 py-0.5 rounded-full ${
@@ -386,13 +400,13 @@ export default function AdminExams() {
                                 : question.type === 'yes_no' ? 'bg-purple-100 text-purple-700'
                                 : 'bg-orange-100 text-orange-700'
                               }`}>
-                                {question.type === 'multiple_choice' ? 'Multiple Choice'
-                                : question.type === 'yes_no' ? 'Yes/No'
-                                : 'Open Text'}
+                                {question.type === 'multiple_choice' ? t('admin.exams.typeMultipleChoice')
+                                : question.type === 'yes_no' ? t('admin.exams.typeYesNo')
+                                : t('admin.exams.typeOpenText')}
                               </span>
                               {question.media?.length > 0 && (
                                 <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-                                  📎 Media
+                                  {t('admin.exams.mediaLabel')}
                                 </span>
                               )}
                             </div>
@@ -411,10 +425,10 @@ export default function AdminExams() {
                 disabled={createMutation.isPending || updateMutation.isPending}
                 className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {editingExam ? 'Update Exam' : 'Create Exam'}
+                {editingExam ? t('admin.exams.updateBtn') : t('admin.exams.createBtn')}
               </button>
               <button type="button" onClick={resetForm} className="border px-6 py-2 rounded-lg hover:bg-gray-50">
-                Cancel
+                {t('admin.exams.cancel')}
               </button>
             </div>
           </form>
@@ -425,12 +439,12 @@ export default function AdminExams() {
         <table className="w-full min-w-[600px]">
           <thead className="border-b" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
             <tr>
-              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Title</th>
-              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Course</th>
-              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Duration</th>
-              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Pass</th>
-              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Status</th>
-              <th className="text-right px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Actions</th>
+              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>{t('admin.exams.colTitle')}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>{t('admin.exams.colCourse')}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>{t('admin.exams.colDuration')}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>{t('admin.exams.colPass')}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>{t('admin.exams.colStatus')}</th>
+              <th className="text-right px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-muted)' }}>{t('admin.exams.colActions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -439,7 +453,7 @@ export default function AdminExams() {
               return (
                 <tr key={exam.id} className="border-b hover:opacity-80 transition" style={{ borderColor: 'var(--border)' }}>
                   <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>{exam.title}</td>
-                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{exam.course?.title || '—'}</td>
+                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{getLocalizedField(exam.course, i18n.language, 'title') || exam.course?.titleLv || '—'}</td>
                   <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{exam.duration}m</td>
                   <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{exam.passingScore}%</td>
                   <td className="px-4 py-3">
@@ -449,8 +463,8 @@ export default function AdminExams() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-end">
-                      <IconButton icon={PencilIcon} label="Edit exam" onClick={() => handleEdit(exam)} variant="default" size="sm" />
-                      <IconButton icon={TrashIcon} label="Delete exam" onClick={() => handleDelete(exam)} variant="danger" size="sm" />
+                      <IconButton icon={PencilIcon} label={t('admin.exams.iconEdit')} onClick={() => handleEdit(exam)} variant="default" size="sm" />
+                      <IconButton icon={TrashIcon} label={t('admin.exams.iconDelete')} onClick={() => handleDelete(exam)} variant="danger" size="sm" />
                     </div>
                   </td>
                 </tr>
@@ -460,16 +474,20 @@ export default function AdminExams() {
         </table>
       </div>
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="exam-delete-title"
+          onKeyDown={e => { if (e.key === 'Escape') setDeleteTarget(null) }}
+        >
           <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-            <h3 className="text-lg font-semibold text-slate-900">
-              Delete exam?
+            <h3 id="exam-delete-title" className="text-lg font-semibold text-slate-900">
+              {t('admin.exams.deleteConfirm')}
             </h3>
 
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              You are about to delete <span className="font-semibold">{deleteTarget.title}</span>.
-              This will also delete all related exam attempts and exam results.
-              This action cannot be undone.
+              {t('admin.exams.deleteWarning', { title: deleteTarget.title })}
             </p>
 
             <div className="mt-6 flex items-center justify-end gap-3">
@@ -478,14 +496,14 @@ export default function AdminExams() {
                 onClick={() => setDeleteTarget(null)}
                 className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                Cancel
+                {t('admin.exams.cancel')}
               </button>
               <button
                 type="button"
                 onClick={confirmDelete}
                 className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
               >
-                Delete exam
+                {t('admin.exams.deleteBtn')}
               </button>
             </div>
           </div>

@@ -4,7 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import api from '../../api/strapi'
 import { mediaUrl } from '../../api/media'
 import { useTranslation } from 'react-i18next'
-import { getQuestionText, getLocalizedField } from '../../api/strapi'
+import { getQuestionText } from '../../api/strapi'
 
 function MediaDisplay({ media }) {
   if (!media) return null
@@ -49,7 +49,7 @@ export default function QuickQuiz() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [courseTitle, setCourseTitle] = useState('')
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   // QuickQuiz.jsx
   const [attemptId, setAttemptId] = useState(null)
@@ -67,7 +67,7 @@ export default function QuickQuiz() {
       setAttemptId(res.data.attemptId)   // <-- keep real attempt id
       setStarted(true)
     } catch (err) {
-      setError(err.response?.data?.error?.message || 'Failed to start quiz')
+      setError(err.response?.data?.error?.message || t('quiz.failedToStart'))
     } finally {
       setLoading(false)
     }
@@ -76,17 +76,15 @@ export default function QuickQuiz() {
   const handleSubmit = async () => {
     if (!attemptId) return
 
-    const res = await api.post('/exams/submit', {
+    await api.post('/exams/submit', {
       attemptId,
       answers,
     })
 
-    const { score, correct, total, timeSpentSeconds, submittedAt, showResults } = res.data
-
     navigate('/results', {
       state: {
-        justSubmittedAttemptId: attemptId,           // real id
-        justSubmitted: null,                        // not needed anymore
+        justSubmittedAttemptId: attemptId,
+        justSubmitted: null,
       },
     })
   }
@@ -96,35 +94,24 @@ export default function QuickQuiz() {
     return value !== undefined && value !== null && String(value).trim() !== ''
   })
 
-  const getScore = () => {
-    let correct = 0
-    questions.forEach(q => {
-      const userAnswer = answers[q.id] || answers[String(q.id)]
-      const correctAnswer = q.correctAnswer
-      if (userAnswer !== undefined && userAnswer !== null) {
-        if (String(userAnswer).toLowerCase() === String(correctAnswer).toLowerCase()) {
-          correct++
-        }
-      }
-    })
-    return { correct, total: questions.length, score: Math.round((correct / questions.length) * 100) }
-  }
+  // getScoreResult can be uncommented if inline scoring display is needed
+  // const getScoreResult = () => { ... }
 
   if (!started) {
     return (
       <div className="max-w-lg mx-auto">
         <Link to={`/courses/${documentId}`} className="text-blue-600 hover:underline text-sm mb-4 block">
-          ← Back to Course
+          ← {t('quiz.backToCourse')}
         </Link>
         <div className="bg-white rounded-xl shadow p-8 text-center">
-          <div className="text-5xl mb-4">🎯</div>
-          <h1 className="text-2xl font-bold text-blue-700 mb-2">Quick Quiz</h1>
-          <p className="text-gray-500 mb-6">Test your knowledge with random questions</p>
+          <div className="text-4xl sm:text-5xl mb-4">🎯</div>
+          <h1 className="text-2xl font-bold text-blue-700 mb-2">{t('quiz.title')}</h1>
+          <p className="text-gray-500 mb-6">{t('quiz.subtitle')}</p>
 
           {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
           <div className="mb-6">
-            <p className="text-sm font-medium mb-3">How many questions?</p>
+            <p className="text-sm font-medium mb-3">{t('quiz.howMany')}</p>
             <div className="flex gap-3 justify-center">
               {['10', '25', '50', 'all'].map(opt => (
                 <button
@@ -136,7 +123,7 @@ export default function QuickQuiz() {
                       : 'border-gray-300 hover:border-blue-400'
                   }`}
                 >
-                  {opt === 'all' ? 'All' : opt}
+                  {opt === 'all' ? t('quiz.all') : opt}
                 </button>
               ))}
             </div>
@@ -147,7 +134,7 @@ export default function QuickQuiz() {
             disabled={loading}
             className="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 w-full"
           >
-            {loading ? 'Loading...' : 'Start Quiz'}
+            {loading ? t('quiz.loading') : t('quiz.start')}
           </button>
         </div>
       </div>
@@ -158,12 +145,12 @@ export default function QuickQuiz() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-blue-700">Quick Quiz — {courseTitle}</h1>
-        <span className="text-sm text-gray-500">{Object.keys(answers).length}/{questions.length} answered</span>
+        <span className="text-sm text-gray-500">{Object.keys(answers).length}/{questions.length} {t('quiz.answered')}</span>
       </div>
 
       <div className="space-y-6 mb-8">
         {questions.map((q, index) => (
-          <div key={q.id} className="bg-white rounded-xl shadow p-6">
+          <div key={q.id} className="rounded-xl shadow p-5 sm:p-6" style={{ backgroundColor: 'var(--bg-card)' }}>
             <p className="font-semibold mb-4">
               <span className="text-blue-600 mr-2">{index + 1}.</span>
               {getQuestionText(q, i18n.language)}
@@ -216,7 +203,7 @@ export default function QuickQuiz() {
                       onChange={() => setAnswers({ ...answers, [q.id]: val })}
                       className="sr-only"
                     />
-                    {val === 'true' ? 'Yes' : 'No'}
+                    {val === 'true' ? t('exam.yes') : t('exam.no')}
                   </label>
                 ))}
               </div>
@@ -226,7 +213,7 @@ export default function QuickQuiz() {
             <textarea
                 className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows={3}
-                placeholder="Type your answer here..."
+                placeholder={t('exam.typeAnswer')}
                 value={answers[q.id] || ''}
                 onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })}
             />
@@ -237,15 +224,15 @@ export default function QuickQuiz() {
 
       <div className="flex flex-col items-end gap-2">
         {!allAnswered && (
-          <p className="text-sm text-red-500">Answer all questions before submitting.</p>
+          <p className="text-sm text-red-500">{t('quiz.submitDisabled')}</p>
         )}
         <button
           onClick={handleSubmit}
           disabled={!allAnswered}
-          title={!allAnswered ? 'Answer all questions first' : ''}
+          title={!allAnswered ? t('quiz.submitDisabled') : ''}
           className="bg-blue-600 text-white px-8 py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          Submit Quiz
+          {t('quiz.submit')}
         </button>
       </div>
     </div>

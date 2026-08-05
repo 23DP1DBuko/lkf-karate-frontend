@@ -52,7 +52,7 @@ export default function MediaUpload({ onUpload, label = 'Upload Media', multiple
           {(current?.file?.mime || current?.mime || '').startsWith('video/') || mediaType === 'video' ? (
             <video src={preview || currentUrl} controls className="w-full max-h-40 rounded-lg" />
           ) : (
-            <img src={preview || currentUrl} alt="preview" className="w-full max-h-40 object-cover rounded-lg" />
+            <img src={preview || currentUrl} alt="Uploaded media preview" className="w-full max-h-40 object-cover rounded-lg" />
           )}
         </div>
       )}

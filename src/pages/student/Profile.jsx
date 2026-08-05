@@ -1,16 +1,17 @@
 import { useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Cropper from 'react-easy-crop'
-import { useAuth } from '../../context/AuthContext'
+import { useAuth } from '../../context/useAuth'
 import api from '../../api/strapi'
-import { useTheme } from '../../context/ThemeContext'
+
 import { useTranslation } from 'react-i18next'
 import {
   EyeIcon,
   EyeSlashIcon,
-  SunIcon,
-  MoonIcon,
-  ComputerDesktopIcon,
+  TrashIcon,
+  ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline'
+import SettingsAppearance from '../../components/SettingsAppearance'
 
 async function createImage(url) {
   return new Promise((resolve, reject) => {
@@ -49,13 +50,17 @@ async function getCroppedImg(imageSrc, pixelCrop) {
 }
 
 export default function Profile() {
-  const { user, setUser } = useAuth()
-  const { theme, setTheme } = useTheme()
-  const { t, i18n } = useTranslation()
+  const { user, setUser, logout } = useAuth()
+  const { t } = useTranslation()
+  const navigate = useNavigate()
 
   const [form, setForm] = useState({
     username: user?.username || '',
     email: user?.email || '',
+    birthday: user?.birthday || '',
+    rank: user?.rank || '',
+    country: user?.country || '',
+    clubName: user?.clubName || '',
   })
 
   const [passwordForm, setPasswordForm] = useState({
@@ -82,6 +87,10 @@ export default function Profile() {
   const [avatarModalOpen, setAvatarModalOpen] = useState(false)
   const [avatarLoading, setAvatarLoading] = useState(false)
   const [avatarError, setAvatarError] = useState('')
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false)
+  const [deleteConfirmInput, setDeleteConfirmInput] = useState('')
+  const [deletingAccount, setDeletingAccount] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const apiBase = import.meta.env.VITE_API_URL || 'http://127.0.0.1:1337'
   const avatarUrl = user?.profilePicture?.url
@@ -97,7 +106,7 @@ export default function Profile() {
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
-      setAvatarError('Please select an image file')
+      setAvatarError(t('profile.avatarFailed') || 'Failed to upload profile picture')
       return
     }
 
@@ -144,18 +153,13 @@ export default function Profile() {
       setSelectedImage(null)
       setZoom(1)
       setCrop({ x: 0, y: 0 })
-      setProfileSuccess('Profile picture updated successfully!')
+      setProfileSuccess(t('profile.avatarUpdated') || 'Profile picture updated successfully!')
     } catch (err) {
       console.error('Avatar upload error:', err)
-      setAvatarError('Failed to upload profile picture')
+      setAvatarError(t('profile.avatarFailed') || 'Failed to upload profile picture')
     } finally {
       setAvatarLoading(false)
     }
-  }
-
-  const changeLanguage = lang => {
-    i18n.changeLanguage(lang)
-    localStorage.setItem('language', lang)
   }
 
   const handleProfileSubmit = async e => {
@@ -167,14 +171,18 @@ export default function Profile() {
     try {
       await api.put(`/users/${user.id}`, {
         username: form.username,
+        birthday: form.birthday || null,
+        rank: form.rank,
+        country: form.country || null,
+        clubName: form.clubName || null,
       })
 
       const updated = await api.get('/users/me?populate=*')
       setUser(updated.data)
-      setProfileSuccess('Profile updated successfully!')
+      setProfileSuccess(t('profile.updateSuccess') || 'Profile updated successfully!')
     } catch (err) {
       console.error('Profile error:', err)
-      setProfileError('Failed to update profile. Username may already be taken.')
+      setProfileError(t('profile.updateFailed') || 'Failed to update profile. Username may already be taken.')
     } finally {
       setProfileLoading(false)
     }
@@ -186,19 +194,19 @@ export default function Profile() {
     setPasswordSuccess('')
 
     if (passwordForm.newPassword.length < 8) {
-      setPasswordError('Password must be at least 8 characters')
+      setPasswordError(t('profile.passwordMinLength') || 'Password must be at least 8 characters')
       return
     }
     if (!/[A-Z]/.test(passwordForm.newPassword)) {
-      setPasswordError('Password must contain at least one uppercase letter')
+      setPasswordError(t('profile.passwordUppercase') || 'Password must contain at least one uppercase letter')
       return
     }
     if (!/[0-9]/.test(passwordForm.newPassword)) {
-      setPasswordError('Password must contain at least one number')
+      setPasswordError(t('profile.passwordNumber') || 'Password must contain at least one number')
       return
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordError('Passwords do not match')
+      setPasswordError(t('profile.passwordMatch') || 'Passwords do not match')
       return
     }
 
@@ -209,33 +217,22 @@ export default function Profile() {
         password: passwordForm.newPassword,
         passwordConfirmation: passwordForm.confirmPassword,
       })
-      setPasswordSuccess('Password changed successfully!')
+      setPasswordSuccess(t('profile.passwordChanged') || 'Password changed successfully!')
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
-    } catch (err) {
-      setPasswordError('Current password is incorrect.')
+    } catch {
+      setPasswordError(t('profile.passwordIncorrect') || 'Current password is incorrect.')
     } finally {
       setPasswordLoading(false)
     }
   }
 
-  const themeOptions = [
-    { value: 'light', label: t('profile.light') || 'Gaišs', icon: SunIcon },
-    { value: 'dark', label: t('profile.dark') || 'Tumšs', icon: MoonIcon },
-    { value: 'system', label: t('profile.system') || 'Sistēma', icon: ComputerDesktopIcon },
-  ]
-
-  const languageOptions = [
-    { code: 'lv', label: 'LV Latviešu' },
-    { code: 'ru', label: 'RU Русский' },
-    { code: 'en', label: 'GB English' },
-  ]
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-3xl font-bold text-blue-700">My Profile</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">{t('profile.title') || 'My Profile'}</h1>
 
       <div
-        className="rounded-xl shadow p-6"
+        className="rounded-xl shadow p-5 sm:p-6"
         style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
       >
         <div className="flex items-center gap-4 mb-6">
@@ -243,7 +240,7 @@ export default function Profile() {
             {avatarUrl ? (
               <img
                 src={avatarUrl}
-                alt="Profile"
+                alt={`${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Profile picture'}
                 className="w-16 h-16 rounded-full object-cover border"
                 style={{ borderColor: 'var(--border)' }}
               />
@@ -255,7 +252,7 @@ export default function Profile() {
             )}
 
             <label className="absolute -bottom-1 -right-1 bg-blue-600 text-white text-xs px-2 py-1 rounded-full cursor-pointer hover:bg-blue-700">
-              Edit
+              {t('profile.editAvatar') || 'Edit'}
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/webp"
@@ -289,7 +286,7 @@ export default function Profile() {
         <form onSubmit={handleProfileSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1" htmlFor="username">
-              Username
+              {t('auth.username') || 'Username'}
             </label>
             <input
               id="username"
@@ -302,14 +299,85 @@ export default function Profile() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
+            <label className="block text-sm font-medium mb-1">{t('auth.email') || 'Email'}</label>
             <input
               type="email"
               className="w-full border rounded-lg px-3 py-2 bg-gray-50 border-gray-200 text-gray-400 placeholder-gray-400 cursor-not-allowed"
               value={form.email}
               disabled
             />
-            <p className="text-xs text-gray-400 mt-1">Email cannot be changed</p>
+            <p className="text-xs text-gray-400 mt-1">{t('profile.emailCannotChange') || 'Email cannot be changed'}</p>
+          </div>
+
+          {/* Birthday */}
+          <div>
+            <label className="block text-sm font-medium mb-1" htmlFor="birthday">
+              {t('profile.birthday') || 'Birthday'}
+            </label>
+            <input
+              id="birthday"
+              type="date"
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={form.birthday}
+              onChange={e => setForm({ ...form, birthday: e.target.value })}
+            />
+          </div>
+
+          {/* Rank */}
+          <div>
+            <label className="block text-sm font-medium mb-1" htmlFor="rank">
+              {t('profile.rank') || 'Rank'}
+            </label>
+            <input
+              id="rank"
+              type="text"
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={form.rank}
+              onChange={e => setForm({ ...form, rank: e.target.value })}
+              placeholder="e.g. 1st Kyu, 1st Dan"
+            />
+          </div>
+
+          {/* Country */}
+          <div>
+            <label className="block text-sm font-medium mb-1" htmlFor="country">
+              {t('profile.country') || 'Country'}
+            </label>
+            <select
+              id="country"
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              value={form.country}
+              onChange={e => setForm({ ...form, country: e.target.value })}
+            >
+              <option value="">{t('profile.selectCountry') || 'Select country...'}</option>
+              <option value="Latvia">Latvia</option>
+            </select>
+          </div>
+
+          {/* Club */}
+          <div>
+            <label className="block text-sm font-medium mb-1" htmlFor="clubName">
+              {t('profile.clubName') || 'Club'}
+            </label>
+            <select
+              id="clubName"
+              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              value={form.clubName}
+              onChange={e => setForm({ ...form, clubName: e.target.value })}
+            >
+              <option value="">{t('profile.selectClub') || 'Select club...'}</option>
+              <option value="Leonīda Vasiļjeva Karatē skola">Leonīda Vasiļjeva Karatē skola</option>
+              <option value="Latvijas Godžju-rju Karatē Federācija">Latvijas Godžju-rju Karatē Federācija</option>
+              <option value="Fudzi Sporta Klubs">Fudzi Sporta Klubs</option>
+              <option value="Salaspils Karatē Klubs">Salaspils Karatē Klubs</option>
+              <option value="Tan">Tan</option>
+              <option value="Rīgas Karatē Klubs">Rīgas Karatē Klubs</option>
+              <option value="Ippon.lv">Ippon.lv</option>
+              <option value="Bolderājas Karatē klubs">Bolderājas Karatē klubs</option>
+              <option value="Daugavpils karatē skola">Daugavpils karatē skola</option>
+              <option value="Sochin Karate Klub">Sochin Karate Klub</option>
+              <option value="Ruslana Sadikova sporta skola">Ruslana Sadikova sporta skola</option>
+            </select>
           </div>
 
           <button
@@ -317,17 +385,17 @@ export default function Profile() {
             disabled={profileLoading}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            {profileLoading ? 'Saving...' : 'Save Changes'}
+            {profileLoading ? (t('profile.saving') || 'Saving...') : (t('profile.saveChanges') || 'Save Changes')}
           </button>
         </form>
       </div>
 
       <div
-        className="rounded-xl shadow p-6"
+        className="rounded-xl shadow p-5 sm:p-6"
         style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
       >
         <h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
-          Change Password
+          {t('profile.changePassword') || 'Change Password'}
         </h2>
 
         {passwordSuccess && (
@@ -344,7 +412,7 @@ export default function Profile() {
         <form onSubmit={handlePasswordSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium mb-1" htmlFor="currentPassword">
-              Current Password
+              {t('profile.currentPassword') || 'Current Password'}
             </label>
             <div className="relative">
               <input
@@ -373,7 +441,7 @@ export default function Profile() {
 
           <div>
             <label className="block text-sm font-medium mb-1" htmlFor="newPassword">
-              New Password
+              {t('profile.newPassword') || 'New Password'}
             </label>
             <div className="relative">
               <input
@@ -399,13 +467,13 @@ export default function Profile() {
               </button>
             </div>
             <p className="text-xs text-gray-400 mt-1">
-              Min 8 characters, 1 uppercase, 1 number
+              {t('profile.passwordHint') || 'Min 8 characters, 1 uppercase, 1 number'}
             </p>
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-1" htmlFor="confirmPassword">
-              Confirm New Password
+              {t('profile.confirmPassword') || 'Confirm New Password'}
             </label>
             <div className="relative">
               <input
@@ -437,153 +505,150 @@ export default function Profile() {
             disabled={passwordLoading}
             className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
           >
-            {passwordLoading ? 'Changing...' : 'Change Password'}
+            {passwordLoading ? (t('profile.changing') || 'Changing...') : (t('profile.changePasswordBtn') || 'Change Password')}
           </button>
         </form>
       </div>
 
       <div
-        className="rounded-xl shadow p-6 space-y-6"
+        className="rounded-xl shadow p-5 sm:p-6 space-y-6"
         style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
       >
         <h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
           {t('profile.appearance')}
         </h2>
-
-        <div className="space-y-2">
-          <div>
-            <p className="font-medium" style={{ color: 'var(--text-primary)' }}>
-              {t('profile.theme')}
-            </p>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              {t('profile.themeDesc') || 'Izvēlies vēlamo izskatu'}
-            </p>
-          </div>
-
-          <div className="relative inline-flex rounded-full px-1 py-1 bg-slate-100/80 border border-slate-200 dark:bg-slate-900/60 dark:border-slate-700/80">
-            <div
-              className="absolute inset-y-[4px] rounded-full bg-blue-600 shadow-sm transition-all duration-200"
-              style={{
-                width: '32%',
-                left: '2%',
-                transform:
-                  theme === 'light'
-                    ? 'translateX(0%)'
-                    : theme === 'dark'
-                    ? 'translateX(100%)'
-                    : 'translateX(200%)',
-              }}
-            />
-            {themeOptions.map(opt => {
-              const Icon = opt.icon
-              const isActive = theme === opt.value
-              return (
-                <label
-                  key={opt.value}
-                  className="relative z-10 flex-1 cursor-pointer select-none"
-                >
-                  <input
-                    type="radio"
-                    name="theme"
-                    value={opt.value}
-                    className="sr-only"
-                    checked={isActive}
-                    onChange={() => setTheme(opt.value)}
-                  />
-                  <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-full transition-colors">
-                    <Icon
-                      className={`h-4 w-4 ${
-                        isActive ? 'text-white' : 'text-slate-600 dark:text-slate-300'
-                      }`}
-                    />
-                    <span
-                      className={
-                        isActive ? 'text-white' : 'text-slate-700 dark:text-slate-200'
-                      }
-                    >
-                      {opt.label}
-                    </span>
-                  </div>
-                </label>
-              )
-            })}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <div>
-            <p className="font-medium" style={{ color: 'var(--text-primary)' }}>
-              {t('profile.languageLabel') || 'Valoda'}
-            </p>
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              {t('profile.languageDesc') || 'Choose your interface language'}
-            </p>
-          </div>
-
-          <div className="relative inline-flex rounded-full px-1 py-1 bg-slate-100/80 border border-slate-200 dark:bg-slate-900/60 dark:border-slate-700/80">
-            <div
-              className="absolute inset-y-[4px] rounded-full bg-blue-600 shadow-sm transition-all duration-200"
-              style={{
-                width: '32%',
-                left: '2%',
-                transform:
-                  i18n.language === 'lv'
-                    ? 'translateX(0%)'
-                    : i18n.language === 'ru'
-                    ? 'translateX(100%)'
-                    : 'translateX(200%)',
-              }}
-            />
-            {languageOptions.map(opt => {
-              const isActive = i18n.language === opt.code
-              const [code, ...rest] = opt.label.split(' ')
-              const label = rest.join(' ')
-              return (
-                <label
-                  key={opt.code}
-                  className="relative z-10 flex-1 cursor-pointer select-none"
-                >
-                  <input
-                    type="radio"
-                    name="language"
-                    value={opt.code}
-                    className="sr-only"
-                    checked={isActive}
-                    onChange={() => changeLanguage(opt.code)}
-                  />
-                  <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-medium rounded-full transition-colors">
-                    <span
-                      className={`text-[11px] px-1.5 py-0.5 rounded ${
-                        isActive
-                          ? 'bg-blue-500/40 text-white'
-                          : 'bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-200'
-                      }`}
-                    >
-                      {code}
-                    </span>
-                    <span
-                      className={
-                        isActive ? 'text-white' : 'text-slate-700 dark:text-slate-200'
-                      }
-                    >
-                      {label}
-                    </span>
-                  </div>
-                </label>
-              )
-            })}
-          </div>
-        </div>
+        <SettingsAppearance />
       </div>
 
+      {/* ── Danger Zone ── */}
+      <div
+        className="rounded-xl p-6 border-2 border-red-200"
+        style={{ backgroundColor: 'var(--bg-card)' }}
+      >
+        <div className="flex items-center gap-2 mb-1">
+          <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
+          <h2 className="text-lg font-semibold text-red-600">{t('profile.dangerZone') || 'Danger Zone'}</h2>
+        </div>
+        <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+          {t('profile.deleteWarning') || 'Once you delete your account, there is no going back. Please be certain.'}
+        </p>
+
+        <button
+          type="button"
+          onClick={() => setDeleteModalOpen(true)}
+          className="inline-flex items-center gap-2 bg-red-600 text-white px-5 py-2.5 rounded-lg hover:bg-red-700 transition"
+        >
+          <TrashIcon className="h-4 w-4" />
+          {t('profile.deleteProfile') || 'Delete Profile'}
+        </button>
+      </div>
+
+      {/* ── Delete confirmation modal ── */}
+      {deleteModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-account-title"
+          onKeyDown={e => { if (e.key === 'Escape') { setDeleteModalOpen(false); setDeleteConfirmInput(''); setDeleteError('') } }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl p-6"
+            style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <ExclamationTriangleIcon className="h-5 w-5 text-red-600" />
+              </div>
+              <h3 id="delete-account-title" className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
+                {t('profile.deleteAccount') || 'Delete Account'}
+              </h3>
+            </div>
+
+            <div className="space-y-3 mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
+              <p>{t('profile.deletePermanent') || 'This action is'} <strong className="text-red-600">{t('profile.permanent') || 'permanent'}</strong> {t('profile.cannotUndo') || 'and cannot be undone.'}</p>
+              <p>{t('profile.deleteDataList') || 'The following data will be deleted:'}</p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>{t('profile.deleteAccountInfo') || 'Your account and profile information'}</li>
+                <li>{t('profile.deleteExamData') || 'All exam attempts and results'}</li>
+                <li>{t('profile.deleteProgress') || 'Chapter progress and study history'}</li>
+                <li>{t('profile.deleteUploads') || 'Profile picture and uploaded files'}</li>
+              </ul>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2" htmlFor="delete-confirm" style={{ color: 'var(--text-primary)' }}>
+                {t('profile.deleteConfirmLabel') || 'Type your email'} <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{user?.email}</span> {t('profile.toConfirm') || 'to confirm:'}
+              </label>
+              <input
+                id="delete-confirm"
+                type="text"
+                className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                placeholder={user?.email || 'Enter your email'}
+                value={deleteConfirmInput}
+                onChange={e => setDeleteConfirmInput(e.target.value)}
+                autoFocus
+              />
+            </div>
+
+            {deleteError && (
+              <div className="mb-4 bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteModalOpen(false)
+                  setDeleteConfirmInput('')
+                  setDeleteError('')
+                }}
+                className="px-4 py-2.5 rounded-lg border text-sm font-medium"
+                style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+              >
+                {t('common.cancel') || 'Cancel'}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setDeletingAccount(true)
+                  setDeleteError('')
+                  try {
+                    await api.delete('/account/delete')
+                    logout()
+                    navigate('/login', { state: { message: 'Your account has been deleted.' } })
+                  } catch (err) {
+                    setDeleteError(err.response?.data?.error?.message || 'Failed to delete account. Please try again.')
+                    setDeletingAccount(false)
+                  }
+                }}
+                disabled={deleteConfirmInput !== user?.email || deletingAccount}
+                className="bg-red-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deletingAccount ? (t('profile.deleting') || 'Deleting...') : (t('profile.confirmDelete') || 'Confirm Delete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {avatarModalOpen && selectedImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="avatar-crop-title"
+          onKeyDown={e => { if (e.key === 'Escape') { setAvatarModalOpen(false); setSelectedImage(null) } }}
+        >
           <div
             className="w-full max-w-lg rounded-2xl p-6"
             style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
           >
-            <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
-              Crop profile picture
+            <h3 id="avatar-crop-title" className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+              {t('profile.cropAvatar') || 'Crop profile picture'}
             </h3>
 
             <div className="relative w-full h-80 rounded-xl overflow-hidden bg-black">
@@ -602,7 +667,7 @@ export default function Profile() {
 
             <div className="mt-4">
               <label className="block text-sm mb-2" style={{ color: 'var(--text-primary)' }}>
-                Zoom
+                {t('profile.zoom') || 'Zoom'}
               </label>
               <input
                 type="range"
@@ -631,7 +696,7 @@ export default function Profile() {
                 className="px-4 py-2 rounded-lg border"
                 style={{ borderColor: 'var(--border)', color: 'var(--text-primary)' }}
               >
-                Cancel
+                {t('common.cancel') || 'Cancel'}
               </button>
               <button
                 type="button"
@@ -639,7 +704,7 @@ export default function Profile() {
                 disabled={avatarLoading}
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
               >
-                {avatarLoading ? 'Saving...' : 'Save avatar'}
+                {avatarLoading ? (t('profile.saving') || 'Saving...') : (t('profile.saveAvatar') || 'Save avatar')}
               </button>
             </div>
           </div>

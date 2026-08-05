@@ -2,6 +2,7 @@
 import { useEffect } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { mediaUrl } from '../api/media'
+import { getLocalizedArray } from '../api/strapi'
 
 // ─── Shared helpers (copied here so the modal has zero external deps) ─────────
 
@@ -189,7 +190,7 @@ function PreviewBlock({ block, i }) {
 
 // ─── Main modal ───────────────────────────────────────────────────────────────
 
-export default function ChapterPreviewModal({ chapter, onClose }) {
+export default function ChapterPreviewModal({ chapter, language, onClose }) {
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
@@ -203,7 +204,8 @@ export default function ChapterPreviewModal({ chapter, onClose }) {
 
   if (!chapter) return null
 
-  const hasBlocks = chapter.blocks?.length > 0
+  const blocks = getLocalizedArray(chapter, language || 'lv', 'blocks')
+  const hasBlocks = blocks.length > 0
   const hasLegacyContent = chapter.videoUrl || chapter.content || chapter.media?.length
 
   return (
@@ -248,7 +250,7 @@ export default function ChapterPreviewModal({ chapter, onClose }) {
           {/* ── Block-based (new chapters) ── */}
           {hasBlocks && (
             <div className="space-y-6">
-              {chapter.blocks.map((block, i) => (
+              {blocks.map((block, i) => (
                 <PreviewBlock key={i} block={block} i={i} />
               ))}
             </div>
@@ -279,7 +281,7 @@ export default function ChapterPreviewModal({ chapter, onClose }) {
           {/* ── Empty state ── */}
           {!hasBlocks && !hasLegacyContent && (
             <div className="text-center py-12">
-              <p className="text-4xl mb-3">📄</p>
+              <p className="text-3xl sm:text-4xl mb-3">📄</p>
               <p style={{ color: 'var(--text-muted)' }}>This chapter has no content yet.</p>
             </div>
           )}
