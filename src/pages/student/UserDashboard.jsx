@@ -9,7 +9,6 @@ import {
   AcademicCapIcon,
   ChevronRightIcon,
   TrophyIcon,
-  CalendarDaysIcon,
   CheckCircleIcon,
   ArrowTrendingUpIcon,
   DocumentTextIcon,
@@ -17,6 +16,7 @@ import {
 import { ArrowRightIcon } from '@heroicons/react/20/solid'
 import { useNavigate } from 'react-router-dom'
 import { SkeletonCard } from '../../components/Skeleton'
+import CalendarCard from '../../components/CalendarCard'
 import { mediaUrl } from '../../api/media'
 import { useState } from 'react'
 
@@ -63,9 +63,7 @@ export default function UserDashboard() {
   const upcomingExam = data?.upcomingExam || null
 
   return (
-    <div className={`min-h-screen w-full p-4 md:p-8
-}`}>
-  {/* Bento grid container layout */}
+    <div className="min-h-screen w-full p-4 md:p-8">  {/* Bento grid container layout */}
   <div className="max-w-6xl mx-auto flex flex-col gap-6">
     
     {/* Row 1: Welcome Banner (Full Width) */}
@@ -92,7 +90,7 @@ export default function UserDashboard() {
 
     {/* Row 4: Calendar (Full Width at Bottom) */}
     <div className="w-full">
-      <CalendarCard isDark={isDark} />
+      <CalendarCard />
     </div>
 
   </div>
@@ -123,10 +121,10 @@ function WelcomeCard({ user, greeting }) {
   return (
     <section className={`${cardClass} relative overflow-hidden`} style={cardStyle}>
       {/* Color accent bar */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400" />
       <div className="flex items-center gap-5">
         {/* Gradient ring — avatar image, falls back to initials */}
-        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-rose-500 p-[2px] flex-shrink-0 shadow-lg shadow-indigo-500/20">
+        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-600 to-sky-500 p-[2px] flex-shrink-0 shadow-lg shadow-blue-600/20">
           {avatarUrl ? (
             <img
               src={avatarUrl}
@@ -137,7 +135,7 @@ function WelcomeCard({ user, greeting }) {
             <div className={`w-full h-full rounded-full flex items-center justify-center ${
               isDark ? 'bg-slate-900' : 'bg-white'
             }`}>
-              <span className={`text-lg font-bold ${isDark ? 'text-slate-100' : 'text-indigo-600'}`}>
+              <span className={`text-lg font-bold ${isDark ? 'text-slate-100' : 'text-blue-600'}`}>
                 {initials || '?'}
               </span>
             </div>
@@ -161,14 +159,14 @@ function ProgressCard({ stats }) {
   const { t } = useTranslation()
   const { quizCount = 0, examCount = 0, studyHours = 0, completedExams = 0 } = stats || {}
   const items = [
-    { label: t('dashboard.quizzes'), value: quizCount, icon: CheckCircleIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-500/15' },
-    { label: t('dashboard.examsTaken'), value: examCount, icon: AcademicCapIcon, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-500/15' },
-    { label: t('dashboard.studyHours'), value: studyHours, icon: ClockIcon, color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-100 dark:bg-violet-500/15' },
-    { label: t('dashboard.examsCompleted'), value: completedExams, icon: TrophyIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-500/15' },
+    { key: 'quizzes', label: t('dashboard.quizzes'), value: quizCount, icon: CheckCircleIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-500/15' },
+    { key: 'examsTaken', label: t('dashboard.examsTaken'), value: examCount, icon: AcademicCapIcon, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-500/15' },
+    { key: 'studyHours', label: t('dashboard.studyHours'), value: studyHours, icon: ClockIcon, color: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-100 dark:bg-sky-500/15' },
+    { key: 'examsCompleted', label: t('dashboard.examsCompleted'), value: completedExams, icon: TrophyIcon, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-500/15' },
   ]
   return (
     <section className={`${cardClass} relative overflow-hidden`} style={cardStyle}>
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-violet-500" />
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-sky-400" />
       <header className={cardHeader}>
         <div className={`${cardIconWrap} bg-blue-100 dark:bg-blue-500/15`}>
           <ChartBarIcon className={`${cardIcon} text-blue-600 dark:text-blue-400`} />
@@ -178,7 +176,7 @@ function ProgressCard({ stats }) {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
         {items.map(item => (
           <div
-            key={item.label}
+            key={item.key}
 
           >
             <div className="flex items-center gap-1.5 mb-1.5">
@@ -274,13 +272,15 @@ function ExamsOverviewCard({ stats, isDark }) {
 
   const statItems = [
     {
+      key: 'examsTakenShort',
       label: t('dashboard.examsTakenShort'),
       value: examCount,
       icon: DocumentTextIcon,
-      color: 'text-indigo-600 dark:text-indigo-400',
-      bg: 'bg-indigo-100 dark:bg-indigo-500/10',
+      color: 'text-blue-600 dark:text-blue-400',
+      bg: 'bg-blue-100 dark:bg-blue-500/10',
     },
     {
+      key: 'passedShort',
       label: t('dashboard.passedShort'),
       value: completedExams,
       icon: CheckCircleIcon,
@@ -288,6 +288,7 @@ function ExamsOverviewCard({ stats, isDark }) {
       bg: 'bg-emerald-100 dark:bg-emerald-500/10',
     },
     {
+      key: 'quiz30Days',
       label: t('dashboard.quiz30Days'),
       value: quizCount,
       icon: TrophyIcon,
@@ -298,10 +299,10 @@ function ExamsOverviewCard({ stats, isDark }) {
 
   return (
     <section className={`${cardClass} relative overflow-hidden`} style={cardStyle}>
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-400 to-violet-500" />
+      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-sky-400" />
       <header className={cardHeader}>
-        <div className={`${cardIconWrap} bg-indigo-100 dark:bg-indigo-500/15`}>
-          <ArrowTrendingUpIcon className={`${cardIcon} text-indigo-600 dark:text-indigo-400`} />
+        <div className={`${cardIconWrap} bg-blue-100 dark:bg-blue-500/15`}>
+          <ArrowTrendingUpIcon className={`${cardIcon} text-blue-600 dark:text-blue-400`} />
         </div>
         <h2 className={cardTitle}>{t('dashboard.examOverview')}</h2>
       </header>
@@ -310,7 +311,7 @@ function ExamsOverviewCard({ stats, isDark }) {
       <div className="grid grid-cols-3 gap-3 mb-4">
         {statItems.map(item => (
           <div
-            key={item.label}
+            key={item.key}
             className={`flex flex-col items-center gap-1.5 rounded-xl px-3 py-3 ${item.bg}`}
           >
             <item.icon className={`w-4 h-4 ${item.color}`} />
@@ -351,13 +352,13 @@ function ExamsOverviewCard({ stats, isDark }) {
         onClick={() => navigate('/courses')}
         className={`group mt-auto flex items-center justify-between w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-all border ${
           isDark
-            ? 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06] hover:border-indigo-500/30 text-slate-200'
-            : 'bg-indigo-50 border-indigo-200/60 hover:bg-indigo-100 hover:border-indigo-300 text-indigo-700'
+            ? 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06] hover:border-blue-500/30 text-slate-200'
+            : 'bg-blue-50 border-blue-200/60 hover:bg-blue-100 hover:border-blue-300 text-blue-700'
         }`}
       >
         <span>{t('dashboard.goToCourses')}</span>
         <ArrowRightIcon className={`w-4 h-4 transition-all duration-300 group-hover:translate-x-1 ${
-          isDark ? 'text-slate-400 group-hover:text-indigo-400' : 'text-indigo-400 group-hover:text-indigo-600'
+          isDark ? 'text-slate-400 group-hover:text-blue-400' : 'text-blue-400 group-hover:text-blue-600'
         }`} />
       </button>
     </section>
@@ -375,7 +376,7 @@ function ExamTriggerCard({ exam, onClick }) {
           <div className={`${cardIconWrap} bg-amber-100 dark:bg-amber-500/15`}>
             <AcademicCapIcon className={`${cardIcon} text-amber-600 dark:text-amber-400`} />
           </div>
-          <h2 className={cardTitle}>{t('dashboard.exams', 'Exams')}</h2>
+          <h2 className={cardTitle}>{t('dashboard.upcomingExam', 'Upcoming exam')}</h2>
         </div>
         <ChevronRightIcon className="w-5 h-5 text-slate-400 group-hover:text-amber-500 group-hover:translate-x-1 transition-all duration-300" />
       </div>
@@ -387,40 +388,12 @@ function ExamTriggerCard({ exam, onClick }) {
           </p>
         </>
       ) : (
-        <p className="text-sm text-slate-600">{t('dashboard.startsSoon')}</p>
+        <p className="text-sm text-slate-600">{t('dashboard.noUpcomingExams', 'No upcoming exams')}</p>
       )}
     </button>
   )
 }
 
-/* ─── Calendar ─── */
-function CalendarCard({ isDark }) {
-  const { t } = useTranslation()
-  return (
-    <section className={`${cardClass} relative overflow-hidden`} style={cardStyle}>
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-400 to-pink-500" />
-      <header className={cardHeader}>
-        <div className={`${cardIconWrap} bg-purple-100 dark:bg-purple-500/15`}>
-          <CalendarDaysIcon className={`${cardIcon} text-purple-600 dark:text-purple-400`} />
-        </div>
-        <h2 className={cardTitle}>{t('dashboard.calendar')}</h2>
-      </header>
-      <div className="flex flex-col items-center justify-center py-8">
-        {/* Dotted grid wireframe */}
-        <div className="grid grid-cols-7 gap-3 mb-4">
-          {[...Array(35)].map((_, i) => (
-            <div key={i} className={`w-3 h-3 rounded-full border ${
-              isDark ? 'bg-white/[0.04] border-white/[0.04]' : 'bg-purple-100/60 border-purple-200/60'
-            }`} />
-          ))}
-        </div>
-        <p className="text-sm text-slate-500">
-          {t('dashboard.calendarComingSoon')}
-        </p>
-      </div>
-    </section>
-  )
-}
 
 /* ─── Exam Modal ─── */
 function ExamModal({ exam, onClose, isDark }) {
@@ -444,7 +417,7 @@ function ExamModal({ exam, onClose, isDark }) {
         </button>
         <header className="mb-4">
           <div className="flex items-center gap-2">
-            <AcademicCapIcon className={`w-5 h-5 ${isDark ? 'text-indigo-400/70' : 'text-indigo-500'}`} />
+            <AcademicCapIcon className={`w-5 h-5 ${isDark ? 'text-blue-400/70' : 'text-blue-500'}`} />
             <h2 className={`text-lg font-semibold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{exam.title}</h2>
           </div>
           <p className={`mt-1 text-sm ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>

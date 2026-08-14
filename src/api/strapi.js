@@ -34,6 +34,36 @@ export function getLocalizedField(item, language, fieldBase) {
 }
 
 /**
+ * Fetch all documents of a draft-and-publish collection, merging the
+ * published list (for correct `publishedAt`) with the draft working copies
+ * so published and draft entries appear exactly once.
+ */
+export async function fetchAllWithStatus(path) {
+  const qs = "sort=createdAt:desc&pagination[page]=1&pagination[pageSize]=200";
+  const [published, drafts] = await Promise.all([
+    api.get(`${path}?${qs}`).then((r) => r.data.data),
+    api.get(`${path}?${qs}&status=draft`).then((r) => r.data.data),
+  ]);
+  const publishedAtById = new Map(
+    published.map((doc) => [doc.documentId, doc.publishedAt])
+  );
+  const byId = new Map();
+  for (const doc of drafts) {
+    if (!byId.has(doc.documentId)) {
+      byId.set(doc.documentId, {
+        ...doc,
+        publishedAt: publishedAtById.get(doc.documentId) ?? doc.publishedAt,
+      });
+    }
+  }
+  // Safety net: include any document that only exists in the published list.
+  for (const doc of published) {
+    if (!byId.has(doc.documentId)) byId.set(doc.documentId, doc);
+  }
+  return [...byId.values()];
+}
+
+/**
  * Get localized array field (e.g. optionsLv, blocksRu).
  * Returns an array, falling back through lv → en → [].
  */

@@ -10,7 +10,7 @@ export default function LandingFooter({ isDark = true }) {
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Links row */}
         <div className={`flex items-center justify-center gap-3 md:gap-5 text-xs ${
-          isDark ? 'text-slate-400' : 'text-slate-500'
+          isDark ? 'text-slate-400' : 'text-slate-600'
         }`}>
           <Link
             to="/rules"
@@ -50,7 +50,7 @@ export default function LandingFooter({ isDark = true }) {
 
         {/* Copyright */}
         <p className={`text-[11px] text-center tracking-wider ${
-          isDark ? 'text-slate-500' : 'text-slate-400'
+          isDark ? 'text-slate-500' : 'text-slate-600'
         }`}>
           &copy; 2026 LKF Academy
         </p>

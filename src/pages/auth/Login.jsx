@@ -92,7 +92,7 @@ export default function Login() {
         </div>
         <p className="text-right -mt-2">
           <Link to="/forgot-password" className={`text-xs transition-colors ${
-            isDark ? 'text-slate-400 hover:text-indigo-400' : 'text-slate-400 hover:text-indigo-500'
+            isDark ? 'text-slate-400 hover:text-indigo-400' : 'text-slate-500 hover:text-indigo-600'
           }`}>{t('auth.forgotPassword')}</Link>
         </p>
         <button type="submit" disabled={loading}
@@ -112,7 +112,7 @@ export default function Login() {
       <p className={`text-xs text-center ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
         {t('auth.noAccount')}{' '}
         <Link to="/register" className={`transition-colors font-medium ${
-          isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-500 hover:text-indigo-600'
+          isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-600 hover:text-indigo-700'
         }`}>{t('auth.signUp')}</Link>
       </p>
     </AuthLayout>

@@ -40,11 +40,31 @@ export default function AdminCourses() {
       // documents, which always has publishedAt: null. Instead we fetch
       // published (default, no status param) and draft courses and merge them
       // so the publishedAt field is correctly populated.
+      //
+      // Note: Strapi's `status=draft` returns the draft working copy of EVERY
+      // document — including published ones — so a naive merge would show each
+      // published course twice (once 'published', once 'draft'). Dedupe by
+      // documentId: keep the draft copy (latest content) and overlay
+      // publishedAt from the published list.
       const [published, drafts] = await Promise.all([
         api.get('/courses?sort=titleLv:asc&pagination[page]=1&pagination[pageSize]=200').then(r => r.data.data),
         api.get('/courses?sort=titleLv:asc&pagination[page]=1&pagination[pageSize]=200&status=draft').then(r => r.data.data),
       ])
-      return [...published, ...drafts]
+      const publishedAtById = new Map(published.map(c => [c.documentId, c.publishedAt]))
+      const byId = new Map()
+      for (const course of drafts) {
+        if (!byId.has(course.documentId)) {
+          byId.set(course.documentId, {
+            ...course,
+            publishedAt: publishedAtById.get(course.documentId) ?? course.publishedAt,
+          })
+        }
+      }
+      // Safety net: include any document that only exists in the published list.
+      for (const course of published) {
+        if (!byId.has(course.documentId)) byId.set(course.documentId, course)
+      }
+      return [...byId.values()]
     }
   })
 
@@ -253,7 +273,7 @@ export default function AdminCourses() {
                 <IconButton icon={PencilIcon} label={t('admin.courses.iconEdit')} onClick={() => handleEdit(course)} variant="default" size="sm" />
                 <IconButton icon={TrashIcon} label={t('admin.courses.iconDelete')} onClick={() => handleDelete(course.documentId)} variant="danger" size="sm" />
               </div>
-            </div>              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${course.publishedAt ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+            </div>              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${course.publishedAt ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
               {course.publishedAt ? t('admin.courses.published') : t('admin.courses.draft')}
             </span>
           </div>
@@ -281,7 +301,7 @@ export default function AdminCourses() {
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${course.publishedAt ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${course.publishedAt ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
                     {course.publishedAt ? t('admin.courses.published') : t('admin.courses.draft')}
                   </span>
                 </td>

@@ -2,12 +2,12 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState, useEffect } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
-import api from '../../api/strapi'
+import api, { getQuestionText } from '../../api/strapi'
 import { useTranslation } from 'react-i18next'
 import { SkeletonList } from '../../components/Skeleton'
 import {
   CheckCircleIcon,
-
+  ClipboardDocumentListIcon,
   ClockIcon as TimeIcon,
 } from '@heroicons/react/24/solid'
 import {
@@ -15,6 +15,7 @@ import {
   getAttemptMeta,
   formatAnswerValue,
   canShowScoreAndReview,
+  isAnswerCorrect,
 } from '../../utils/attempts'
 
 function SummaryCard({ attempt, onShowReview, t }) {
@@ -97,7 +98,7 @@ function SummaryCard({ attempt, onShowReview, t }) {
 
 export default function Results() {
   const { user } = useAuth()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const location = useLocation()
   const [selectedAttempt, setSelectedAttempt] = useState(null)
   const rawJustSubmitted = location.state?.justSubmitted || null
@@ -153,16 +154,8 @@ export default function Results() {
   const selectedQuestions = selectedAttempt?.questions || []
   const selectedAnswers = selectedAttempt?.answers || {}
 
-  const isQuickQuizSelected =
-    !!selectedAttempt?.course && !selectedAttempt?.exam
-
   const canShowSelected =
-    selectedAttempt &&
-    (
-      isQuickQuizSelected ||                      // quick quiz always reviewable
-      selectedAttempt.showResults === true ||
-      selectedAttempt.exam?.showResults === true
-    )
+    selectedAttempt && canShowScoreAndReview(selectedAttempt)
 
   const activeAttempt = canShowSelected ? selectedAttempt : null
 
@@ -218,18 +211,39 @@ export default function Results() {
 
           {selectedQuestions.map((q, i) => {
             const userAnswer = selectedAnswers[q.id]
-            const correctAnswer = q.correctAnswer
+            // Multi-select multiple choice stores the expected set here
+            const correctAnswers =
+              q.type === 'multiple_choice' &&
+              Array.isArray(q.correctAnswers) &&
+              q.correctAnswers.length > 0
+                ? q.correctAnswers
+                : null
+            const displayCorrect = correctAnswers || q.correctAnswer
             const isOpenText = q.type === 'open_text'
-            const isCorrect =
-              !isOpenText &&
-              String(userAnswer ?? '').toLowerCase() ===
-                String(correctAnswer ?? '').toLowerCase()
 
-            const pillColor = isCorrect
-              ? 'bg-green-100 text-green-700'
-              : 'bg-red-100 text-red-700'
+            // Open text has no automatic correct answer — an admin grades it
+            // manually and the result is stored per question in manualGrades
+            // (1 = correct, 0 = incorrect, missing = not reviewed yet).
+            const openTextGrade =
+              isOpenText && activeAttempt?.manualGrades
+                ? (activeAttempt.manualGrades[q.id] ?? null)
+                : null
+            const awaitingReview = isOpenText && openTextGrade === null
+            const isCorrect = isOpenText
+              ? openTextGrade === 1
+              : isAnswerCorrect(q, userAnswer)
 
-            const answerColor = isCorrect ? 'text-green-600' : 'text-red-600'
+            const pillColor = awaitingReview
+              ? 'bg-orange-100 text-orange-700'
+              : isCorrect
+                ? 'bg-green-100 text-green-700'
+                : 'bg-red-100 text-red-700'
+
+            const answerColor = awaitingReview
+              ? 'text-orange-600'
+              : isCorrect
+                ? 'text-green-600'
+                : 'text-red-600'
 
             return (
               <div
@@ -252,34 +266,59 @@ export default function Results() {
                       className="text-base sm:text-lg font-semibold leading-relaxed"
                       style={{ color: 'var(--text-primary)' }}
                     >
-                      {q.text}
+                      {getQuestionText(q, i18n.language)}
                     </p>
 
-                    <p className={`mt-2 text-sm sm:text-base font-semibold ${answerColor}`}>
-                      {t('results.correctChoice') || 'Correct answer'}:{' '}
-                      {formatAnswerValue(correctAnswer, q, t)}
-                    </p>
+                    {isOpenText ? (
+                      <>
+                        <p className={`mt-2 text-sm sm:text-base font-semibold ${answerColor}`}>
+                          {awaitingReview
+                            ? (t('results.openTextAwaitingReview') ||
+                                'Awaiting review')
+                            : isCorrect
+                              ? (t('results.openTextGradedCorrect') ||
+                                  'Graded as correct')
+                              : (t('results.openTextGradedIncorrect') ||
+                                  'Graded as incorrect')}
+                        </p>
 
-                    {!isCorrect && (
-                      <p
-                        className="mt-1 text-sm"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        {t('results.yourChoice') || 'Your answer'}:{' '}
-                        <span className="font-semibold">
-                          {formatAnswerValue(userAnswer, q, t)}
-                        </span>
-                      </p>
-                    )}
+                        <p
+                          className="mt-1 text-sm"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          {t('results.yourChoice') || 'Your answer'}:{' '}
+                          <span className="font-semibold">
+                            {formatAnswerValue(userAnswer, q, t)}
+                          </span>
+                        </p>
 
-                    {isOpenText && (
-                      <p
-                        className="mt-2 text-xs"
-                        style={{ color: 'var(--text-muted)' }}
-                      >
-                        {t('results.openTextNote') ||
-                          'Open text answers are reviewed by the system based on the stored correct answer.'}
-                      </p>
+                        <p
+                          className="mt-2 text-xs"
+                          style={{ color: 'var(--text-muted)' }}
+                        >
+                          {t('results.openTextNote') ||
+                            'Open text answers are reviewed manually by an administrator.'}
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className={`mt-2 text-sm sm:text-base font-semibold ${answerColor}`}>
+                          {t('results.correctChoice') || 'Correct answer'}:{' '}
+                          {formatAnswerValue(displayCorrect, q, t)}
+                        </p>
+
+                        {!isCorrect && (
+                          <p
+                            className="mt-1 text-sm"
+                            style={{ color: 'var(--text-muted)' }}
+                          >
+                            {t('results.yourChoice') || 'Your answer'}:{' '}
+                            <span className="font-semibold">
+                              {formatAnswerValue(userAnswer, q, t)}
+                            </span>
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -311,7 +350,9 @@ export default function Results() {
               borderColor: 'var(--border)',
             }}
           >
-            <div className="text-4xl sm:text-5xl mb-4">📝</div>
+            <div className="mb-4 inline-flex items-center justify-center">
+              <ClipboardDocumentListIcon className="w-14 h-14 sm:w-16 sm:h-16" style={{ color: 'var(--text-muted)' }} />
+            </div>
             <p style={{ color: 'var(--text-muted)' }}>
               {t('results.noExams') || 'No attempts yet.'}
             </p>
@@ -334,15 +375,8 @@ export default function Results() {
 
       <div className="space-y-4">
         {submittedListAttempts.map(attempt => {
-          const isQuickQuiz = !!attempt.course && !attempt.exam
-
           const released =
-            attempt.submittedAt &&
-            (
-              isQuickQuiz ||
-              attempt.exam?.showResults === true ||
-              attempt.showResults === true
-            )
+            attempt.submittedAt && canShowScoreAndReview(attempt)
 
           const meta = getAttemptMeta(attempt, t)
           const Icon = meta.icon

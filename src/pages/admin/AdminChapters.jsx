@@ -4,7 +4,7 @@ import api, { getLocalizedField } from '../../api/strapi'
 import MediaUpload from '../../components/MediaUpload'
 import RichTextEditor from '../../components/RichTextEditor'
 import IconButton from '../../components/IconButton'
-import { PencilIcon, TrashIcon, EyeIcon, ArrowsUpDownIcon } from '@heroicons/react/24/outline'
+import { PencilIcon, TrashIcon, EyeIcon, ArrowsUpDownIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { SkeletonTable } from '../../components/Skeleton'
 import ChapterPreviewModal from '../../components/ChapterPreviewModal'
 import BlockEditor from '../../components/BlockEditor'
@@ -22,6 +22,7 @@ export default function AdminChapters() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [filterCourse, setFilterCourse] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [page, setPage] = useState(1)
   const ITEMS_PER_PAGE = 25
   const [previewChapter, setPreviewChapter] = useState(null)
@@ -38,7 +39,9 @@ export default function AdminChapters() {
   const [dragOverId, setDragOverId] = useState(null)
   const [isReordering, setIsReordering] = useState(false)
 
-  const isDragReorder = filterCourse !== 'all' && filterCourse !== ''
+  // Drag reorder only makes sense on a full, unfiltered course list — disable
+  // it while a search is active so reorder never touches hidden chapters.
+  const isDragReorder = filterCourse !== 'all' && filterCourse !== '' && !searchQuery.trim()
 
   const emptyForm = {
     titleLv: '', titleRu: '', titleEn: '',
@@ -189,7 +192,15 @@ export default function AdminChapters() {
   }
 
   const allFiltered = (chapters || [])
-    .filter(q => filterCourse === 'all' || q.course?.documentId === filterCourse)
+    .filter(q => {
+      if (filterCourse !== 'all' && q.course?.documentId !== filterCourse) return false
+      const query = searchQuery.trim().toLowerCase()
+      if (query) {
+        const haystack = [q.titleLv, q.titleRu, q.titleEn].filter(Boolean).join(' ').toLowerCase()
+        if (!haystack.includes(query)) return false
+      }
+      return true
+    })
     .sort((a, b) => (a.order ?? Infinity) - (b.order ?? Infinity))
 
   const handleDragStart = useCallback((e, chapter) => {
@@ -474,12 +485,36 @@ export default function AdminChapters() {
         </div>
       )}
 
-      {/* Filter */}
-      <div className="mb-4">
+      {/* Filters: search + course */}
+      <div className="mb-4 flex flex-col sm:flex-row gap-2.5">
+        <div className="relative flex-1">
+          <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={e => { setSearchQuery(e.target.value); setPage(1) }}
+            placeholder={t('admin.chapters.searchPlaceholder') || 'Search chapters...'}
+            aria-label={t('admin.chapters.searchPlaceholder') || 'Search chapters...'}
+            className="w-full border rounded-lg pl-9 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => { setSearchQuery(''); setPage(1) }}
+              aria-label={t('common.clearSearch') || 'Clear search'}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors hover:bg-slate-200 dark:hover:bg-slate-700/50"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          )}
+        </div>
         <select
           className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           value={filterCourse}
           onChange={e => { setFilterCourse(e.target.value); setPage(1) }}
+          aria-label={t('admin.chapters.courseLabel')}
         >
           <option value="all">{t('admin.chapters.allCourses')}</option>
           {courses?.map(course => (
@@ -507,6 +542,24 @@ export default function AdminChapters() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
+            {paginated.length === 0 && (
+              <tr>
+                <td colSpan={isDragReorder ? 6 : 5} className="px-4 py-10 text-center">
+                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    {t('admin.chapters.noResults') || 'No chapters match your filters.'}
+                  </p>
+                  {(searchQuery || filterCourse !== 'all') && (
+                    <button
+                      type="button"
+                      onClick={() => { setSearchQuery(''); setFilterCourse('all'); setPage(1) }}
+                      className="mt-2 text-sm font-medium text-blue-600 hover:underline"
+                    >
+                      {t('common.clearFilters') || 'Clear filters'}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            )}
             {paginated.map((chapter) => {
               const isDragging = dragId === chapter.documentId
               const isDragOver = dragOverId === chapter.documentId
@@ -543,7 +596,7 @@ export default function AdminChapters() {
                           <span
                             key={l}
                             className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                              filled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
+                              filled ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
                             }`}
                           >
                             {l.toUpperCase()}

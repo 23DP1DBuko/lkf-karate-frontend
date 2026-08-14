@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import useFocusTrap from '../../hooks/useFocusTrap'
 import Cropper from 'react-easy-crop'
 import { useAuth } from '../../context/useAuth'
 import api from '../../api/strapi'
@@ -12,6 +13,8 @@ import {
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/outline'
 import SettingsAppearance from '../../components/SettingsAppearance'
+import RankSelect from '../../components/RankSelect'
+import { KUMITE_RANKS, KATA_RANKS } from '../../utils/refereeRanks'
 
 async function createImage(url) {
   return new Promise((resolve, reject) => {
@@ -58,7 +61,8 @@ export default function Profile() {
     username: user?.username || '',
     email: user?.email || '',
     birthday: user?.birthday || '',
-    rank: user?.rank || '',
+    rankKumite: user?.rankKumite || '',
+    rankKata: user?.rankKata || '',
     country: user?.country || '',
     clubName: user?.clubName || '',
   })
@@ -91,6 +95,11 @@ export default function Profile() {
   const [deleteConfirmInput, setDeleteConfirmInput] = useState('')
   const [deletingAccount, setDeletingAccount] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+
+  const deleteModalRef = useRef(null)
+  const avatarModalRef = useRef(null)
+  useFocusTrap(deleteModalRef)
+  useFocusTrap(avatarModalRef)
 
   const apiBase = import.meta.env.VITE_API_URL || 'http://127.0.0.1:1337'
   const avatarUrl = user?.profilePicture?.url
@@ -172,7 +181,8 @@ export default function Profile() {
       await api.put(`/users/${user.id}`, {
         username: form.username,
         birthday: form.birthday || null,
-        rank: form.rank,
+        rankKumite: form.rankKumite,
+        rankKata: form.rankKata,
         country: form.country || null,
         clubName: form.clubName || null,
       })
@@ -323,20 +333,21 @@ export default function Profile() {
             />
           </div>
 
-          {/* Rank */}
-          <div>
-            <label className="block text-sm font-medium mb-1" htmlFor="rank">
-              {t('profile.rank') || 'Rank'}
-            </label>
-            <input
-              id="rank"
-              type="text"
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={form.rank}
-              onChange={e => setForm({ ...form, rank: e.target.value })}
-              placeholder="e.g. 1st Kyu, 1st Dan"
-            />
-          </div>
+          {/* Referee / judge ranks — one per discipline */}
+          <RankSelect
+            id="rankKumite"
+            label={t('ranks.kumiteRank') || 'Kumite rank'}
+            ladder={KUMITE_RANKS}
+            value={form.rankKumite}
+            onChange={v => setForm({ ...form, rankKumite: v })}
+          />
+          <RankSelect
+            id="rankKata"
+            label={t('ranks.kataRank') || 'Kata rank'}
+            ladder={KATA_RANKS}
+            value={form.rankKata}
+            onChange={v => setForm({ ...form, rankKata: v })}
+          />
 
           {/* Country */}
           <div>
@@ -546,6 +557,7 @@ export default function Profile() {
       {/* ── Delete confirmation modal ── */}
       {deleteModalOpen && (
         <div
+          ref={deleteModalRef}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
           role="dialog"
           aria-modal="true"
@@ -637,6 +649,7 @@ export default function Profile() {
 
       {avatarModalOpen && selectedImage && (
         <div
+          ref={avatarModalRef}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
           role="dialog"
           aria-modal="true"

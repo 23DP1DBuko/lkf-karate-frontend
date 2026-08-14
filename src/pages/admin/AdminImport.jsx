@@ -1,9 +1,12 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../api/strapi'
 import { DocumentArrowUpIcon } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import { getLocalizedField } from '../../api/strapi'
+import FileDropzone from '../../components/FileDropzone'
+import { fetchAllExistingQuestions, findExistingQuestion, preserveCorrectAnswer } from '../../utils/questionImport'
 
 async function parseDocx(file) {
   const JSZip = (await import('jszip')).default
@@ -50,33 +53,10 @@ async function parseDocx(file) {
   return questions
 }
 
-async function fetchAllExistingQuestions(courseId) {
-  let page = 1
-  let all = []
-
-  while (true) {
-    const res = await api.get('/questions', {
-      params: {
-        'filters[course][documentId][$eq]': courseId,
-        'pagination[page]': page,
-        'pagination[pageSize]': 100,
-        'sort': 'order:asc',
-      },
-    })
-
-    const items = res.data.data || []
-    all = [...all, ...items]
-
-    const { pagination } = res.data.meta
-    if (page >= pagination.pageCount) break
-    page++
-  }
-
-  return all
-}
-
 export default function AdminImport() {
   const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
+  const [importWithoutAnswers, setImportWithoutAnswers] = useState(false)
   const [file, setFile] = useState(null)
   const [questions, setQuestions] = useState([])
   const [selectedCourse, setSelectedCourse] = useState('')
@@ -85,7 +65,6 @@ export default function AdminImport() {
   const [results, setResults] = useState(null)
   const [parsing, setParsing] = useState(false)
   const [error, setError] = useState('')
-  const fileRef = useRef()
 
   const { data: courses } = useQuery({
     queryKey: ['courses-list'],
@@ -117,6 +96,9 @@ export default function AdminImport() {
     const stats = { created: 0, updated: 0, skipped: 0, failed: 0 }
     const langField = language === 'lv' ? 'textLv' : language === 'ru' ? 'textRu' : 'textEn'
     const sourceFileName = file?.name || 'unknown'
+    // "Import without answers": collect the created questions so we can jump
+    // straight into the True/False quiz after the import.
+    const createdQuestionIds = []
 
     let existing = []
     try {
@@ -125,25 +107,25 @@ export default function AdminImport() {
       console.error('Failed to fetch existing', e)
     }
 
-    const orderMap = {}
-    for (const q of existing) {
-      if (q.order != null) orderMap[Number(q.order)] = q
-    }
-
     for (const q of questions) {
-      const existingQ = orderMap[Number(q.order)]
+      // Legacy identity: course + order (unchanged Word-importer behavior).
+      const existingQ = findExistingQuestion(existing, { courseId: selectedCourse, order: q.order })
 
       try {
         if (!existingQ) {
-          await api.post('/questions', {
+          const res = await api.post('/questions', {
             data: {
-              text: q.text,
               textLv: language === 'lv' ? q.text : null,
-              textEn: language === 'en' ? q.text : null,
               textRu: language === 'ru' ? q.text : null,
+              textEn: language === 'en' ? q.text : null,
               type: 'yes_no',
-              options: ['true', 'false'],
-              correctAnswer: q.correctAnswer,
+              optionsLv: ['true', 'false'],
+              optionsRu: ['true', 'false'],
+              optionsEn: ['true', 'false'],
+              // "Import without answers": skip the parsed correctAnswer — it is
+              // set afterwards via the True/False quick quiz.
+              ...(importWithoutAnswers ? {} : { correctAnswer: q.correctAnswer }),
+              answerStatus: importWithoutAnswers ? 'missing' : 'answered',
               order: q.order,
               course: selectedCourse,
               sourceLang: language,
@@ -151,30 +133,33 @@ export default function AdminImport() {
             }
           })
           stats.created++
+          const created = res.data?.data
+          if (created?.documentId) createdQuestionIds.push(created.documentId)
         } else {
           const existingLangText = existingQ[langField]
-          const answerChanged = existingQ.correctAnswer !== q.correctAnswer
+          // In "without answers" mode the parsed answer is ignored entirely —
+          // existing answers are never touched here.
+          const answerChanged = !importWithoutAnswers && existingQ.correctAnswer !== q.correctAnswer
           const langTextChanged = existingLangText !== q.text
+          const answerPatch = importWithoutAnswers
+            ? {}
+            : answerChanged
+              ? { correctAnswer: q.correctAnswer }
+              : {}
+
+          const updateData = preserveCorrectAnswer(existingQ, {
+            [langField]: q.text,
+            sourceFile: sourceFileName,
+            ...answerPatch,
+          })
 
           if (!existingLangText) {
-            await api.put(`/questions/${existingQ.documentId}`, {
-              data: {
-                [langField]: q.text,
-                sourceFile: sourceFileName,
-                ...(answerChanged ? { correctAnswer: q.correctAnswer } : {}),
-              }
-            })
+            await api.put(`/questions/${existingQ.documentId}`, { data: updateData })
             stats.updated++
           } else if (!answerChanged && !langTextChanged) {
             stats.skipped++
           } else {
-            await api.put(`/questions/${existingQ.documentId}`, {
-              data: {
-                [langField]: q.text,
-                sourceFile: sourceFileName,
-                ...(answerChanged ? { correctAnswer: q.correctAnswer } : {}),
-              }
-            })
+            await api.put(`/questions/${existingQ.documentId}`, { data: updateData })
             stats.updated++
           }
         }
@@ -186,6 +171,14 @@ export default function AdminImport() {
 
     setResults(stats)
     setImporting(false)
+
+    // "Import without answers" → jump straight into the True/False quiz for
+    // the newly created questions.
+    if (importWithoutAnswers && createdQuestionIds.length > 0) {
+      navigate(
+        `/admin/import-quiz?courseId=${encodeURIComponent(selectedCourse)}&questionIds=${createdQuestionIds.join(',')}`
+      )
+    }
   }
 
   const trueCount = questions.filter(q => q.correctAnswer === 'true').length
@@ -203,20 +196,21 @@ export default function AdminImport() {
       <div className="space-y-4">
         <div className="rounded-xl p-5" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
           <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>1. {t('admin.import.uploadStep') || 'Upload .docx file'}</h2>
-          <div
-            onClick={() => fileRef.current.click()}
-            className="border-2 border-dashed rounded-xl p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
-            style={{ borderColor: 'var(--border)' }}
-          >
-            <DocumentArrowUpIcon className="w-10 h-10 mx-auto mb-2 text-blue-500" />
-            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-              {file ? file.name : t('admin.import.selectFile') || 'Click to select .docx file'}
-            </p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-              {t('admin.import.fileHint') || 'Include year in filename e.g. Kata_2025.docx'}
-            </p>
-            <input ref={fileRef} type="file" accept=".docx" onChange={handleFileChange} className="hidden" />
-          </div>
+          <FileDropzone
+            icon={<DocumentArrowUpIcon className="w-7 h-7" />}
+            title={(dragging) =>
+              file
+                ? file.name
+                : dragging
+                  ? 'Drop the .docx here'
+                  : t('admin.import.selectFile') || 'Click to select .docx file'
+            }
+            hint={t('admin.import.fileHint') || 'Include year in filename e.g. Kata_2025.docx'}
+            showBrowseHint={!file}
+            accept=".docx"
+            ariaLabel="Upload .docx file"
+            onFiles={(files) => handleFileChange({ target: { files } })}
+          />
 
           {parsing && (
             <div className="mt-3 flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -337,20 +331,46 @@ export default function AdminImport() {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={handleImport}
-                disabled={importing || !canImport}
-                className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {importing ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Importing...
-                  </>
-                ) : (
-                  <>{t('admin.import.importQuestions', { count: questions.length }) || `Import ${questions.length} questions`}</>
-                )}
-              </button>
+              <>
+                {/* Optional: import without answers, then set True/False in a quick quiz */}
+                <label
+                  className="flex items-start gap-2.5 p-3 rounded-lg border mb-3 cursor-pointer transition hover:border-blue-400"
+                  style={{
+                    borderColor: importWithoutAnswers ? '#2563eb' : 'var(--border)',
+                    backgroundColor: importWithoutAnswers ? 'rgba(37,99,235,0.06)' : 'var(--bg-secondary)',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={importWithoutAnswers}
+                    onChange={(e) => setImportWithoutAnswers(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-blue-600 flex-shrink-0"
+                  />
+                  <span className="text-sm">
+                    <span className="font-semibold block" style={{ color: 'var(--text-primary)' }}>
+                      {t('admin.import.importWithoutAnswers') || 'Import without answers and open quiz to set True/False'}
+                    </span>
+                    <span className="text-xs block mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                      {t('admin.import.importWithoutAnswersHint') || 'Questions will be imported without answers. You will immediately set True/False for each question in a quick quiz.'}
+                    </span>
+                  </span>
+                </label>
+
+                <button
+                  onClick={handleImport}
+                  disabled={importing || !canImport}
+                  className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {importing ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Importing...
+                    </>
+                  ) : (
+                    <>{t('admin.import.importQuestions', { count: questions.length }) || `Import ${questions.length} questions`}</>
+                  )}
+                </button>
+              </>
             )}
           </div>
         )}

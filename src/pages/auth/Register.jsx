@@ -171,7 +171,7 @@ export default function Register() {
       <p className={`text-xs text-center ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
         {t('auth.haveAccount')}{' '}
         <Link to="/login" className={`transition-colors font-medium ${
-          isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-500 hover:text-indigo-600'
+          isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-600 hover:text-indigo-700'
         }`}>{t('auth.signIn')}</Link>
       </p>
     </AuthLayout>

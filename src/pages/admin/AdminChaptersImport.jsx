@@ -1,203 +1,49 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import api, { getLocalizedField } from '../../api/strapi'
 import { useTranslation } from 'react-i18next'
-import { DocumentArrowUpIcon, BookOpenIcon, CheckCircleIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
+import { parseChapterPdf, chapterContentHash, createCanvasFigureRenderer } from '../../utils/pdfChapterParser'
+import FileDropzone from '../../components/FileDropzone'
+import {
+  DocumentArrowUpIcon, BookOpenIcon, CheckCircleIcon, ChevronDownIcon,
+  DocumentTextIcon, PhotoIcon, TableCellsIcon, ListBulletIcon,
+  ExclamationTriangleIcon, XMarkIcon,
+} from '@heroicons/react/24/outline'
 
-function escapeHtml(str) {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+const BLOCK_BADGES = {
+  text: { label: 'Text', icon: DocumentTextIcon, cls: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200' },
+  list: { label: 'List', icon: ListBulletIcon, cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' },
+  table: { label: 'Table', icon: TableCellsIcon, cls: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' },
+  image: { label: 'Image', icon: PhotoIcon, cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
 }
 
-// Regex to match "ARTICLE 1 : TITLE", "ARTICLE 2 :  KUMITE COMPETITION AREA", etc.
-// Captures group 1 = article number, group 2 = title text
-const ARTICLE_RE = /ARTICLE\s+(\d+)\s*:\s*([^\n]+)/gi
-
-// Regex to match "APPENDIX 1 : TITLE" etc.
-const APPENDIX_RE = /APPENDIX\s+(\d+)\s*:\s*([^\n]+)/gi
-
-// Regex for sub-clause headings like "1.1", "2.1.1", "3.1.2.1", etc.
-// Only match if it looks like a real subheading (short, at line start)
-const SUBCLAUSE_RE = /^(\d{1,2}(?:\.\d{1,2}){1,3})\s+(.{3,}?)$/m
-
-// Strips repeated running headers like "Rules Version 2026.01 13" that appear on every page
-function stripRunningHeaders(text) {
-  return text.replace(/Rules\s+Version\s+[\d.]+\s*\d*/gi, '')
-}
-
-// Remove the Table of Contents: cut everything before "INTRODUCTION" or first ARTICLE.
-// WKF rules PDFs always have a TOC before INTRODUCTION that would falsely match ARTICLE headings.
-function removeToc(text) {
-  // Try splitting at INTRODUCTION first (most reliable for WKF rules)
-  const introIdx = text.indexOf('INTRODUCTION')
-  if (introIdx > 0) {
-    return text.slice(introIdx)
-  }
-  // Fallback: find first ARTICLE heading and start there
-  const firstArticle = text.match(ARTICLE_RE)
-  if (firstArticle) {
-    const idx = text.indexOf(firstArticle[0])
-    if (idx > 0) return text.slice(idx)
-  }
-  return text
-}
-
-// Split body text into individual blocks by sub-clause boundaries (1.1, 1.2, 2.1.1, etc.)
-function splitIntoBlocks(body) {
-  const lines = body.split('\n').map(l => l.trim()).filter(l => l.length > 2)
-  const blocks = []
-  let currentText = ''
-
-  for (const line of lines) {
-    const match = line.match(SUBCLAUSE_RE)
-    if (match) {
-      // Flush previous block
-      if (currentText.trim()) {
-        blocks.push({
-          id: crypto.randomUUID(),
-          type: 'text',
-          content: `<p>${escapeHtml(currentText.trim())}</p>`,
-        })
-      }
-      currentText = line
-    } else {
-      if (currentText) currentText += ' ' + line
-      else currentText = line
-    }
-  }
-
-  // Flush last block
-  if (currentText.trim()) {
-    blocks.push({
-      id: crypto.randomUUID(),
-      type: 'text',
-      content: `<p>${escapeHtml(currentText.trim())}</p>`,
-    })
-  }
-
-  return blocks
-}
-
-async function parseChapterPdf(file) {
-  const pdfjsLib = await import('pdfjs-dist')
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs'
-
-  const arrayBuffer = await file.arrayBuffer()
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
-
-  // Step 1: Extract full text page-by-page preserving line order
-  let allLines = []
-
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p)
-    const content = await page.getTextContent()
-    let lastY = null
-
-    for (const item of content.items) {
-      const y = Math.round(item.transform[5])
-      if (lastY !== null && Math.abs(y - lastY) < 5) {
-        allLines[allLines.length - 1] += item.str
-      } else {
-        allLines.push(item.str)
-        lastY = y
-      }
-    }
-
-    allLines.push('') // page break separator (helps detect repeated page headers)
-  }
-
-  let fullText = allLines.join('\n')
-
-  // Step 2: Strip running headers/footers that repeat on every page
-  fullText = stripRunningHeaders(fullText)
-
-  // Step 3: Detect and remove the Table of Contents (pages before INTRODUCTION)
-  fullText = removeToc(fullText)
-
-  if (fullText.trim().length < 10) {
-    throw new Error('No meaningful content found after stripping headers and TOC')
-  }
-
-  // Step 4: Use finditer-style matching to locate ALL article headings
-  // Reset regex lastIndex
-  ARTICLE_RE.lastIndex = 0
-  const articleMatches = []
-  let match
-  while ((match = ARTICLE_RE.exec(fullText)) !== null) {
-    articleMatches.push({
-      number: parseInt(match[1], 10),
-      title: match[2].trim(),
-      start: match.index,
-      end: match.index + match[0].length,
-    })
-  }
-
-  // Also find APPENDIX headings
-  APPENDIX_RE.lastIndex = 0
-  const appendixMatches = []
-  while ((match = APPENDIX_RE.exec(fullText)) !== null) {
-    appendixMatches.push({
-      number: parseInt(match[1], 10),
-      title: match[2].trim(),
-      start: match.index,
-      end: match.index + match[0].length,
-      isAppendix: true,
-    })
-  }
-
-  // Merge article + appendix matches, sorted by position in text
-  const allHeadings = [...articleMatches, ...appendixMatches].sort((a, b) => a.start - b.start)
-
-  if (allHeadings.length === 0) {
-    // Fallback: treat whole PDF as one chapter
-    const paragraphs = fullText.split('\n').map(l => l.trim()).filter(l => l.length > 3)
-    if (paragraphs.length === 0) throw new Error('No text found in PDF')
-    const blocks = splitIntoBlocks(paragraphs.join('\n'))
-    return [{ title: paragraphs[0] || 'Untitled', blocks }]
-  }
-
-  // Step 5: Slice text between consecutive heading matches
-  const chapters = []
-  for (let i = 0; i < allHeadings.length; i++) {
-    const h = allHeadings[i]
-    const bodyStart = h.end
-    const bodyEnd = i + 1 < allHeadings.length ? allHeadings[i + 1].start : fullText.length
-    const body = fullText.slice(bodyStart, bodyEnd).trim()
-
-    const blocks = splitIntoBlocks(body)
-
-    chapters.push({
-      title: h.title,
-      order: h.number,
-      blocks,
-      isAppendix: h.isAppendix || false,
-    })
-  }
-
-  return chapters
+async function uploadFigureBlob(blob, page) {
+  const formData = new FormData()
+  formData.append('files', blob, `figure-page-${page}.png`)
+  const res = await api.post('/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data?.[0] || null
 }
 
 export default function AdminChaptersImport() {
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
-  const fileRef = useRef()
   const [file, setFile] = useState(null)
-  const [chapters, setChapters] = useState([]) // [{ title, blocks }]
+  const [chapters, setChapters] = useState([]) // [{ title, chapterKey, order, sourcePageFrom/To, contentHash, blocks }]
   const [selectedCourse, setSelectedCourse] = useState('')
   const [baseLanguage, setBaseLanguage] = useState('lv')
   const [parsing, setParsing] = useState(false)
+  const [parseProgress, setParseProgress] = useState(0)
   const [importing, setImporting] = useState(false)
   const [error, setError] = useState('')
-  const [importedCount, setImportedCount] = useState(0)
+  const [summary, setSummary] = useState(null) // { created, updated, skipped, failed: [] }
   const [chapterTitles, setChapterTitles] = useState([])
   const [expandedChapters, setExpandedChapters] = useState(new Set())
 
   const { data: courses } = useQuery({
     queryKey: ['courses-list'],
-    queryFn: () => api.get('/courses?sort=titleLv:asc&pagination[page]=1&pagination[pageSize]=200').then(r => r.data.data)
+    queryFn: () => api.get('/courses?sort=titleLv:asc&pagination[page]=1&pagination[pageSize]=200').then(r => r.data.data),
   })
 
   const handleFileChange = async (e) => {
@@ -207,15 +53,33 @@ export default function AdminChaptersImport() {
     setError('')
     setChapters([])
     setChapterTitles([])
-    setImportedCount(0)
+    setSummary(null)
     setParsing(true)
+    setParseProgress(0)
 
     try {
-      const parsed = await parseChapterPdf(f)
+      const pdfjsLib = await import('pdfjs-dist')
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs'
+
+      const renderFigure = await createCanvasFigureRenderer()
+      const result = await parseChapterPdf(pdfjsLib, f, {
+        renderFigure,
+        onProgress: p => setParseProgress(p.page / p.total),
+      })
+
+      const parsed = result.chapters.map(ch => ({
+        ...ch,
+        sourceFileName: result.sourceFileName,
+        sourceVersion: result.sourceVersion,
+        contentHash: chapterContentHash(ch),
+      }))
       setChapters(parsed)
       setChapterTitles(parsed.map(ch => ch.title))
       setExpandedChapters(new Set())
+      setParseProgress(1)
     } catch (err) {
+      console.error('Parse failed:', err)
       setError('Failed to parse PDF: ' + err.message)
     } finally {
       setParsing(false)
@@ -228,39 +92,90 @@ export default function AdminChaptersImport() {
     setChapterTitles(updated)
   }
 
+  const stripInternal = (block) => {
+    const { _figure, _sourcePage, ...rest } = block
+    return rest
+  }
+
   const handleImportAll = async () => {
     if (!selectedCourse || chapters.length === 0) return
     setImporting(true)
     setError('')
+    setSummary(null)
+
+    const lang = baseLanguage
+    const cap = s => s.charAt(0).toUpperCase() + s.slice(1)
+    const titleKey = `title${cap(lang)}`
+    const blocksKey = `blocks${cap(lang)}`
+
+    const results = { created: 0, updated: 0, skipped: 0, failed: [] }
 
     try {
-      // Get current max order for this course
-      const existing = await api.get(
-        `/chapters?filters[course][documentId][$eq]=${selectedCourse}&sort=order:desc&pagination[page]=1&pagination[pageSize]=1`
-      ).then(r => r.data.data || [])
-
-      let nextOrder = existing.length > 0 ? (existing[0].order || 0) + 1 : 1
-      let imported = 0
-
-      const titleKey = `title${baseLanguage.charAt(0).toUpperCase() + baseLanguage.slice(1)}`
-      const blocksKey = `blocks${baseLanguage.charAt(0).toUpperCase() + baseLanguage.slice(1)}`
+      // Fetch existing chapters of this course (published + drafts) for dedupe
+      const FIELDS = 'fields[0]=documentId&fields[1]=chapterKey&fields[2]=contentHash&pagination[page]=1&pagination[pageSize]=200'
+      const [pubRes, draftRes] = await Promise.all([
+        api.get(`/chapters?filters[course][documentId][$eq]=${selectedCourse}&status=published&${FIELDS}`),
+        api.get(`/chapters?filters[course][documentId][$eq]=${selectedCourse}&status=draft&${FIELDS}`),
+      ])
+      const byKey = new Map()
+      for (const e of [...(pubRes.data.data || []), ...(draftRes.data.data || [])]) {
+        if (!byKey.has(e.chapterKey)) byKey.set(e.chapterKey, e)
+      }
 
       for (let i = 0; i < chapters.length; i++) {
         const ch = chapters[i]
-        const data = {
-          [titleKey]: chapterTitles[i] || ch.title,
-          [blocksKey]: ch.blocks,
-          order: ch.order || nextOrder + i,
-          baseLanguage,
-          sourceMode: 'pdf',
-          course: { connect: [selectedCourse] },
+        try {
+          // Decide the action FIRST so unchanged reimports never touch the media library
+          const match = byKey.get(ch.chapterKey)
+          if (match && match.contentHash === ch.contentHash) {
+            results.skipped++ // identical content – do not create a duplicate
+            continue
+          }
+
+          // upload extracted figures to the media library (create/update only)
+          const blocks = []
+          for (const b of ch.blocks) {
+            if (b.type === 'image' && b._figure?.blob) {
+              const fileObj = await uploadFigureBlob(b._figure.blob, b._sourcePage || 0)
+              blocks.push({ ...stripInternal(b), media: fileObj ? { type: 'image', file: fileObj } : null })
+            } else {
+              blocks.push(stripInternal(b))
+            }
+          }
+
+          const data = {
+            [titleKey]: (chapterTitles[i] || ch.title).trim() || ch.title,
+            [blocksKey]: blocks,
+            order: ch.order,
+            baseLanguage: lang,
+            sourceMode: 'pdf',
+            sourceFile: ch.sourceFileName,
+            sourceVersion: ch.sourceVersion || null,
+            chapterKey: ch.chapterKey,
+            contentHash: ch.contentHash,
+            sourcePageFrom: ch.sourcePageFrom,
+            sourcePageTo: ch.sourcePageTo,
+          }
+
+          if (!match) {
+            await api.post('/chapters?status=published', {
+              data: { ...data, course: { connect: [selectedCourse] } },
+            })
+            results.created++
+          } else {
+            await api.put(`/chapters/${match.documentId}?status=published`, { data })
+            results.updated++
+          }
+        } catch (err) {
+          results.failed.push({
+            title: ch.title,
+            error: err.response?.data?.error?.message || err.message,
+          })
         }
-        await api.post('/chapters', { data })
-        imported++
       }
 
       queryClient.invalidateQueries({ queryKey: ['admin-chapters'] })
-      setImportedCount(imported)
+      setSummary(results)
     } catch (err) {
       console.error('Import failed:', err.response?.data || err.message)
       setError('Failed to import: ' + (err.response?.data?.error?.message || err.message))
@@ -274,41 +189,64 @@ export default function AdminChaptersImport() {
     setChapters([])
     setChapterTitles([])
     setSelectedCourse('')
-    setImportedCount(0)
-    if (fileRef.current) fileRef.current.value = ''
+    setSummary(null)
+    setError('')
   }
+
+  const countByType = (blocks) => {
+    const counts = {}
+    for (const b of blocks) counts[b.type] = (counts[b.type] || 0) + 1
+    return counts
+  }
+
+  const allExpanded = expandedChapters.size === chapters.length
 
   return (
     <div className="max-w-3xl">
       <h1 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-2">{t('admin.chaptersImport.title')}</h1>
       <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
-        {t('admin.chaptersImport.description') || 'Upload a rules PDF — each'} <strong>ARTICLE</strong> {t('admin.chaptersImport.headingBecomes') || 'heading becomes a separate chapter.'}
-        {t('admin.chaptersImport.editHint') || 'You can edit titles before importing.'}
+        {t('admin.chaptersImport.description') || 'Upload a rules PDF — each'}{' '}
+        <strong>INTRODUCTION / ARTICLE / APPENDIX</strong>{' '}
+        {t('admin.chaptersImport.headingBecomes') || 'heading becomes a separate chapter.'}{' '}
+        {t('admin.chaptersImport.tableHint') || 'Tables and figures are extracted as blocks. The table of contents is skipped automatically.'}
       </p>
 
       <div className="space-y-4">
         {/* Step 1: Upload */}
-        <div className="" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+        <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }} className="rounded-xl p-5">
           <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>1. {t('admin.chaptersImport.uploadStep')}</h2>
-          <div
-            onClick={() => fileRef.current.click()}
-            className="border-2 border-dashed rounded-xl p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
-            style={{ borderColor: 'var(--border)' }}
-          >
-            <DocumentArrowUpIcon className="w-10 h-10 mx-auto mb-2 text-blue-500" />
-            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
-              {file ? file.name : t('admin.chaptersImport.selectFile')}
-            </p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-              {t('admin.chaptersImport.acceptFormat')}
-            </p>
-            <input ref={fileRef} type="file" accept=".pdf" onChange={handleFileChange} className="hidden" />
-          </div>
+          <FileDropzone
+            icon={<DocumentArrowUpIcon className="w-7 h-7" />}
+            title={(dragging) =>
+              file
+                ? file.name
+                : dragging
+                  ? 'Drop the PDF here'
+                  : t('admin.chaptersImport.selectFile')
+            }
+            hint={t('admin.chaptersImport.acceptFormat')}
+            showBrowseHint={!file}
+            accept=".pdf"
+            ariaLabel="Upload PDF file"
+            className="py-10"
+            onFiles={(files) => {
+              const f = files[0]
+              if (f) handleFileChange({ target: { files: [f] } })
+            }}
+          />
 
           {parsing && (
-            <div className="mt-3 flex items-center gap-2 text-sm" style={{ color: 'var(--text-secondary)' }}>
-              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              {t('admin.chaptersImport.parsing')}
+            <div className="mt-4">
+              <div className="flex items-center gap-2 text-sm mb-2" style={{ color: 'var(--text-secondary)' }}>
+                <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                {t('admin.chaptersImport.parsing')}
+              </div>
+              <div className="w-full rounded-full h-1.5 overflow-hidden" style={{ backgroundColor: 'var(--border)' }}>
+                <div
+                  className="h-1.5 rounded-full bg-blue-500 transition-all duration-200"
+                  style={{ width: `${Math.round(parseProgress * 100)}%` }}
+                />
+              </div>
             </div>
           )}
           {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
@@ -316,45 +254,39 @@ export default function AdminChaptersImport() {
 
         {/* Step 2: Preview detected chapters */}
         {chapters.length > 0 && (
-          <div className="" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+          <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }} className="rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
                 {t('admin.chaptersImport.detectedStep')} ({chapters.length})
               </h2>
               <button
                 type="button"
-                onClick={() => {
-                  if (expandedChapters.size === chapters.length) {
-                    setExpandedChapters(new Set())
-                  } else {
-                    setExpandedChapters(new Set(chapters.map((_, i) => i)))
-                  }
-                }}
+                onClick={() => setExpandedChapters(allExpanded ? new Set() : new Set(chapters.map((_, i) => i)))}
                 className="text-xs font-medium px-3 py-1.5 rounded-lg border transition hover:bg-gray-100 dark:hover:bg-gray-700"
                 style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
               >
-                {expandedChapters.size === chapters.length ? t('admin.chaptersImport.collapseAll') : t('admin.chaptersImport.expandAll')}
+                {allExpanded ? t('admin.chaptersImport.collapseAll') : t('admin.chaptersImport.expandAll')}
               </button>
             </div>
 
             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
               {chapters.map((ch, i) => {
                 const isExpanded = expandedChapters.has(i)
+                const counts = countByType(ch.blocks)
+                const reviewCount = ch.blocks.filter(b => b.needsReview).length
                 return (
                   <div
-                    key={i}
+                    key={ch.chapterKey + i}
                     className="rounded-lg border overflow-hidden"
                     style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}
                   >
                     <div className="p-4">
                       <div className="flex items-start gap-3">
-                        <span
-                          className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5"
-                        >
+                        <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
                           {i + 1}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-2 mb-1.5">
                             <input
                               type="text"
                               value={chapterTitles[i] || ''}
@@ -379,41 +311,75 @@ export default function AdminChaptersImport() {
                               />
                             </button>
                           </div>
-                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                            {t('admin.chaptersImport.blocksOfContent', { count: ch.blocks.length })}
-                          </p>
+
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700" style={{ color: 'var(--text-muted)' }}>
+                              {ch.chapterKey}
+                            </span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700" style={{ color: 'var(--text-muted)' }}>
+                              {t('admin.chaptersImport.source', { from: ch.sourcePageFrom, to: ch.sourcePageTo })}
+                            </span>
+                            {Object.entries(counts).map(([type, n]) => {
+                              const badge = BLOCK_BADGES[type]
+                              if (!badge) return null
+                              return (
+                                <span key={type} className={`inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded ${badge.cls}`}>
+                                  <badge.icon className="w-3 h-3" />
+                                  {n} {t(`admin.chaptersImport.blocks.${type}`, { defaultValue: badge.label })}
+                                </span>
+                              )
+                            })}
+                            {reviewCount > 0 && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                                <ExclamationTriangleIcon className="w-3 h-3" />
+                                {t('admin.chaptersImport.needsReview')}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
 
                     {/* Expandable block previews */}
-                    {isExpanded && ch.blocks.length > 0 && (
+                    {isExpanded && (
                       <div className="border-t px-4 py-3 space-y-2 max-h-64 overflow-y-auto" style={{ borderColor: 'var(--border)' }}>
                         {ch.blocks.map((block, bi) => (
-                          <div
-                            key={block.id}
-                            className="p-2.5 rounded text-sm"
-                            style={{ backgroundColor: 'var(--bg-card)' }}
-                          >
-                            <span className="text-[10px] font-mono mr-2" style={{ color: 'var(--text-muted)' }}>
-                              #{bi + 1}
-                            </span>
-                            <span dangerouslySetInnerHTML={{
-                              __html: (block.content || '')
-                                .replace(/<\/?p>/g, '')
-                                .substring(0, 200)
-                            }} />
-                            {block.content?.length > 200 && (
-                              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>...</span>
+                          <div key={block.id || bi} className="p-2.5 rounded text-sm" style={{ backgroundColor: 'var(--bg-card)' }}>
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span className="text-[10px] font-mono mr-1" style={{ color: 'var(--text-muted)' }}>#{bi + 1}</span>
+                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${BLOCK_BADGES[block.type]?.cls || ''}`}>
+                                {BLOCK_BADGES[block.type]?.label || block.type}
+                              </span>
+                              {block.needsReview && (
+                                <span className="text-[10px] font-medium text-amber-600">⚠ {t('admin.chaptersImport.needsReview')}</span>
+                              )}
+                            </div>
+                            {block.type === 'table' && (
+                              <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
+                                {block.content?.headers?.join(' | ').slice(0, 120)}
+                                {block.content?.rows?.length ? ` · ${block.content.rows.length} rows` : ''}
+                              </p>
+                            )}
+                            {block.type === 'list' && (
+                              <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
+                                {block.items?.slice(0, 3).join(' · ')}{block.items?.length > 3 ? ' …' : ''}
+                              </p>
+                            )}
+                            {block.type === 'image' && (
+                              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                {block.caption || 'Figure'}
+                              </p>
+                            )}
+                            {block.type === 'text' && (
+                              <span dangerouslySetInnerHTML={{
+                                __html: (block.content || '').replace(/<\/?p>/g, '').substring(0, 200),
+                              }} />
                             )}
                           </div>
                         ))}
-                      </div>
-                    )}
-
-                    {isExpanded && ch.blocks.length === 0 && (
-                      <div className="border-t px-4 py-3" style={{ borderColor: 'var(--border)' }}>
-                        <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>{t('admin.chaptersImport.noContent')}</p>
+                        {ch.blocks.length === 0 && (
+                          <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>{t('admin.chaptersImport.noContent')}</p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -424,8 +390,8 @@ export default function AdminChaptersImport() {
         )}
 
         {/* Step 3: Course & Language */}
-        {chapters.length > 0 && importedCount === 0 && (
-          <div className="" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+        {chapters.length > 0 && !summary && (
+          <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }} className="rounded-xl p-5">
             <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>3. {t('admin.chaptersImport.courseLangStep')}</h2>
             <div className="space-y-3">
               <select
@@ -462,13 +428,16 @@ export default function AdminChaptersImport() {
                   </button>
                 ))}
               </div>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                {t('admin.chaptersImport.dupeHint') || 'Re-importing the same PDF is safe: identical chapters are skipped, changed ones are updated.'}
+              </p>
             </div>
           </div>
         )}
 
         {/* Step 4: Import */}
-        {chapters.length > 0 && selectedCourse && importedCount === 0 && (
-          <div className="" style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+        {chapters.length > 0 && selectedCourse && !summary && (
+          <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }} className="rounded-xl p-5">
             <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>4. {t('admin.chaptersImport.importStep')}</h2>
             <button
               onClick={handleImportAll}
@@ -491,19 +460,50 @@ export default function AdminChaptersImport() {
         )}
 
         {/* Result */}
-        {importedCount > 0 && (
+        {summary && (
           <div className="rounded-xl p-5 border border-green-200" style={{ backgroundColor: 'var(--bg-card)' }}>
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
                 <CheckCircleIcon className="w-5 h-5 text-green-600" />
               </div>
               <div>
                 <h3 className="font-bold text-green-700">{t('admin.chaptersImport.importComplete')}</h3>
                 <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {t('admin.chaptersImport.importedCount', { count: importedCount })}
+                  {summary.failed.length > 0
+                    ? t('admin.chaptersImport.partialComplete', { count: summary.failed.length })
+                    : t('admin.chaptersImport.allComplete')}
                 </p>
               </div>
             </div>
+
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="rounded-lg p-3 text-center border border-green-200 bg-green-50 dark:bg-green-900/20">
+                <p className="text-2xl font-bold text-green-600">{summary.created}</p>
+                <p className="text-xs font-medium text-green-700">{t('admin.chaptersImport.createdLabel')}</p>
+              </div>
+              <div className="rounded-lg p-3 text-center border border-blue-200 bg-blue-50 dark:bg-blue-900/20">
+                <p className="text-2xl font-bold text-blue-600">{summary.updated}</p>
+                <p className="text-xs font-medium text-blue-700">{t('admin.chaptersImport.updatedLabel')}</p>
+              </div>
+              <div className="rounded-lg p-3 text-center border border-gray-200 bg-gray-50 dark:bg-gray-800">
+                <p className="text-2xl font-bold text-gray-500">{summary.skipped}</p>
+                <p className="text-xs font-medium text-gray-500">{t('admin.chaptersImport.skippedLabel')}</p>
+              </div>
+            </div>
+
+            {summary.failed.length > 0 && (
+              <div className="mb-4 rounded-lg border border-red-200 p-3 space-y-1.5">
+                {summary.failed.map((f, i) => (
+                  <div key={i} className="flex items-start gap-2 text-xs">
+                    <XMarkIcon className="w-3.5 h-3.5 text-red-500 mt-0.5 flex-shrink-0" />
+                    <span style={{ color: 'var(--text-secondary)' }}>
+                      <strong>{f.title}</strong> — {f.error}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <button
               onClick={reset}
               className="w-full py-2 rounded-lg text-sm border transition"

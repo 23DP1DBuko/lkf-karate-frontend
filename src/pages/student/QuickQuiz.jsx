@@ -5,6 +5,8 @@ import api from '../../api/strapi'
 import { mediaUrl } from '../../api/media'
 import { useTranslation } from 'react-i18next'
 import { getQuestionText } from '../../api/strapi'
+import { BoltIcon } from '@heroicons/react/24/outline'
+import AkaAoQuestion from '../../components/questions/AkaAoQuestion'
 
 function MediaDisplay({ media }) {
   if (!media) return null
@@ -89,10 +91,15 @@ export default function QuickQuiz() {
     })
   }
 
-  const allAnswered = questions.length > 0 && questions.every(q => {
-    const value = answers[q.id]
+  // Array-aware "is this question answered?" check — multiple_choice
+  // multi-select stores arrays, everything else stores a string.
+  const hasAnswer = (q) => {
+    const value = answers[q?.id]
+    if (Array.isArray(value)) return value.length > 0
     return value !== undefined && value !== null && String(value).trim() !== ''
-  })
+  }
+
+  const allAnswered = questions.length > 0 && questions.every(hasAnswer)
 
   // getScoreResult can be uncommented if inline scoring display is needed
   // const getScoreResult = () => { ... }
@@ -104,7 +111,9 @@ export default function QuickQuiz() {
           ← {t('quiz.backToCourse')}
         </Link>
         <div className="bg-white rounded-xl shadow p-8 text-center">
-          <div className="text-4xl sm:text-5xl mb-4">🎯</div>
+          <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-blue-100 dark:bg-blue-500/15 flex items-center justify-center">
+            <BoltIcon className="w-7 h-7 text-blue-600 dark:text-blue-400" />
+          </div>
           <h1 className="text-2xl font-bold text-blue-700 mb-2">{t('quiz.title')}</h1>
           <p className="text-gray-500 mb-6">{t('quiz.subtitle')}</p>
 
@@ -159,6 +168,47 @@ export default function QuickQuiz() {
 
             {q.type === 'multiple_choice' && (
               <div className="space-y-2">
+                <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                  {t('exam.selectAll')}
+                </p>
+                {q.options?.map(option => {
+                  const selected = Array.isArray(answers[q.id]) && answers[q.id].includes(option)
+                  const toggle = () => {
+                    const current = Array.isArray(answers[q.id]) ? answers[q.id] : []
+                    setAnswers({
+                      ...answers,
+                      [q.id]: current.includes(option)
+                        ? current.filter(v => v !== option)
+                        : [...current, option],
+                    })
+                  }
+                  return (
+                    <label
+                      key={option}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${
+                        selected
+                          ? 'border-blue-600 bg-blue-600 text-white shadow-md'
+                          : 'border-gray-200 bg-white text-slate-800 hover:border-blue-300 hover:bg-blue-50'
+                      }`}
+                      style={{ color: selected ? 'white' : 'var(--text-primary)' }}
+                    >
+                      <input
+                        type="checkbox"
+                        name={`q-${q.id}`}
+                        value={option}
+                        checked={selected}
+                        onChange={toggle}
+                        className="sr-only"
+                      />
+                      {option}
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+
+            {q.type === 'single_choice' && (
+              <div className="space-y-2">
                 {q.options?.map(option => (
                   <label
                     key={option}
@@ -181,6 +231,19 @@ export default function QuickQuiz() {
                   </label>
                 ))}
               </div>
+            )}
+
+            {q.type === 'aka_ao' && (
+              <AkaAoQuestion
+                videoAkaUrl={q.videoAkaUrl}
+                videoAoUrl={q.videoAoUrl}
+                selectedValue={answers[q.id] || null}
+                onAnswer={(val) => setAnswers({ ...answers, [q.id]: val })}
+                akaLabel={t('exam.aka')}
+                aoLabel={t('exam.ao')}
+                showHeading={false}
+                showSubmit={false}
+              />
             )}
 
             {q.type === 'yes_no' && (
@@ -217,6 +280,23 @@ export default function QuickQuiz() {
                 value={answers[q.id] || ''}
                 onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })}
             />
+            )}
+
+            {/* BUG-007: graceful fallback for unknown question types so the
+                quiz stays answerable and submittable. */}
+            {q.type !== 'multiple_choice' && q.type !== 'single_choice' && q.type !== 'yes_no' && q.type !== 'open_text' && q.type !== 'aka_ao' && (
+              <>
+                <p className="text-xs font-medium mb-2 px-3 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+                  {t('exam.unsupportedType')}
+                </p>
+                <textarea
+                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={3}
+                  placeholder={t('exam.typeAnswer')}
+                  value={answers[q.id] || ''}
+                  onChange={e => setAnswers({ ...answers, [q.id]: e.target.value })}
+                />
+              </>
             )}
           </div>
         ))}

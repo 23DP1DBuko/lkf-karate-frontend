@@ -1,7 +1,8 @@
 import RichTextEditor from './RichTextEditor'
 import { 
   PlusIcon, TrashIcon, ArrowUpIcon, ArrowDownIcon,
-  PhotoIcon, VideoCameraIcon, DocumentTextIcon, QuestionMarkCircleIcon
+  PhotoIcon, VideoCameraIcon, DocumentTextIcon, QuestionMarkCircleIcon,
+  TableCellsIcon, ListBulletIcon, XMarkIcon
 } from '@heroicons/react/24/outline'
 import MediaUpload from './MediaUpload'
 import { useState, useEffect } from 'react'
@@ -9,11 +10,111 @@ import api from '../api/strapi'
 
 const BLOCK_TYPES = [
   { type: 'text', label: 'Text', icon: DocumentTextIcon },
+  { type: 'list', label: 'List', icon: ListBulletIcon },
+  { type: 'table', label: 'Table', icon: TableCellsIcon },
   { type: 'video', label: 'YouTube Video', icon: VideoCameraIcon },
   { type: 'image', label: 'Image', icon: PhotoIcon },
   { type: 'note', label: 'Note/Callout', icon: DocumentTextIcon },
   { type: 'question', label: 'Question', icon: QuestionMarkCircleIcon },
 ]
+
+function TableEditor({ block, onChange }) {
+  const content = block.content && typeof block.content === 'object'
+    ? block.content
+    : { headers: [], rows: [], caption: '' }
+  const update = (next) => onChange({ ...block, content: next })
+  const setCell = (ri, ci, val) => {
+    const rows = content.rows.map(r => [...r])
+    rows[ri][ci] = val
+    update({ ...content, rows })
+  }
+  const setHeader = (ci, val) => {
+    const headers = [...content.headers]
+    headers[ci] = val
+    update({ ...content, headers })
+  }
+  const addRow = () => update({ ...content, rows: [...content.rows, content.headers.map(() => '')] })
+  const removeRow = (ri) => update({ ...content, rows: content.rows.filter((_, i) => i !== ri) })
+  const addCol = () => update({ ...content, headers: [...content.headers, ''], rows: content.rows.map(r => [...r, '']) })
+  const removeCol = (ci) => update({
+    ...content,
+    headers: content.headers.filter((_, i) => i !== ci),
+    rows: content.rows.map(r => r.filter((_, i) => i !== ci)),
+  })
+
+  return (
+    <div className="space-y-2">
+      <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--border)' }}>
+        <table className="w-full text-sm">
+          <thead>
+            <tr style={{ backgroundColor: 'var(--bg-secondary)' }}>
+              {content.headers.map((h, ci) => (
+                <th key={ci} className="p-1 border-b relative min-w-[90px]" style={{ borderColor: 'var(--border)' }}>
+                  <input
+                    value={h}
+                    placeholder={`Col ${ci + 1}`}
+                    onChange={e => setHeader(ci, e.target.value)}
+                    className="w-full bg-transparent px-2 py-1.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
+                    style={{ color: 'var(--text-primary)' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeCol(ci)}
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
+                    aria-label="Remove column"
+                  >
+                    <XMarkIcon className="w-2.5 h-2.5" />
+                  </button>
+                </th>
+              ))}
+              <th className="p-1 border-b w-8" style={{ borderColor: 'var(--border)' }}>
+                <button type="button" onClick={addCol} className="w-6 h-6 rounded bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center text-sm" aria-label="Add column">
+                  +
+                </button>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {content.rows.map((row, ri) => (
+              <tr key={ri} className="border-b last:border-0" style={{ borderColor: 'var(--border)' }}>
+                {row.map((cell, ci) => (
+                  <td key={ci} className="p-1 border-r last:border-r-0" style={{ borderColor: 'var(--border)' }}>
+                    <input
+                      value={cell}
+                      onChange={e => setCell(ri, ci, e.target.value)}
+                      className="w-full bg-transparent px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 rounded"
+                      style={{ color: 'var(--text-primary)' }}
+                    />
+                  </td>
+                ))}
+                <td className="p-1 w-8 align-top">
+                  <button type="button" onClick={() => removeRow(ri)} className="w-6 h-6 rounded hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 flex items-center justify-center text-xs" aria-label="Remove row">
+                    ✕
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex items-center gap-2">
+        <button type="button" onClick={addRow} className="text-xs px-3 py-1.5 rounded-lg border font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20 transition" style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}>
+          + Add row
+        </button>
+        <input
+          value={content.caption || ''}
+          onChange={e => update({ ...content, caption: e.target.value })}
+          placeholder="Caption (optional)"
+          className="flex-1 border rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+          style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+        />
+      </div>
+      {block.needsReview && (
+        <p className="text-xs text-amber-600">⚠ needs review (from PDF import) — check the grid</p>
+      )}
+    </div>
+  )
+}
 
 function Block({ block, index, total, onChange, onDelete, onMoveUp, onMoveDown }) {
   return (
@@ -97,6 +198,29 @@ function Block({ block, index, total, onChange, onDelete, onMoveUp, onMoveDown }
           </div>
         )}
 
+        {block.type === 'list' && (
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+              List items (one per line)
+            </label>
+            <textarea
+              rows={Math.max(3, (block.items || []).length + 1)}
+              placeholder={'Item one\nItem two\nItem three'}
+              value={(block.items || []).join('\n')}
+              onChange={e => onChange({ ...block, items: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) })}
+              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+              style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+            />
+            {block.needsReview && (
+              <p className="text-xs mt-1 text-amber-600">⚠ needs review (from PDF import)</p>
+            )}
+          </div>
+        )}
+
+        {block.type === 'table' && (
+          <TableEditor block={block} onChange={onChange} />
+        )}
+
         {block.type === 'note' && (
           <div>
             <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
@@ -134,16 +258,24 @@ function Block({ block, index, total, onChange, onDelete, onMoveUp, onMoveDown }
               </label>
               <select
                 value={block.questionType || 'yes_no'}
-                onChange={e => onChange({ ...block, questionType: e.target.value, options: [], correctAnswer: '' })}
+                onChange={e => onChange({
+                  ...block,
+                  questionType: e.target.value,
+                  options: [],
+                  correctAnswer: '',
+                  correctAnswers: [],
+                })}
                 className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
               >
                 <option value="yes_no">Yes / No</option>
-                <option value="multiple_choice">Multiple Choice</option>
+                <option value="single_choice">Single Choice</option>
+                <option value="multiple_choice">Multiple Choice (multi-select)</option>
+                <option value="aka_ao">Aka / Ao (video)</option>
               </select>
             </div>
 
-            {block.questionType === 'multiple_choice' && (
+            {(block.questionType === 'multiple_choice' || block.questionType === 'single_choice') && (
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
                   Options (one per line)
@@ -160,11 +292,59 @@ function Block({ block, index, total, onChange, onDelete, onMoveUp, onMoveDown }
               </div>
             )}
 
+            {block.questionType === 'aka_ao' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    AKA video URL (YouTube or direct link) — leave AO empty for a single centered video
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    value={block.videoAkaUrl || ''}
+                    onChange={e => onChange({ ...block, videoAkaUrl: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                  />
+                  {block.videoAkaUrl && (() => {
+                    const vid = getYouTubeId(block.videoAkaUrl)
+                    return (
+                      <div className="mt-2 rounded-lg overflow-hidden bg-black" style={{ aspectRatio: '16/9' }}>
+                        {vid ? (
+                          <iframe
+                            src={`https://www.youtube.com/embed/${vid}`}
+                            className="w-full h-full"
+                            allowFullScreen
+                            title="AKA video preview"
+                          />
+                        ) : (
+                          <video controls preload="metadata" src={block.videoAkaUrl} className="w-full h-full" />
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                    AO video URL (optional — adds a second labeled video)
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://www.youtube.com/watch?v=..."
+                    value={block.videoAoUrl || ''}
+                    onChange={e => onChange({ ...block, videoAoUrl: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                  />
+                </div>
+              </div>
+            )}
+
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
                 Correct answer
               </label>
-              {block.questionType === 'yes_no' ? (
+              {block.questionType === 'yes_no' && (
                 <div className="flex gap-2">
                   {['true', 'false'].map(val => (
                     <button
@@ -182,7 +362,27 @@ function Block({ block, index, total, onChange, onDelete, onMoveUp, onMoveDown }
                     </button>
                   ))}
                 </div>
-              ) : (
+              )}
+              {block.questionType === 'aka_ao' && (
+                <div className="flex gap-2">
+                  {['aka', 'ao'].map(val => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => onChange({ ...block, correctAnswer: val })}
+                      className="flex-1 py-2 rounded-lg border text-sm font-bold uppercase transition"
+                      style={{
+                        backgroundColor: block.correctAnswer === val ? (val === 'aka' ? '#dc2626' : '#2563eb') : 'var(--bg-secondary)',
+                        color: block.correctAnswer === val ? 'white' : 'var(--text-primary)',
+                        borderColor: block.correctAnswer === val ? (val === 'aka' ? '#dc2626' : '#2563eb') : 'var(--border)',
+                      }}
+                    >
+                      {val}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {block.questionType === 'single_choice' && (
                 <select
                   value={block.correctAnswer || ''}
                   onChange={e => onChange({ ...block, correctAnswer: e.target.value })}
@@ -194,6 +394,43 @@ function Block({ block, index, total, onChange, onDelete, onMoveUp, onMoveDown }
                     <option key={i} value={opt}>{opt}</option>
                   ))}
                 </select>
+              )}
+              {block.questionType === 'multiple_choice' && (
+                <div className="space-y-1.5">
+                  <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                    Select all correct options
+                  </p>
+                  {(block.options || []).filter(o => o.trim()).map((opt, i) => {
+                    const on = (block.correctAnswers || []).includes(opt)
+                    return (
+                      <label
+                        key={i}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm cursor-pointer"
+                        style={{
+                          borderColor: on ? '#2563eb' : 'var(--border)',
+                          backgroundColor: on ? 'rgba(37,99,235,0.08)' : 'var(--bg-secondary)',
+                          color: 'var(--text-primary)',
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={(e) => {
+                            const list = block.correctAnswers || []
+                            onChange({
+                              ...block,
+                              correctAnswers: e.target.checked
+                                ? [...list, opt]
+                                : list.filter(v => v !== opt),
+                            })
+                          }}
+                          className="accent-blue-600"
+                        />
+                        {opt}
+                      </label>
+                    )
+                  })}
+                </div>
               )}
             </div>
           </div>
@@ -212,7 +449,12 @@ function Block({ block, index, total, onChange, onDelete, onMoveUp, onMoveDown }
               {block.content}
             </p>
             <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              Correct: <span className="text-green-600 font-medium">{block.correctAnswer}</span>
+              Correct:{' '}
+              <span className="text-green-600 font-medium">
+                {Array.isArray(block.correctAnswers) && block.correctAnswers.length > 0
+                  ? block.correctAnswers.join(', ')
+                  : block.correctAnswer || '—'}
+              </span>
             </p>
           </div>
         )}
@@ -306,9 +548,15 @@ function BankPicker({ courseId, onSelect, onClose }) {
               #{q.order}
             </span>
             <span className={`text-xs px-1.5 py-0.5 rounded mr-2 ${
-              q.type === 'yes_no' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+              q.type === 'yes_no' ? 'bg-purple-100 text-purple-700'
+              : q.type === 'single_choice' ? 'bg-teal-100 text-teal-700'
+              : q.type === 'aka_ao' ? 'bg-amber-100 text-amber-700'
+              : 'bg-blue-100 text-blue-700'
             }`}>
-              {q.type === 'yes_no' ? 'Y/N' : 'MC'}
+              {q.type === 'yes_no' ? 'Y/N'
+                : q.type === 'single_choice' ? 'SC'
+                : q.type === 'aka_ao' ? 'A/A'
+                : 'MC'}
             </span>
             {q.text || q.textLv || ''}
           </button>
@@ -326,14 +574,18 @@ export default function BlockEditor({ blocks = [], onChange, courseId }) {
     const newBlock = {
       id: crypto.randomUUID(),
       type,
-      content: '',
+      content: type === 'table' ? { headers: ['Column'], rows: [['']], caption: '' } : '',
       mediaItems: [],
       embedUrl: '',
       caption: '',
       questionType: 'yes_no',
       options: [],
       correctAnswer: '',
+      correctAnswers: [],
+      videoAkaUrl: '',
+      videoAoUrl: '',
     }
+    if (type === 'list') newBlock.items = ['Item']
     onChange([...blocks, newBlock])
     setShowAddMenu(false)
   }
@@ -436,8 +688,11 @@ export default function BlockEditor({ blocks = [], onChange, courseId }) {
               questionId: question.documentId,
               content: question.text || question.textLv || '',
               questionType: question.type,
-              options: question.options || [],
+              options: question.optionsLv || question.options || [],
               correctAnswer: question.correctAnswer,
+              correctAnswers: question.correctAnswers || [],
+              videoAkaUrl: question.videoAkaUrl || '',
+              videoAoUrl: question.videoAoUrl || '',
               mediaItems: [],
               embedUrl: '',
               caption: '',

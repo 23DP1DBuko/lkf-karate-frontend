@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next'
 import { useTheme } from '../context/useTheme'
 import MobileNav from '../components/MobileNav'
 const BentoCard = lazy(() => import('../components/BentoCard'))
+const LandingCompetitionsCalendar = lazy(() => import('../components/LandingCompetitionsCalendar'))
 import LandingFooter from '../components/LandingFooter'
 import {
   ChevronDownIcon,
@@ -95,7 +96,7 @@ export default function Landing() {
 
           <div className="hidden md:flex items-center gap-2">
             <Link to="/rules" className={`px-4 py-3 text-sm font-medium rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
-              isDark ? 'text-slate-300 hover:text-white hover:bg-white/[0.06]' : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100/60'
+              isDark ? 'text-slate-300 hover:text-white hover:bg-white/[0.06]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
             }`}>{t('landing.rules')}</Link>
             <Link to="/login" className={`px-5 py-3 text-sm font-medium rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
               isDark ? 'text-slate-200 hover:text-white hover:bg-white/[0.06]' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100/60'
@@ -158,8 +159,8 @@ export default function Landing() {
 
               <h1 className={`text-5xl md:text-7xl font-bold mb-2 tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>LKF Academy</h1>
               <p className={`text-xs md:text-sm font-medium tracking-widest uppercase mb-4 ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>Latvijas Karatē federācija</p>
-              <p className={`text-lg md:text-xl mb-3 max-w-2xl font-medium ${isDark ? 'text-slate-300' : 'text-slate-500'}`}>{t('landing.subtitle')}</p>
-              <p className={`text-base md:text-lg mb-10 max-w-2xl ${isDark ? 'text-slate-400' : 'text-slate-400'}`}>{t('landing.description')}</p>
+              <p className={`text-lg md:text-xl mb-3 max-w-2xl font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t('landing.subtitle')}</p>
+              <p className={`text-base md:text-lg mb-10 max-w-2xl ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t('landing.description')}</p>
 
               <div className="flex gap-4 justify-start flex-wrap">
                 <Link to="/register" className={`px-8 py-3.5 rounded-xl font-semibold text-base shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
@@ -237,6 +238,28 @@ export default function Landing() {
           </Suspense>
         </section>
 
+        {/* Competitions Calendar Section — open to everyone, so guests see it too */}
+        <section className="relative max-w-6xl mx-auto px-4 pb-16 scroll-mt-24">
+          <Suspense
+            fallback={
+              <div className={`rounded-2xl p-6 border animate-pulse ${
+                isDark ? 'border-white/[0.06] bg-white/[0.03]' : 'border-white/60 bg-white/40'
+              }`}>
+                <div className="w-10 h-10 rounded-xl bg-slate-300/50 mb-4" />
+                <div className="h-4 w-48 rounded bg-slate-300/50 mb-2" />
+                <div className="h-3 w-72 rounded bg-slate-300/50 mb-6" />
+                <div className="grid grid-cols-7 gap-2">
+                  {Array.from({ length: 28 }).map((_, i) => (
+                    <div key={i} className="aspect-square rounded-lg bg-slate-300/40" />
+                  ))}
+                </div>
+              </div>
+            }
+          >
+            <LandingCompetitionsCalendar isDark={isDark} />
+          </Suspense>
+        </section>
+
         {/* CTA Section */}
         <section className="relative max-w-6xl mx-auto px-4 pb-20">
           <div
@@ -255,7 +278,7 @@ export default function Landing() {
             <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-amber-500/10 blur-3xl" />
             <div className="relative z-10 text-center">
               <h2 className={`text-2xl md:text-3xl font-bold mb-3 ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{t('landing.ctaTitle')}</h2>
-              <p className={`mb-8 max-w-lg mx-auto ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t('landing.ctaDesc')}</p>
+              <p className={`mb-8 max-w-lg mx-auto ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t('landing.ctaDesc')}</p>
               <Link to="/register" className={`inline-flex px-8 py-3.5 rounded-xl font-semibold shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
                 isDark
                   ? 'bg-white text-slate-900'

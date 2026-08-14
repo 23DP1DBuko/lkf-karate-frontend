@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import api from '../api/strapi'
 import { mediaUrl } from '../api/media'
+import { ArrowUpTrayIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import FileDropzone from './FileDropzone'
 
 export default function MediaUpload({ onUpload, label = 'Upload Media', multiple = false, current = null, mediaType = 'image' }) {
   const [uploading, setUploading] = useState(false)
@@ -38,66 +40,87 @@ export default function MediaUpload({ onUpload, label = 'Upload Media', multiple
   }
 
   const currentUrl = current?.file?.url
-  ? mediaUrl(current.file.url)
-  : current?.url
-    ? mediaUrl(current.url)
-    : null
+    ? mediaUrl(current.file.url)
+    : current?.url
+      ? mediaUrl(current.url)
+      : null
+
+  const isVideo =
+    (current?.file?.mime || current?.mime || '').startsWith('video/') || mediaType === 'video'
+  const hasPreview = Boolean(preview || currentUrl)
 
   return (
     <div>
-      <label className="block text-sm font-medium mb-1">{label}</label>
+      <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-primary)' }}>
+        {label}
+      </label>
 
-      {(preview || currentUrl) && current && (
-        <div className="mb-2">
-          {(current?.file?.mime || current?.mime || '').startsWith('video/') || mediaType === 'video' ? (
-            <video src={preview || currentUrl} controls className="w-full max-h-40 rounded-lg" />
-          ) : (
-            <img src={preview || currentUrl} alt="Uploaded media preview" className="w-full max-h-40 object-cover rounded-lg" />
+      {/* Preview */}
+      {hasPreview && (
+        <div className="mb-3">
+          <div
+            className="relative rounded-xl overflow-hidden border"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            {isVideo ? (
+              <video
+                src={preview || currentUrl}
+                controls
+                className="w-full max-h-52 object-contain bg-black"
+              />
+            ) : (
+              <img
+                src={preview || currentUrl}
+                alt="Uploaded media preview"
+                className="w-full max-h-52 object-contain"
+                style={{ backgroundColor: 'var(--bg-secondary)' }}
+              />
+            )}
+          </div>
+          {current && (
+            <button
+              type="button"
+              onClick={() => {
+                setPreview(null)
+                onUpload(null)
+              }}
+              className="mt-1.5 text-xs text-red-500 hover:text-red-600 hover:underline flex items-center gap-1 transition"
+            >
+              <XMarkIcon className="w-3.5 h-3.5" />
+              Remove media
+            </button>
           )}
         </div>
       )}
 
-      <label
-        className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed rounded-lg cursor-pointer transition ${
-          uploading ? 'opacity-50' : 'hover:border-blue-400'
-        }`}
-        onDragOver={(e) => e.preventDefault()}
-        onDragEnter={(e) => e.currentTarget.classList.add('border-blue-400')}
-        onDragLeave={(e) => e.currentTarget.classList.remove('border-blue-400')}
-        onDrop={async (e) => {
-          e.preventDefault()
-          e.currentTarget.classList.remove('border-blue-400')
-          if (uploading) return
-          const files = e.dataTransfer.files
-          if (!files.length) return
-          const fakeEvent = { target: { files } }
-          handleFile(fakeEvent)
-        }}
-      >
-        <span className="text-2xl">📎</span>
-        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>
-          {uploading ? 'Uploading...' : `Click or drag to ${current ? 'change' : 'upload'} ${multiple ? 'files' : 'file'}`}
-        </span>
-         <input
-          type="file"
-          accept={mediaType === 'image' ? 'image/*' : mediaType === 'video' ? 'video/mp4,video/*' : 'image/*,video/*'}
-          onChange={handleFile}
-          disabled={uploading}
-        />
-      </label>
-
-      {current && (
-        <button
-          type="button"
-          onClick={() => {
-            setPreview(null)
-            onUpload(null)
-          }}
-          className="text-red-500 text-xs mt-1 hover:underline"
-        >
-          Remove media
-        </button>
-      )}
+      {/* Dropzone */}
+      <FileDropzone
+        icon={
+          uploading ? (
+            <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <ArrowUpTrayIcon className="w-6 h-6" />
+          )
+        }
+        title={(dragging) =>
+          uploading
+            ? 'Uploading…'
+            : dragging
+              ? 'Drop to upload'
+              : `Drag & drop ${multiple ? 'files' : 'an image'} here`
+        }
+        disabled={uploading}
+        accept={
+          mediaType === 'image'
+            ? 'image/*'
+            : mediaType === 'video'
+              ? 'video/mp4,video/*'
+              : 'image/*,video/*'
+        }
+        multiple={multiple}
+        ariaLabel={`Upload ${multiple ? 'files' : 'file'}`}
+        onFiles={(files) => handleFile({ target: { files } })}
+      />
     </div>
   )
 }

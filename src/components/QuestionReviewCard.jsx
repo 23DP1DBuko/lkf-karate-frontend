@@ -44,6 +44,15 @@ export default function QuestionReviewCard({
 
   const answerColor = isCorrect ? 'text-green-600' : 'text-red-600'
 
+  // Multi-select multiple choice stores the expected set in correctAnswers;
+  // every other type uses the single correctAnswer string.
+  const displayCorrect =
+    question?.type === 'multiple_choice' &&
+    Array.isArray(question.correctAnswers) &&
+    question.correctAnswers.length > 0
+      ? question.correctAnswers
+      : correctAnswer
+
   return (
     <Card className="rounded-2xl shadow-lg p-5 border">
       <div className="flex items-start gap-4">
@@ -61,11 +70,14 @@ export default function QuestionReviewCard({
             {getLocalizedField(question, language, 'text') || question.textLv}
           </p>
 
-          {(question.type === 'multiple_choice' || question.type === 'yes_no') && (
+          {(question.type === 'multiple_choice' ||
+            question.type === 'single_choice' ||
+            question.type === 'yes_no' ||
+            question.type === 'aka_ao') && (
             <>
               <p className={`mt-2 text-sm sm:text-base font-semibold ${answerColor}`}>
                 {labels.correctChoice || 'Correct answer'}:{' '}
-                {formatAnswerValue(correctAnswer, question, t)}
+                {formatAnswerValue(displayCorrect, question, t)}
               </p>
 
               {!isCorrect && userAnswer !== undefined && (
