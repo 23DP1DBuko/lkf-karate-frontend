@@ -8,9 +8,15 @@ import { useTranslation } from 'react-i18next'
 import ExamQuestionView from '../../components/questions/ExamQuestionView'
 import YesNoQuestion from '../../components/questions/YesNoQuestion'
 import MultipleChoiceQuestion from '../../components/questions/MultipleChoiceQuestion'
+import AkaAoQuestion from '../../components/questions/AkaAoQuestion'
 import QuestionProgressDots from '../../components/questions/QuestionProgressDots'
 import OpenTextQuestion from '../../components/questions/OpenTextQuestion'
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
+import {
+  CheckCircleIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  ClockIcon,
+} from '@heroicons/react/24/outline'
 
 export default function ExamPage() {
   const { t } = useTranslation()
@@ -35,13 +41,67 @@ export default function ExamPage() {
   const answersRef = useRef(answers)
   const autoSubmittedRef = useRef(false)
 
+  // ── Silent anti-cheat tracking (no UI, no warnings) ────────────────────
+  // Counts blur/hidden events and accumulates the time the page was away,
+  // then reports the counters with every save-progress/submit call.
+  const trackingRef = useRef({
+    blurCount: 0,
+    totalTimeOutsideMs: 0,
+    awaySince: null,
+    lastVisibilityState: 'visible',
+    lastKnownPage: 'exam',
+  })
+
+  // Build the tracking payload sent alongside answers on every save.
+  const getTrackingPayload = () => {
+    const tr = trackingRef.current
+    return {
+      blurCount: tr.blurCount,
+      totalTimeOutsideSeconds: Math.floor(tr.totalTimeOutsideMs / 1000),
+      lastVisibilityState: tr.lastVisibilityState,
+      lastKnownPage: tr.lastKnownPage,
+    }
+  }
+
+  useEffect(() => {
+    const markAway = () => {
+      const tr = trackingRef.current
+      if (tr.awaySince !== null) return // already counted
+      tr.blurCount += 1
+      tr.awaySince = Date.now()
+      tr.lastVisibilityState = 'hidden'
+    }
+    const markBack = () => {
+      const tr = trackingRef.current
+      if (tr.awaySince === null) return
+      tr.totalTimeOutsideMs += Date.now() - tr.awaySince
+      tr.awaySince = null
+      tr.lastVisibilityState = 'visible'
+    }
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') markAway()
+      else markBack()
+    }
+    const onBlur = () => markAway()
+    const onFocus = () => markBack()
+
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('blur', onBlur)
+    window.addEventListener('focus', onFocus)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('blur', onBlur)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [])
+
   const handleSubmit = useCallback(async () => {
     if (submitting) return
     setSubmitError(null)
     setTimedOut(false)
     setSubmitting(true)
     try {
-      const res = await api.post('/exams/submit', { attemptId: attempt, answers })
+      const res = await api.post('/exams/submit', { attemptId: attempt, answers, ...getTrackingPayload() })
 
       navigate('/results', {
         state: {
@@ -108,7 +168,11 @@ export default function ExamPage() {
     const timer = setTimeout(async () => {
       setSaveStatus('saving')
       try {
-        await api.post('/exams/save-progress', { attemptId: attempt, answers })
+        await api.post('/exams/save-progress', {
+          attemptId: attempt,
+          answers,
+          ...getTrackingPayload(),
+        })
         lastSavedRef.current = JSON.stringify(answers)
         setSaveStatus('saved')
       } catch (err) {
@@ -141,7 +205,7 @@ export default function ExamPage() {
         navigator.sendBeacon(
           `${API_URL}/api/exams/save-progress`,
           new Blob(
-            [JSON.stringify({ attemptId: attempt, answers: currentAnswers })],
+            [JSON.stringify({ attemptId: attempt, answers: currentAnswers, ...getTrackingPayload() })],
             { type: 'application/json' }
           )
         )
@@ -167,7 +231,7 @@ export default function ExamPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setTimedOut(true)
 
-    api.post('/exams/submit', { attemptId: attempt, answers })
+    api.post('/exams/submit', { attemptId: attempt, answers, ...getTrackingPayload() })
       .then(res => {
         navigate('/results', {
           state: {
@@ -212,7 +276,7 @@ export default function ExamPage() {
   if (completedExam) return (
     <div className="flex items-center justify-center min-h-screen p-6">
       <div className="bg-white rounded-xl shadow p-8 max-w-md w-full text-center">
-        <div className="text-4xl sm:text-5xl mb-4">✅</div>
+        <CheckCircleIcon className="w-14 h-14 sm:w-16 sm:h-16 mx-auto mb-4 text-emerald-500" />
         <h1 className="text-2xl font-bold text-blue-700 mb-2">{t('exam.alreadyCompleted')}</h1>
         <p className="text-gray-500 mb-6">
           {t('exam.alreadyCompletedDesc')}
@@ -250,10 +314,15 @@ export default function ExamPage() {
     : null
   const hasImage = !!currentImageSrc
 
-  const allAnswered = questions.length > 0 && questions.every(q => {
-    const value = answers[q.id]
+  // Array-aware "is this question answered?" check — multiple_choice
+  // multi-select stores arrays, everything else stores a string.
+  const hasAnswer = (q) => {
+    const value = answers[q?.id]
+    if (Array.isArray(value)) return value.length > 0
     return value !== undefined && value !== null && String(value).trim() !== ''
-  })
+  }
+
+  const allAnswered = questions.length > 0 && questions.every(hasAnswer)
 
   const goNext = () => {
     if (currentIndex < totalQuestions - 1) {
@@ -297,14 +366,41 @@ export default function ExamPage() {
       )
     }
 
-    // ── Fallback for multiple_choice / open_text ──────────────────────────
-    return (
-      <div className="flex flex-col gap-8">
-        {q.media?.length > 0 && (
-          <MediaDisplay media={q.media} />
-        )}
+    // ── Multiple-select multiple choice (checkbox, array answer) ──────────
+    if (q.type === 'multiple_choice') {
+      return (
+        <div className="flex flex-col gap-8">
+          {q.media?.length > 0 && (
+            <MediaDisplay media={q.media} />
+          )}
+          <MultipleChoiceQuestion
+            questionText={q.text}
+            options={q.options || []}
+            multiSelect
+            hint={t('exam.selectAll')}
+            selectedValue={Array.isArray(answers[q.id]) ? answers[q.id] : []}
+            onAnswer={(val) => setAnswers(prev => ({ ...prev, [q.id]: val }))}
+            onSubmit={() => {
+              if (isLastQuestion) {
+                handleSubmit()
+              } else {
+                goNext()
+              }
+            }}
+            canSubmit={hasAnswer(q)}
+            submitLabel={isLastQuestion ? t('exam.submit') : undefined}
+          />
+        </div>
+      )
+    }
 
-        {q.type === 'multiple_choice' && (
+    // ── Single choice (radio) — like classic multiple choice ──────────────
+    if (q.type === 'single_choice') {
+      return (
+        <div className="flex flex-col gap-8">
+          {q.media?.length > 0 && (
+            <MediaDisplay media={q.media} />
+          )}
           <MultipleChoiceQuestion
             questionText={q.text}
             options={q.options || []}
@@ -316,9 +412,42 @@ export default function ExamPage() {
                 goNext()
               }
             }}
-            canSubmit={!!sharedAnswerProps.selectedValue}
+            canSubmit={hasAnswer(q)}
             submitLabel={isLastQuestion ? t('exam.submit') : undefined}
           />
+        </div>
+      )
+    }
+
+    // ── Aka / Ao video question ───────────────────────────────────────────
+    if (q.type === 'aka_ao') {
+      return (
+        <AkaAoQuestion
+          questionText={q.text}
+          videoAkaUrl={q.videoAkaUrl}
+          videoAoUrl={q.videoAoUrl}
+          selectedValue={answers[q.id] || null}
+          onAnswer={(val) => setAnswers(prev => ({ ...prev, [q.id]: val }))}
+          onSubmit={() => {
+            if (isLastQuestion) {
+              handleSubmit()
+            } else {
+              goNext()
+            }
+          }}
+          canSubmit={hasAnswer(q)}
+          submitLabel={isLastQuestion ? t('exam.submit') : undefined}
+          akaLabel={t('exam.aka')}
+          aoLabel={t('exam.ao')}
+        />
+      )
+    }
+
+    // ── Fallback for open_text / unknown types ────────────────────────────
+    return (
+      <div className="flex flex-col gap-8">
+        {q.media?.length > 0 && (
+          <MediaDisplay media={q.media} />
         )}
 
         {q.type === 'open_text' && (
@@ -337,6 +466,33 @@ export default function ExamPage() {
             submitLabel={isLastQuestion ? t('exam.submit') : undefined}
             placeholder={t('exam.typeAnswer')}
           />
+        )}
+
+        {/* BUG-007: graceful fallback for unknown question types so the exam
+            never dead-ends — the question stays answerable as free text. */}
+        {q.type !== 'open_text' && (
+          <div className="flex flex-col gap-4">
+            <p
+              className="text-xs font-medium px-3 py-1.5 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
+            >
+              {t('exam.unsupportedType')}
+            </p>
+            <OpenTextQuestion
+              questionText={q.text}
+              value={answers[q.id] || ''}
+              onChange={(val) => setAnswers(prev => ({ ...prev, [q.id]: val }))}
+              onSubmit={() => {
+                if (isLastQuestion) {
+                  handleSubmit()
+                } else {
+                  goNext()
+                }
+              }}
+              canSubmit={!!(answers[q.id] || '').trim()}
+              submitLabel={isLastQuestion ? t('exam.submit') : undefined}
+              placeholder={t('exam.typeAnswer')}
+            />
+          </div>
         )}
       </div>
     )
@@ -395,7 +551,7 @@ export default function ExamPage() {
         <button
           type="button"
           onClick={goNext}
-          disabled={!answers[currentQuestion?.id]}
+          disabled={!hasAnswer(currentQuestion)}
           className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200
             bg-blue-600 text-white shadow-lg shadow-blue-600/20
             hover:bg-blue-700 hover:shadow-xl hover:shadow-blue-600/30
@@ -475,11 +631,13 @@ export default function ExamPage() {
               </span>
             ) : timedOut ? (
               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 font-semibold text-sm">
-                ⏰ Time's up! Please submit now.
+                <ClockIcon className="w-4 h-4" />
+                Time's up! Please submit now.
               </span>
             ) : (
-              <span className={`text-base font-mono font-semibold ${timeLeft < 60 ? 'text-red-500' : ''}`}>
-                ⏱ {formatTime(timeLeft)}
+              <span className={`inline-flex items-center gap-1.5 text-base font-mono font-semibold ${timeLeft < 60 ? 'text-red-500' : ''}`}>
+                <ClockIcon className="w-4 h-4" />
+                {formatTime(timeLeft)}
               </span>
             )}
           </div>

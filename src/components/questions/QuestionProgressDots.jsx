@@ -20,7 +20,10 @@ export default function QuestionProgressDots({
     <nav className="flex flex-wrap items-center justify-center gap-2 mb-8" aria-label="Question progress">
       {questions.map((q, i) => {
         const isCurrent = i === currentIndex
-        const isAnswered = !!answers[q.id]
+        // Array answers (multi-select) count as answered only when non-empty
+        const isAnswered = Array.isArray(answers[q.id])
+          ? answers[q.id].length > 0
+          : !!answers[q.id]
 
         let dotStyle = {}
         let className = ''

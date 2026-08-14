@@ -1,12 +1,21 @@
-// ChapterDetail.jsx — FULL CLEAN VERSION
+// ChapterDetail.jsx — student chapter view. New chapters render their blocks
+// through the shared <ChapterBlocks> document renderer; legacy chapters fall
+// back to videoUrl/content/media.
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import api from '../../api/strapi'
 import { mediaUrl } from '../../api/media'
 import { useTranslation } from 'react-i18next'
-import { getQuestionText, getLocalizedField, getLocalizedArray } from '../../api/strapi'
-import MediaDisplay from '../../components/MediaDisplay'
+import { getLocalizedField, getLocalizedArray } from '../../api/strapi'
+import ChapterBlocks from '../../components/ChapterBlocks'
+import {
+  CheckIcon,
+  CheckCircleIcon,
+  ChevronDownIcon,
+  DocumentTextIcon,
+  ListBulletIcon,
+} from '@heroicons/react/24/outline'
 
 // ─── RichText viewer (NOT the editor – just renders saved HTML) ───────────────
 function RichText({ content }) {
@@ -21,7 +30,6 @@ function RichText({ content }) {
     )
   }
 
-  
   // Slate/Strapi rich-text JSON fallback
   return (
     <div className="prose prose-slate max-w-none" style={{ color: 'var(--text-primary)' }}>
@@ -41,19 +49,6 @@ function RichText({ content }) {
     </div>
   )
 }
-function getBlockFile(block) {
-    return block.media?.file || block.file || block.mediaItems?.[0]?.file || null
-  }
-
-// ─── Resolve image src from a block (handles both new & old shape) ────────────
-function resolveImageSrc(block) {
-  if (block.media?.file?.url) return mediaUrl(block.media.file.url)   // ← YOUR ACTUAL SHAPE
-  if (block.mediaItems?.[0]?.file?.url) return mediaUrl(block.mediaItems[0].file.url)
-  if (block.file?.url) return mediaUrl(block.file.url)
-  if (block.media?.url) return mediaUrl(block.media.url)
-  if (block.url) return block.url
-  return null
-}
 
 // ─── YouTube video ID extractor ───────────────────────────────────────────────
 function getYouTubeId(url) {
@@ -64,213 +59,6 @@ function getYouTubeId(url) {
   } catch { return null }
 }
 
-// ─── Interactive question card ────────────────────────────────────────────────
-function QuestionCard({ question, onCorrect }) {
-  const [selected, setSelected] = useState(null)
-  const [locked, setLocked] = useState(false)
-  const [feedback, setFeedback] = useState(null)
-
-  const handleAnswer = (answer) => {
-    if (locked) return
-    setSelected(answer)
-    const isCorrect =
-      String(answer).toLowerCase() === String(question.correctAnswer).toLowerCase()
-    if (isCorrect) {
-      setFeedback('correct')
-      setLocked(true)
-      onCorrect(question.id)
-    } else {
-      setFeedback('wrong')
-    }
-  }
-  return (
-    <div className={`rounded-xl border-2 p-5 transition-all ${
-      feedback === 'correct'
-        ? 'border-green-400 bg-green-50 dark:bg-green-900/20'
-        : feedback === 'wrong'
-          ? 'border-red-300 bg-red-50 dark:bg-red-900/20'
-          : 'border-gray-200 bg-white dark:bg-gray-800 dark:border-gray-700'
-    }`}>
-      <p className="font-medium mb-4" style={{ color: 'var(--text-primary)' }}>
-        {question.text}
-      </p>
-
-      {/* Question media (image attached to a question block) */}
-      {question.mediaItems?.length > 0 && (
-        <MediaDisplay items={question.mediaItems} />
-      )}
-
-      {question.type === 'yes_no' && (
-        <div className="flex gap-3">
-          {['true', 'false'].map(val => (
-            <button
-              key={val}
-              onClick={() => handleAnswer(val)}
-              disabled={locked}
-              className={`flex-1 py-2 rounded-lg border font-medium text-sm transition
-                ${locked && val === String(question.correctAnswer)
-                  ? 'bg-green-500 text-white border-green-500'
-                  : selected === val && feedback === 'wrong'
-                    ? 'bg-red-500 text-white border-red-500'
-                    : 'border-gray-300 hover:border-blue-400 dark:border-gray-600'
-                } disabled:cursor-not-allowed`}
-              style={{
-                color:
-                  (locked && val === String(question.correctAnswer)) ||
-                  (selected === val && feedback === 'wrong')
-                    ? 'white'
-                    : 'var(--text-primary)',
-              }}
-            >
-              {val === 'true' ? '✓ Yes' : '✗ No'}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {question.type === 'multiple_choice' && (
-        <div className="space-y-2">
-          {question.options?.map(option => (
-            <button
-              key={option}
-              onClick={() => handleAnswer(option)}
-              disabled={locked}
-              className={`w-full text-left px-4 py-2 rounded-lg border text-sm transition
-                ${locked && option === question.correctAnswer
-                  ? 'bg-green-500 text-white border-green-500'
-                  : selected === option && feedback === 'wrong'
-                    ? 'bg-red-500 text-white border-red-500'
-                    : 'border-gray-300 hover:border-blue-400 dark:border-gray-600'
-                } disabled:cursor-not-allowed`}
-              style={{
-                color:
-                  (locked && option === question.correctAnswer) ||
-                  (selected === option && feedback === 'wrong')
-                    ? 'white'
-                    : 'var(--text-primary)',
-              }}
-            >
-              {option}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {feedback === 'correct' && (
-        <div className="mt-3 text-green-600 font-medium text-sm">✅ Correct!</div>
-      )}
-      {feedback === 'wrong' && (
-        <div className="mt-3 text-red-600 font-medium text-sm">❌ Wrong, try again</div>
-      )}
-    </div>
-  )
-}
-
-// ─── Block renderer (mirrors ChapterPreviewModal logic exactly) ───────────────
-function BlockRenderer({ block, i, onCorrect, language }) {
-  if (block.type === 'text') return (
-    <div key={i} className="rounded-xl shadow p-6" style={{ backgroundColor: 'var(--bg-card)' }}>
-      <RichText content={block.content} />
-    </div>
-  )
-
-  if (block.type === 'video') {
-    const videoId = getYouTubeId(block.url)
-    if (!videoId) return null
-    return (
-      <div key={i} className="aspect-video rounded-xl overflow-hidden shadow">
-        <iframe
-          src={`https://www.youtube.com/embed/${videoId}`}
-          className="w-full h-full"
-          allowFullScreen
-          title="Video"
-        />
-      </div>
-    )
-  }
-
-  if (block.type === 'image' || block.type === 'image_url') {
-    const file = getBlockFile(block)
-    const src = resolveImageSrc(block)
-    if (!src) return null
-
-    if (file?.mime?.startsWith('video/')) {
-      return (
-        <figure key={i} className="rounded-xl overflow-hidden shadow">
-          <video controls className="w-full max-h-96 bg-black">
-            <source src={src} type={file.mime} />
-          </video>
-          {block.caption && (
-            <figcaption className="text-xs text-center py-2" style={{ color: 'var(--text-muted)' }}>
-              {block.caption}
-            </figcaption>
-          )}
-        </figure>
-      )
-    }
-
-    return (
-      <figure key={i} className="rounded-xl overflow-hidden shadow">
-        <img
-          src={src}
-          alt={block.caption || block.alt || file?.alternativeText || ''}
-          className="w-full object-cover max-h-96"
-        />
-        {block.caption && (
-          <figcaption className="text-xs text-center py-2" style={{ color: 'var(--text-muted)' }}>
-            {block.caption}
-          </figcaption>
-        )}
-      </figure>
-    )
-  }
-
-  if (block.type === 'note') return (
-    <div
-      key={i}
-      className="rounded-lg px-4 py-3 border"
-      style={{
-        backgroundColor: 'rgba(59,130,246,0.06)',
-        borderColor: 'rgba(59,130,246,0.15)',
-      }}
-    >
-      <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{block.content}</p>
-    </div>
-  )
-
-  if (block.type === 'question') return (
-    <QuestionCard
-      key={i}
-      question={{
-        id: block.id,
-        text: block.content,
-        type: block.questionType || 'yes_no',
-        options: block.options?.length ? block.options : ['true', 'false'],
-        correctAnswer: block.correctAnswer,
-        mediaItems: block.mediaItems || [],
-      }}
-      onCorrect={onCorrect}
-    />
-  )
-
-  if (block.type === 'bank_question') return (
-    <QuestionCard
-      key={i}
-      question={{
-        id: block.id,
-        text: getQuestionText(block, language) || block.content,
-        type: block.questionType || 'yes_no',
-        options: block.options?.length ? block.options : ['true', 'false'],
-        correctAnswer: block.correctAnswer,
-        mediaItems: block.mediaItems || [],
-      }}
-      onCorrect={onCorrect}
-    />
-  )
-
-  return null
-}
-
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function ChapterDetail() {
   const { documentId, chapterDocumentId } = useParams()
@@ -278,18 +66,16 @@ export default function ChapterDetail() {
   const queryClient = useQueryClient()
   const [correctCount, setCorrectCount] = useState(0)
   const [answeredIds, setAnsweredIds] = useState(new Set())
-  const { i18n } = useTranslation()
+  const [indexOpen, setIndexOpen] = useState(false)
+  const indexRef = useRef(null)
+  const contentEndRef = useRef(null)
+  const markedOnScrollRef = useRef(false)
+  const { i18n, t } = useTranslation()
 
   const { data: chapter, isLoading } = useQuery({
     queryKey: ['chapter', chapterDocumentId],
     queryFn: () =>
-      api.get(`/chapters/${chapterDocumentId}?populate=*`).then(r => {
-        const data = r.data.data
-        data?.blocks?.forEach((block, i) => {
-          console.log(`BLOCK[${i}] type=${block.type}:`, JSON.stringify(block, null, 2))
-        })
-        return data
-      }),
+      api.get(`/chapters/${chapterDocumentId}?populate=*`).then(r => r.data.data),
   })
 
   const { data: allChapters } = useQuery({
@@ -315,9 +101,10 @@ export default function ChapterDetail() {
     p => p.chapter?.documentId === chapter?.documentId
   )
 
-  const totalQuestions =
-    chapter?.blocks?.filter(b => b.type === 'question' || b.type === 'bank_question')
-      .length || 0
+  const blocks = chapter ? getLocalizedArray(chapter, i18n.language, 'blocks') : []
+  const totalQuestions = blocks.filter(
+    b => b.type === 'question' || b.type === 'bank_question'
+  ).length
   const allCorrect = totalQuestions > 0 && correctCount >= totalQuestions
 
   useEffect(() => {
@@ -325,12 +112,46 @@ export default function ChapterDetail() {
     setAnsweredIds(new Set())
   }, [chapterDocumentId])
 
+  // Questionless chapters: mark as seen only when the reader reaches the
+  // end of the content (no more instant 'Completed' on first view).
   useEffect(() => {
-    if (chapter?.documentId && totalQuestions === 0) {
-      markSeenMutation.mutate(chapter.documentId)
-    }
+    if (!chapter?.documentId || totalQuestions > 0) return
+    markedOnScrollRef.current = false
+    const el = contentEndRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !markedOnScrollRef.current) {
+          markedOnScrollRef.current = true
+          markSeenMutation.mutate(chapter.documentId)
+          io.disconnect()
+        }
+      },
+      { rootMargin: '0px 0px -20% 0px', threshold: 0.4 }
+    )
+    io.observe(el)
+    return () => io.disconnect()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chapter?.documentId, totalQuestions])
+
+  // Close the chapter index on outside click / Escape
+  useEffect(() => {
+    if (!indexOpen) return
+    const onPointer = (e) => {
+      if (indexRef.current && !indexRef.current.contains(e.target)) {
+        setIndexOpen(false)
+      }
+    }
+    const onKey = (e) => {
+      if (e.key === 'Escape') setIndexOpen(false)
+    }
+    document.addEventListener('mousedown', onPointer)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onPointer)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [indexOpen])
 
   const handleCorrect = (questionId) => {
     if (answeredIds.has(questionId)) return
@@ -354,7 +175,6 @@ export default function ChapterDetail() {
       </div>
     )
 
-  const blocks = getLocalizedArray(chapter, i18n.language, 'blocks')
   const hasBlocks = blocks.length > 0
   const hasLegacyContent =
     chapter?.videoUrl || chapter?.content || chapter?.media?.length
@@ -368,30 +188,114 @@ export default function ChapterDetail() {
         ← Back to Course
       </Link>
 
-      <div className="flex items-center gap-3 mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">
-          {getLocalizedField(chapter, i18n.language, 'title') || chapter?.titleLv}
-        </h1>
-        {isSeen && (
-          <span className="bg-green-100 text-green-700 text-xs px-2 py-1 rounded-full font-medium">
-            ✓ Completed
-          </span>
-        )}
-      </div>
+      {/* ── Sticky wayfinding header ── */}
+      {allChapters?.length > 0 && (
+        <div
+          className="sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 pt-2.5 pb-3 mb-8 border-b bg-white/85 dark:bg-slate-900/85 backdrop-blur-md"
+          style={{ borderColor: 'var(--border)' }}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                {t('chapter.chapterXOfY', { current: currentIndex + 1, total: allChapters.length })}
+              </p>
+              <h1 className="text-lg font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+                {getLocalizedField(chapter, i18n.language, 'title') || chapter?.titleLv}
+              </h1>
+            </div>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {totalQuestions > 0 && (
+                <span
+                  className="text-xs font-semibold tabular-nums px-2.5 py-1 rounded-full"
+                  style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}
+                >
+                  {correctCount}/{totalQuestions}
+                </span>
+              )}
+              {isSeen && (
+                <span className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400">
+                  <CheckCircleIcon className="w-3.5 h-3.5" />
+                  {t('course.completed')}
+                </span>
+              )}
+
+              {/* Chapter index dropdown */}
+              <div className="relative" ref={indexRef}>
+                <button
+                  onClick={() => setIndexOpen(o => !o)}
+                  aria-expanded={indexOpen}
+                  aria-label={t('chapter.chapterIndex')}
+                  className={`p-2 rounded-lg transition flex items-center gap-0.5 ${
+                    indexOpen
+                      ? 'bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300'
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                  style={{ color: indexOpen ? undefined : 'var(--text-secondary)' }}
+                >
+                  <ListBulletIcon className="w-5 h-5" />
+                  <ChevronDownIcon className={`w-3.5 h-3.5 transition-transform ${indexOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {indexOpen && (
+                  <div
+                    className="absolute right-0 mt-2 w-72 max-h-[70vh] overflow-y-auto rounded-xl shadow-xl border p-2 z-40"
+                    style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-wide px-2 py-1.5" style={{ color: 'var(--text-muted)' }}>
+                      {t('chapter.chapterIndex')}
+                    </p>
+                    {allChapters.map((c, i) => {
+                      const seen = progressData?.some(p => p.chapter?.documentId === c.documentId)
+                      const isCurrent = c.documentId === chapter?.documentId
+                      return (
+                        <button
+                          key={c.documentId}
+                          onClick={() => {
+                            setIndexOpen(false)
+                            navigate(`/courses/${documentId}/chapters/${c.documentId}`)
+                          }}
+                          className={`w-full flex items-center gap-3 px-2 py-2 rounded-lg text-left transition ${
+                            isCurrent
+                              ? 'bg-blue-50 dark:bg-blue-500/15'
+                              : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+                          }`}
+                        >
+                          <span
+                            className={`w-6 h-6 rounded-full text-xs font-bold flex items-center justify-center flex-shrink-0 ${
+                              seen
+                                ? 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400'
+                                : isCurrent
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-slate-400'
+                            }`}
+                          >
+                            {seen ? <CheckIcon className="w-3.5 h-3.5" /> : i + 1}
+                          </span>
+                          <span
+                            className={`text-sm truncate ${isCurrent ? 'font-semibold' : ''}`}
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            {getLocalizedField(c, i18n.language, 'title') || c.titleLv}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Block-based content (new chapters) ── */}
       {hasBlocks && (
-        <div className="space-y-6 mb-6">
-          {blocks.map((block, i) => (
-            <BlockRenderer
-              key={i}
-              block={block}
-              i={i}
-              onCorrect={handleCorrect}
-              language={i18n.language}
-            />
-          ))}
-        </div>
+        <ChapterBlocks
+          blocks={blocks}
+          language={i18n.language}
+          onCorrect={handleCorrect}
+        />
       )}
 
       {/* ── Legacy content fallback (old chapters without blocks) ── */}
@@ -422,8 +326,15 @@ export default function ChapterDetail() {
                 if (!item?.url) return null
                 const src = mediaUrl(item.url)
                 if (item.mime?.startsWith('image/')) return (
-                  <figure key={i} className="rounded-xl overflow-hidden shadow">
-                    <img src={src} alt={item.alternativeText || ''} className="w-full object-cover max-h-96" />
+                  <figure key={i} className="rounded-xl overflow-hidden shadow" style={{ backgroundColor: 'var(--bg-card)' }}>
+                    <div className="flex items-center justify-center p-4 sm:p-6" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                      <img src={src} alt={item.alternativeText || ''} loading="lazy" className="max-h-[30rem] w-auto max-w-full rounded-lg object-contain shadow-sm" />
+                    </div>
+                    {item.caption && (
+                      <figcaption className="text-xs text-center px-4 py-3 border-t" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
+                        {item.caption}
+                      </figcaption>
+                    )}
                   </figure>
                 )
                 if (item.mime?.startsWith('video/')) return (
@@ -441,7 +352,9 @@ export default function ChapterDetail() {
       {/* ── Empty state ── */}
       {!hasBlocks && !hasLegacyContent && (
         <div className="text-center py-12">
-          <p className="text-3xl sm:text-4xl mb-3">📄</p>
+          <div className="w-14 h-14 mx-auto mb-3 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+            <DocumentTextIcon className="w-7 h-7" style={{ color: 'var(--text-muted)' }} />
+          </div>
           <p style={{ color: 'var(--text-muted)' }}>This chapter has no content yet.</p>
         </div>
       )}
@@ -465,12 +378,16 @@ export default function ChapterDetail() {
             />
           </div>
           {allCorrect && (
-            <p className="text-green-600 font-semibold text-sm text-center mt-3">
-              🎉 Chapter complete!
+            <p className="text-green-600 font-semibold text-sm text-center mt-3 inline-flex items-center justify-center gap-1.5 w-full">
+              <CheckCircleIcon className="w-4 h-4" />
+              {t('chapter.chapterComplete')}
             </p>
           )}
         </div>
       )}
+
+      {/* ── End-of-content sentinel (triggers 'seen' for questionless chapters) ── */}
+      {totalQuestions === 0 && <div ref={contentEndRef} aria-hidden="true" className="h-px w-full" />}
 
       {/* ── Navigation ── */}
       <div className="flex justify-end mb-8">

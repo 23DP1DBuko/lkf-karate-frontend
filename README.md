@@ -9,7 +9,7 @@
 
 ## 📋 Projekta apraksts
 
-LKF Karate LMS ir pilna steka tīmekļa lietojumprogramma, kas paredzēta Latvijas Karatē federācijas tiesnešu un sacensību sekretāru kvalifikācijas pilnveidei. Platforma ļauj tiesnešiem apgūt kursus, kārtot kvalifikācijas eksāmenus un sekot savam progresam.
+LKF Karate LMS ir pilna steka tīmekļa lietojumprogramma, kas paredzēta Latvijas Karatē federācijas tiesnešu un sacensību sekretāru kvalifikācijas pilnveidei. Platforma ļauj tiesnešiem apgūt kursus, kārtot kvalifikācijas eksāmenus, sekot savam progresam un skatīt sacensību/semināru/eksāmenu kalendāru.
 
 ### 🌐 Publicētās saites
 - **Frontend:** https://lkf-karate-frontend.vercel.app
@@ -26,14 +26,17 @@ LKF Karate LMS ir pilna steka tīmekļa lietojumprogramma, kas paredzēta Latvij
 | Vite | 8 | Build rīks |
 | Tailwind CSS | 4 | Stilizēšana |
 | TanStack Query | 5 | Servera stāvoklis |
-| React Router | 6 | Maršrutēšana |
+| React Router | 7 | Maršrutēšana |
 | Axios | 1.x | HTTP pieprasījumi |
-| TipTap | 2 | Bagātināts teksta redaktors |
-| i18next | 24 | Daudzvalodība (LV/RU/EN) |
+| TipTap | 3 | Bagātināts teksta redaktors |
+| i18next | 26 | Daudzvalodība (LV/RU/EN) |
 | Heroicons | 2 | Ikonas |
-| JSZip | 3 | Word dokumentu parsēšana |
-| Vite PWA Plugin | 0.21 | PWA atbalsts |
-| Vitest | 3 | Testēšana |
+| mammoth + JSZip | 1 / 3 | Word (.docx) jautājumu parsēšana |
+| pdfjs-dist | 4 | PDF nodaļu parsēšana (imports) |
+| react-easy-crop | 6 | Profila attēla apgriešana |
+| motion / ogl | 12 / 1 | Animācijas un 3D vizuāļi (Landing) |
+| Vite PWA Plugin | 1.2 | PWA atbalsts |
+| Vitest | 4 | Testēšana |
 
 ### Backend
 | Tehnoloģija | Versija | Mērķis |
@@ -48,7 +51,7 @@ LKF Karate LMS ir pilna steka tīmekļa lietojumprogramma, kas paredzēta Latvij
 | Pakalpojums | Mērķis |
 |---|---|
 | Vercel | Frontend hosting |
-| Railway | Backend + PostgreSQL hosting |
+| Render | Backend + PostgreSQL hosting |
 
 ---
 
@@ -58,12 +61,12 @@ LKF Karate LMS ir pilna steka tīmekļa lietojumprogramma, kas paredzēta Latvij
 |---|---|---|
 | DBMS ar CRUD | ✅ | PostgreSQL + pilns CRUD visiem entītijiem |
 | Autentifikācija + lomas | ✅ | JWT + 3 lomas: Viesis / Students / Admins |
-| Kārtošana / filtri / meklēšana | ✅ | Kursu meklēšana + filtrēšana pēc kategorijas |
+| Kārtošana / filtri / meklēšana | ✅ | Kursu meklēšana + filtrēšana pēc kategorijas, pasākumu filtrs kalendārā |
 | PWA | ✅ | Manifest + Service Worker + offline kešošana |
 | OWASP drošība | ✅ | CSP, HSTS, X-Frame-Options, CORS, bcrypt |
-| WCAG pieejamība | ✅ | Lighthouse Accessibility 90-96 |
+| WCAG pieejamība | ✅ | Lighthouse Accessibility 90-96, modāļu fokusa uztveršana (focus trap) |
 | Vismaz 5 testi | ✅ | 7 vienību testi ar Vitest |
-| Izvietošana | ✅ | Vercel + Railway |
+| Izvietošana | ✅ | Vercel + Render |
 | README + ERD | ✅ | Šis dokuments + datu modeļa shēma |
 | Daudzvalodība | ✅ | Latviešu / Krievu / Angļu |
 
@@ -76,7 +79,7 @@ LKF Karate LMS ir pilna steka tīmekļa lietojumprogramma, kas paredzēta Latvij
 | A02 - Kriptogrāfijas kļūmes | bcrypt parolu hešošana, JWT ar derīguma termiņu |
 | A03 - Injekcija | Strapi ORM novērš SQL injekciju |
 | A05 - Drošības nepareiza konfigurācija | Content-Security-Policy, X-Frame-Options, HSTS, X-Content-Type-Options |
-| A07 - Autentifikācijas kļūmes | JWT tokeni, lomas pārbaude katrā pieprasījumā |
+| A07 - Autentifikācijas kļūmes | JWT tokeni, lomas pārbaude katrā pieprasījumā, īpašumtiesību pārbaudes (ownership checks) |
 | A09 - CORS | Ierobežots tikai uz zināmām frontenda URL |
 
 **HTTP atbildes galvenes:**
@@ -102,21 +105,39 @@ Referrer-Policy: no-referrer
 - Skatīt un apgūt kursus ar bloku saturu (teksts, video, attēli, jautājumi)
 - Lasīt nodaļas MOOC stilā
 - Kārtot nodaļu testus (jautājumi no blokiem vai jautājumu bankas)
-- Kārtot kvalifikācijas eksāmenus
+- Kārtot kvalifikācijas eksāmenus (ar atsākšanas iespēju — auto-save)
 - Ātrais tests (nejaušas jautājumu)
 - Skatīt savus rezultātus
-- Pārvaldīt profilu + mainīt paroli
+- Skatīt pasākumu kalendāru (**Kalendārs** — sacensības, semināri, eksāmeni)
+- Pārvaldīt profilu + mainīt paroli + apgriezt profila attēlu
 - Mainīt valodu (LV/RU/EN) un tēmu (gaišs/tumšs)
 
 ### 🔑 Admins (isAdmin = true)
 - Viss ko Students
-- CRUD kursi, nodaļas, jautājumi, eksāmeni
+- CRUD kursi, nodaļas, jautājumi, eksāmeni (ar eksāmenu grafiku: `openAt`/`closeAt`)
 - Bloku redaktors nodaļām (teksts, video, attēli, piezīmes, jautājumi)
 - Jautājumu importēšana no Word dokumentiem ar dedup loģiku
+- Nodaļu importēšana no WKF noteikumu PDF failiem
 - Apstiprināt / noraidīt lietotājus
-- Skatīt un vērtēt eksāmenu atbildes
+- Skatīt un vērtēt eksāmenu atbildes (manuāla vērtēšana atvērtajiem jautājumiem)
 - Publicēt eksāmenu rezultātus
 - Dzēst visus jautājumus kursam (ar apstiprinājumu)
+
+---
+
+## 🗓️ Kalendārs (pasākumi)
+
+Platformā ir pilnvērtīga **Kalendārs** sadaļa (`/events`), kas rāda sacensības, seminārus un eksāmenus:
+
+- **Gada/mēneša sadaļas** — visi mēneša pasākumi vertikālā sarakstā (ne tikai 3)
+- **Filtrs** — "Filtrs: Visi pasākumi ▾" (Visi / Eksāmeni / Sacensības / Semināri)
+- **Pasākumu kartītes** — datuma bloks (diena + lokalizēta nedēļas diena), pasākuma tipa etiķete (SACENSĪBAS / SEMINĀRS / EKSĀMENS) ar laiku, nosaukums, tipa ikona + bultiņa ar "Skatīt detaļas" tooltip
+- **Daudzdienu sacensības** — viena kartīte ar datumu diapazonu (piem., 10 Pirm – 12 Treš)
+- **Detalizēts modāls** — eksāmeniem rāda jautājumu skaitu un nokārtošanas slieksni
+- **Mēneša navigācija** — tukšiem mēnešiem tiek rādīts informatīvs tukšuma stāvoklis ("Šim mēnesim nav plānoto pasākumu")
+- **Dashboard integrācija** — "Kalendārs" kartīte ar tekošo mēnesi un ◀ ▶ navigāciju
+
+Dati pašlaik ir **frontenda paraugdati** (`src/data/events.js`) ar LV/RU/EN tulkojumiem — plānots pārcelt uz Strapi `event` satura tipu.
 
 ---
 
@@ -166,10 +187,10 @@ Referrer-Policy: no-referrer
          │    │ passingScore    │     │ passed              │
          │    │ openAt          │     │ startedAt           │
          │    │ closeAt         │     │ submittedAt         │
-         │    │ showResults     │     │ exam_id (FK)        │
-         │    │ resultsReleased │     │ user_id (FK)        │
-         │    │ course_id (FK)  │     └─────────────────────┘
-         │    └─────────────────┘
+         │    │ showResults     │     │ timeSpentSeconds    │
+         │    │ resultsReleased │     │ exam_id (FK)        │
+         │    │ course_id (FK)  │     │ user_id (FK)        │
+         │    └─────────────────┘     └─────────────────────┘
          │
          └─────────────────────────────────────────────────────┘
 ```
@@ -221,6 +242,13 @@ Jautājumus var importēt no Word (.docx) failiem:
 - **Valodu atbalsts:** LV / RU / EN — katru valodu importē atsevišķi ar vienu un to pašu failu
 - **Versiju izsekošana:** `sourceFile` lauks glabā faila nosaukumu katram jautājumam
 
+### 📄 Nodaļu imports no PDF
+
+WKF noteikumu PDF failus var sadalīt nodaļās automātiski (`/admin/chapters/import`):
+- PDF tiek parsēts ar `pdfjs-dist`, virsraksti tiek atklāti kā nodaļas
+- Pirms importēšanas var rediģēt nosaukumus, sakļaut/izvērst saturu
+- Saturs tiek saglabāts kā bloku struktūra ar tulkotājiem laukiem (LV/RU/EN)
+
 ---
 
 ## 🔌 API Galapunkti
@@ -245,18 +273,22 @@ Jautājumus var importēt no Word (.docx) failiem:
 ### Eksāmeni (pielāgoti galapunkti)
 | Metode | Ceļš | Apraksts |
 |---|---|---|
-| POST | /api/exams/start | Sākt eksāmenu |
-| POST | /api/exams/submit | Iesniegt eksāmenu |
+| POST | /api/exams/start | Sākt eksāmenu (vai atsākt nepabeigtu mēģinājumu) |
+| POST | /api/exams/submit | Iesniegt eksāmenu (automātiska vērtēšana) |
+| POST | /api/exams/save-progress | Saglabāt atbildes eksāmena laikā |
 | POST | /api/exams/quick-quiz | Ātrais tests |
 
-### Progresa izsekošana
+### Progresa izsekošana un saskaitne
 | Metode | Ceļš | Apraksts |
 |---|---|---|
 | GET | /api/chapter-progress | Lietotāja nodaļu progress |
 | POST | /api/chapter-progress/mark-seen | Atzīmēt nodaļu kā pabeigtu |
 | GET | /api/exam-attempts | Lietotāja eksāmenu mēģinājumi |
+| GET | /api/exam-attempts/:id | Viena mēģinājuma detaļas (tikai īpašnieks) |
 | GET | /api/exam-attempts/all | Visi mēģinājumi (tikai admins) |
 | PUT | /api/exam-attempts/grade/:id | Manuāla vērtēšana (tikai admins) |
+| GET | /api/dashboard | Saskaitnes dati (statistika, jaunākie rezultāti, tuvākais eksāmens) |
+| DELETE | /api/account/delete | Konta dzēšana |
 
 ---
 
@@ -292,7 +324,7 @@ npm run dev
 ```
 
 **4. Atvērt pārlūkprogrammā**
-- Frontend: http://localhost:5174
+- Frontend: http://localhost:5173
 - Strapi Admin: http://localhost:1337/admin
 
 ### Vides mainīgie (Backend .env)
@@ -306,6 +338,7 @@ JWT_SECRET=your-jwt-secret
 DATABASE_CLIENT=sqlite
 GMAIL_USER=your-gmail@gmail.com
 GMAIL_PASS=your-gmail-app-password
+FRONTEND_URL=http://localhost:5173
 ```
 
 ### Vides mainīgie (Frontend .env.local)
@@ -323,15 +356,20 @@ npm run test
 ```
 
 ### Testa gadījumi
-| Tests | Apraksts | Statuss |
-|---|---|---|
-| Login lapa renderējas | E-pasta un paroles lauki ir redzami | ✅ |
-| Pierakstīšanās poga | "Sign In" poga ir redzama | ✅ |
-| Saite uz reģistrāciju | Reģistrācijas saite ir redzama | ✅ |
-| Reģistrācijas lauki | Visi lauki (vārds, e-pasts, parole) | ✅ |
-| Reģistrācijas poga | "Register" poga ir redzama | ✅ |
-| Eksāmena rezultāts - nokārtots | Rāda 80% un "Congratulations!" | ✅ |
-| Eksāmena rezultāts - skaitlis | Rāda "8 out of 10 correct" | ✅ |
+| Tests | Apraksts |
+|---|---|
+| Login lapa renderējas | E-pasta un paroles lauki ir redzami |
+| Pierakstīšanās poga | "Sign In" poga ir redzama |
+| Saite uz reģistrāciju | Reģistrācijas saite ir redzama |
+| Reģistrācijas lauki | Visi lauki (vārds, e-pasts, parole) |
+| Reģistrācijas poga | "Register" poga ir redzama |
+| Eksāmena rezultāts - nokārtots | Rāda 80% un "Congratulations!" |
+| Eksāmena rezultāts - skaitlis | Rāda "8 out of 10 correct" |
+
+> **Piezīme:** testu setup (`src/test/setup.js`) šobrīd nenodrošina `ThemeProvider`
+> un citus providerus, tāpēc 5 no 7 testiem lokāli neiziet (Login/Register/ExamResult).
+> Tas ir zināms setup jautājums, nevis lietotnes kļūda — nepieciešams pievienot
+> provideru mockus vai wrapper renderēšanā.
 
 ---
 
@@ -372,6 +410,7 @@ Ieviestie pasākumi:
 - `role="main"` galvenajam saturam
 - Krāsu kontrasts ≥ 4.5:1
 - Tastatūras navigācija
+- **Fokusa uztveršana modāļos** (`useFocusTrap`) un aizvēršana ar `Escape` — modāļi atbilst WCAG 2.2 prasībām
 
 ---
 
@@ -384,6 +423,8 @@ Platforma atbalsta 3 valodas:
 
 Valodu var mainīt profilā. Izvēle tiek saglabāta localStorage. Pārlūka valoda tiek automātiski noteikta pirmajā apmeklējumā ar `i18next-browser-languagedetector`.
 
+Visi atkārtotie teksti — navigācija, eksāmenu u.c. lapas, kā arī **kalendāra** mēnešu nosaukumi, nedēļas dienas, pasākumu tipi un filtri — ir definēti kā i18n atslēgas (`events.*`, `dashboard.*`, `nav.*`).
+
 ---
 
 ## 📁 Projekta struktūra
@@ -391,59 +432,53 @@ Valodu var mainīt profilā. Izvēle tiek saglabāta localStorage. Pārlūka val
 ```
 lkf-karate-frontend/
 ├── src/
-│   ├── api/              # Axios instance + media URL helper
+│   ├── api/              # Axios instance + media URL helper + lokalizācijas helperi
 │   ├── components/
 │   │   ├── BlockEditor.jsx          # Bloku redaktors nodaļām
 │   │   ├── RichTextEditor.jsx       # TipTap teksta redaktors
+│   │   ├── LazyRichTextEditor.jsx   # Lazy ielāde redaktoram
 │   │   ├── MediaUpload.jsx          # Failu augšupielāde ar drag & drop
 │   │   ├── Sidebar.jsx              # Saliekamais sānjosls
 │   │   ├── BottomNav.jsx            # Mobilā apakšējā navigācija
+│   │   ├── MobileNav.jsx            # Mobilā navigācija (admin)
 │   │   ├── IconButton.jsx           # Ikonu pogas ar tooltip
 │   │   ├── Skeleton.jsx             # Ielādes skeleta ekrāni
-│   │   └── ChapterPreviewModal.jsx  # Nodaļas priekšskatījums
-│   ├── context/          # AuthContext, ThemeContext
-│   ├── hooks/            # usePageTitle, useRipple
+│   │   ├── ChapterPreviewModal.jsx  # Nodaļas priekšskatījums
+│   │   ├── ContinueExamBanner.jsx   # Nepabeigta eksāmena turpināšanas baneris
+│   │   ├── CalendarCard.jsx         # Dashboard "Kalendārs" kartīte
+│   │   ├── EventCard.jsx            # Pasākuma kartīte (1 dienas + daudzdienu)
+│   │   ├── EventModal.jsx           # Pasākuma detaļu modāls
+│   │   ├── EventEmptyState.jsx      # Tukšuma stāvoklis kalendārā
+│   │   ├── DateTimeStepPicker.jsx   # Datuma/laika izvēlne (eksāmenu grafiks)
+│   │   ├── QuestionReviewCard.jsx   # Atbilžu pārskata kartīte
+│   │   ├── ErrorBoundary.jsx        # Kļūdu robeža
+│   │   └── Toast.jsx                # Paziņojumi
+│   ├── context/          # AuthContext, ThemeContext, ExamAttemptContext
+│   ├── hooks/            # usePageTitle, useRipple, useFocusTrap
 │   ├── i18n/             # Tulkojumi (lv, ru, en)
+│   ├── data/events.js    # Kalendāra paraugdati (LV/RU/EN)
 │   ├── pages/
-│   │   ├── auth/         # Login, Register, ForgotPassword, ResetPassword
+│   │   ├── auth/         # Login, Register, ForgotPassword, ResetPassword, PendingApproval
 │   │   ├── landing/      # Landing, Rules (publisks PDF skatītājs)
-│   │   ├── student/      # Courses, CourseDetail, ChapterDetail, ExamPage...
-│   │   └── admin/        # AdminCourses, AdminChapters, AdminQuestions,
+│   │   ├── student/      # UserDashboard, Courses, CourseDetail, ChapterDetail,
+│   │   │                 # ExamPage, ExamResult, Results, QuickQuiz, Events, Profile
+│   │   └── admin/        # AdminCourses, AdminChapters, AdminChaptersImport, AdminQuestions,
 │   │                     # AdminExams, AdminExamResults, AdminUsers, AdminImport
 │   └── test/             # Vitest testi
 ├── public/               # PWA ikonas, robots.txt
-└── vite.config.js
-
-lkf-karate-backend/
-├── src/
-│   ├── api/
-│   │   ├── chapter/
-│   │   ├── chapter-progress/
-│   │   ├── course/
-│   │   ├── exam/
-│   │   ├── exam-attempt/
-│   │   ├── exam-session/       # Pielāgoti galapunkti
-│   │   └── question/
-│   └── extensions/
-│       └── users-permissions/
-├── config/
-│   ├── database.js       # SQLite/PostgreSQL konfigurācija
-│   ├── middlewares.js    # CORS + drošības galvenes
-│   └── plugins.js        # E-pasta konfigurācija
-└── .env
+└── vite.config.js        # Vite + Tailwind 4 + PWA + kompresija + Vitest config
 ```
 
 ---
 
 ## 🔮 Nākotnes plāni (v2.0)
 
+- 🗄️ **Event satura tips Strapī** — kalendāra datus pārcelt no frontenda paraugdatiem uz API ar admin CRUD
 - 🤖 AI automātiskā vērtēšana (Google Gemini) atvērtā teksta jautājumiem
 - 📊 Analītika — nokārtošanas statistika, grūtākie jautājumi
 - 🔄 Auto-pārvērtēšana — mainot pareizo atbildi, automātiski pārrēķina rezultātus
 - 📡 Reāllaika monitorings — vecākais tiesnesis redz eksāmena progresu
 - 📜 PDF sertifikāti pēc nokārtošanas
-- 📅 Kalendārs ar eksāmenu atgādinājumiem
 - 🌐 Pilns daudzvalodīgs saturs (kursi/jautājumi LV/RU/EN)
-- 📄 PDF parsēšana — WKF noteikumu automātiska sadalīšana nodaļās
 
 *Projekts izstrādāts kā diploma darbs Rīgas Valsts tehnikumā.*

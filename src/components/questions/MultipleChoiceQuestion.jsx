@@ -1,9 +1,15 @@
-// MultipleChoiceQuestion.jsx — Theme-aware card-style multiple choice question component
+// MultipleChoiceQuestion.jsx — Theme-aware card-style choice question component
+//
+// Single-select mode (default):
+//   selectedValue — string | null, taps replace the selection
+// Multi-select mode (multiSelect):
+//   selectedValue — array of strings, taps toggle options in/out
 //
 // Props:
 //   questionText  — the question heading
 //   options       — array of option strings
-//   selectedValue — currently selected option value (string | null)
+//   multiSelect   — true renders checkboxes and expects array answers
+//   selectedValue — string | null (single) or string[] (multi)
 //   onAnswer      — called with the new value when user taps an option
 //   onSubmit      — called when the submit button is clicked
 //   canSubmit     — enable the submit button (default: true if a value is selected)
@@ -13,8 +19,10 @@
 
 import { CheckIcon } from '@heroicons/react/24/outline'
 
-function OptionCard({ value, label, selected, onSelect }) {
-  const isActive = selected === value
+function OptionCard({ value, label, selected, multiSelect, onSelect }) {
+  const isActive = multiSelect
+    ? Array.isArray(selected) && selected.includes(value)
+    : selected === value
 
   const baseStyle = {
     backgroundColor: isActive ? '#2563eb' : 'var(--bg-card)',
@@ -38,13 +46,15 @@ function OptionCard({ value, label, selected, onSelect }) {
       `}
       aria-pressed={isActive}
     >
-      {/* Radio indicator */}
+      {/* Radio / checkbox indicator */}
       <span
         style={{
           borderColor: isActive ? '#ffffff' : 'var(--text-muted)',
           backgroundColor: isActive ? 'rgba(255,255,255,0.2)' : 'transparent',
         }}
-        className="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition"
+        className={`w-5 h-5 border-2 flex items-center justify-center flex-shrink-0 transition ${
+          multiSelect ? 'rounded-md' : 'rounded-full'
+        }`}
       >
         {isActive && <span className="w-2.5 h-2.5 rounded-full bg-white" />}
       </span>
@@ -63,18 +73,35 @@ function OptionCard({ value, label, selected, onSelect }) {
 export default function MultipleChoiceQuestion({
   questionText,
   options = [],
+  multiSelect = false,
   selectedValue,
   onAnswer,
   onSubmit,
   canSubmit,
   isSubmitting = false,
   submitLabel = 'Submit Answer',
+  hint,
 }) {
   const handleSelect = (value) => {
-    if (onAnswer) onAnswer(value)
+    if (!onAnswer) return
+    if (!multiSelect) {
+      onAnswer(value)
+      return
+    }
+    // Multi-select: toggle the option in/out of the array
+    const current = Array.isArray(selectedValue) ? selectedValue : []
+    onAnswer(
+      current.includes(value)
+        ? current.filter(v => v !== value)
+        : [...current, value]
+    )
   }
 
-  const submitEnabled = canSubmit !== undefined ? canSubmit : selectedValue !== null
+  const hasSelection = multiSelect
+    ? Array.isArray(selectedValue) && selectedValue.length > 0
+    : selectedValue !== null && selectedValue !== undefined
+
+  const submitEnabled = canSubmit !== undefined ? canSubmit : hasSelection
 
   return (
     <div className="flex flex-col gap-8">
@@ -88,12 +115,21 @@ export default function MultipleChoiceQuestion({
 
       {/* Option cards */}
       <div className="flex flex-col gap-3">
+        {multiSelect && (
+          <p
+            className="text-xs font-medium"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            {hint || 'Select all that apply'}
+          </p>
+        )}
         {options.map((option) => (
           <OptionCard
             key={option}
             value={option}
             label={option}
             selected={selectedValue}
+            multiSelect={multiSelect}
             onSelect={handleSelect}
           />
         ))}

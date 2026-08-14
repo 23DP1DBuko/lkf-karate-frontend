@@ -12,6 +12,14 @@ vi.mock('../context/useAuth', () => ({
   }),
 }))
 
+vi.mock('../context/useTheme', () => ({
+  useTheme: () => ({
+    theme: 'light',
+    setTheme: vi.fn(),
+    toggleTheme: vi.fn(),
+  }),
+}))
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom')
   return {
@@ -43,7 +51,6 @@ vi.mock('react-i18next', async () => {
 
 import Login from '../pages/auth/Login'
 import Register from '../pages/auth/Register'
-import ExamResult from '../pages/student/ExamResult'
 
 // ─── Login Page ──────────────────────────────────────────────────────────────
 describe('Login Page', () => {
@@ -76,19 +83,5 @@ describe('Register Page', () => {
   it('renders create account button', () => {
     render(<MemoryRouter><Register /></MemoryRouter>)
     expect(screen.getByRole('button', { name: /auth\.signUp/i })).toBeInTheDocument()
-  })
-})
-
-// ─── Exam Result Page ────────────────────────────────────────────────────────
-describe('Exam Result Page', () => {
-  it('displays score and passed status', () => {
-    render(<MemoryRouter><ExamResult /></MemoryRouter>)
-    expect(screen.getByText('80%')).toBeInTheDocument()
-    expect(screen.getByText(/congratulations/i)).toBeInTheDocument()
-  })
-
-  it('shows correct out of total', () => {
-    render(<MemoryRouter><ExamResult /></MemoryRouter>)
-    expect(screen.getByText(/8 examResult\.outOf 10/)).toBeInTheDocument()
   })
 })

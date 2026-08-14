@@ -3,8 +3,8 @@ import { useState, useMemo } from 'react'
 import api from '../../api/strapi'
 import IconButton from '../../components/IconButton'
 import QuestionReviewCard from '../../components/QuestionReviewCard'
-import { formatTimeSpent } from '../../utils/attempts'
-import { EyeIcon } from '@heroicons/react/24/outline'
+import { formatTimeSpent, isAnswerCorrect } from '../../utils/attempts'
+import { EyeIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 
 function YearGroup({ year, attempts, onReview }) {
@@ -123,14 +123,12 @@ export default function AdminExamResults() {
   const [selectedAttempt, setSelectedAttempt] = useState(null)
   const [manualScores, setManualScores] = useState({})
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
   const [examsOnly, setExamsOnly] = useState(false)
 
   const { data: attempts, isLoading } = useQuery({
     queryKey: ['admin-attempts'],
-    queryFn: () => api.get('/exam-attempts/all').then(r => {
-      console.log('attempts[0].exam:', r.data.data?.[0]?.exam)
-      return r.data.data
-    }),
+    queryFn: () => api.get('/exam-attempts/all').then(r => r.data.data),
   })
 
 
@@ -147,17 +145,21 @@ export default function AdminExamResults() {
           return false
         }
       }
+      // Status filter: passed / failed / still in progress
+      if (statusFilter === 'passed' && !(attempt.submittedAt && attempt.passed)) return false
+      if (statusFilter === 'failed' && !(attempt.submittedAt && !attempt.passed)) return false
+      if (statusFilter === 'in_progress' && attempt.submittedAt) return false
       // Exams-only filter: a quick quiz has a course but NO exam relation
       if (examsOnly && !attempt.exam) {
         return false
       }
       return true
     })
-  }, [attempts, search, examsOnly])
+  }, [attempts, search, statusFilter, examsOnly])
 
   const gradeMutation = useMutation({
-    mutationFn: ({ attemptId, score, passed }) =>
-      api.put(`/exam-attempts/grade/${attemptId}`, { score, passed }),
+    mutationFn: ({ attemptId, score, passed, manualGrades }) =>
+      api.put(`/exam-attempts/grade/${attemptId}`, { score, passed, manualGrades }),
     onSuccess: () => {
       queryClient.invalidateQueries(['admin-attempts'])
       setSelectedAttempt(null)
@@ -176,11 +178,8 @@ export default function AdminExamResults() {
     let autoCorrect = 0
 
     questions.forEach(q => {
-      if (q.type !== 'open_text') {
-        const userAnswer = answers[q.id]
-        if (userAnswer && String(userAnswer).toLowerCase() === String(q.correctAnswer).toLowerCase()) {
-          autoCorrect++
-        }
+      if (isAnswerCorrect(q, answers[q.id])) {
+        autoCorrect++
       }
     })
 
@@ -189,7 +188,7 @@ export default function AdminExamResults() {
     const score = Math.round((totalPoints / questions.length) * 100)
     const passed = score >= (attempt.exam?.passingScore || 70)
 
-    gradeMutation.mutate({ attemptId: attempt.id, score, passed })
+    gradeMutation.mutate({ attemptId: attempt.id, score, passed, manualGrades: manualScores })
   }
 
   if (isLoading) return <p className="text-gray-500">{t('common.loading')}</p>
@@ -287,10 +286,7 @@ export default function AdminExamResults() {
           {questions.map((q, i) => {
             const userAnswer = answers[q.id]
             const isOpenText = q.type === 'open_text'
-            const isCorrect =
-              !isOpenText &&
-              userAnswer &&
-              String(userAnswer).toLowerCase() === String(q.correctAnswer).toLowerCase()
+            const isCorrect = isAnswerCorrect(q, userAnswer)
 
             return (
               <QuestionReviewCard
@@ -379,16 +375,43 @@ export default function AdminExamResults() {
         </div>
       </div>
 
-      {/* Search + Exams-only filter */}
+      {/* Search + filters toolbar */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        <input
-          type="text"
-          placeholder={t('admin.results.searchPlaceholder')}
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <div className="relative flex-1">
+          <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+          <input
+            type="search"
+            placeholder={t('admin.results.searchPlaceholder')}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            aria-label={t('admin.results.searchPlaceholder')}
+            className="w-full border rounded-lg pl-9 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              aria-label={t('common.clearSearch') || 'Clear search'}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors hover:bg-slate-200 dark:hover:bg-slate-700/50"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          aria-label={t('admin.results.colStatus')}
+          className="sm:w-44 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-        />
+        >
+          <option value="all">{t('admin.results.allStatuses') || 'All statuses'}</option>
+          <option value="passed">{t('admin.results.passed')}</option>
+          <option value="failed">{t('admin.results.failed')}</option>
+          <option value="in_progress">{t('admin.results.inProgress')}</option>
+        </select>
         <label className="flex items-center gap-2 cursor-pointer whitespace-nowrap px-3 py-2 rounded-lg border text-sm"
           style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
         >
@@ -401,6 +424,27 @@ export default function AdminExamResults() {
           {t('admin.results.examsOnly') || 'Exams only'}
         </label>
       </div>
+
+      {/* No matches — clear-filters empty state */}
+      {filteredAttempts?.length === 0 && (
+        <div
+          className="rounded-xl p-10 text-center mb-6"
+          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
+        >
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {t('admin.results.noResults') || 'No attempts match your filters.'}
+          </p>
+          {(search || statusFilter !== 'all' || examsOnly) && (
+            <button
+              type="button"
+              onClick={() => { setSearch(''); setStatusFilter('all'); setExamsOnly(false) }}
+              className="mt-2 text-sm font-medium text-blue-600 hover:underline"
+            >
+              {t('common.clearFilters') || 'Clear filters'}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Release Results — only show unreleased exams */}
       {(() => {
@@ -455,7 +499,7 @@ export default function AdminExamResults() {
             key={year}
             year={year}
             attempts={byYear[year]}
-            onReview={(attempt) => { setSelectedAttempt(attempt); setManualScores({}) }}
+            onReview={(attempt) => { setSelectedAttempt(attempt); setManualScores(attempt.manualGrades || {}) }}
           />
         ))
       })()}

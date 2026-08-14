@@ -8,12 +8,16 @@ import {
   DocumentTextIcon, QuestionMarkCircleIcon,
   ClipboardDocumentListIcon, UsersIcon, ChevronUpIcon,
   ArrowUpTrayIcon,
-  DocumentArrowUpIcon
+  DocumentArrowUpIcon,
+  CalendarDaysIcon,
+  LightBulbIcon,
+  TrophyIcon
 } from '@heroicons/react/24/outline'
 import {
   HomeIcon as HomeSolid, BookOpenIcon as BookSolid,
   ChartBarIcon as ChartSolid, UserIcon as UserSolid,
   AcademicCapIcon as AdminSolid,
+  CalendarDaysIcon as CalendarDaysSolid,
 } from '@heroicons/react/24/solid'
 
 export default function BottomNav() {
@@ -32,6 +36,8 @@ export default function BottomNav() {
     { to: '/admin/exams', icon: ClipboardDocumentListIcon, label: t('nav.admin.exams') },
     { to: '/admin/results', icon: ChartBarIcon, label: t('nav.admin.results') },
     { to: '/admin/users', icon: UsersIcon, label: t('nav.admin.users') },
+    { to: '/admin/seminars', icon: LightBulbIcon, label: t('nav.admin.seminars') },
+    { to: '/admin/competitions', icon: TrophyIcon, label: t('nav.admin.competitions') },
     { to: '/admin/import', icon: ArrowUpTrayIcon, label: 'Import Questions' },
     { to: '/admin/chapters/import', icon: DocumentArrowUpIcon, label: 'Import Chapters' },
   ]
@@ -39,6 +45,7 @@ export default function BottomNav() {
   const tabs = [
     { to: '/dashboard', icon: HomeIcon, activeIcon: HomeSolid, label: t('nav.dashboard') },
     { to: '/courses', icon: BookOpenIcon, activeIcon: BookSolid, label: t('nav.courses') },
+    { to: '/events', icon: CalendarDaysIcon, activeIcon: CalendarDaysSolid, label: t('nav.events') },
     { to: '/results', icon: ChartBarIcon, activeIcon: ChartSolid, label: t('nav.results') },
     ...(user?.isAdmin ? [{ admin: true, icon: AcademicCapIcon, activeIcon: AdminSolid, label: 'Admin' }] : []),
     { to: '/profile', icon: UserIcon, activeIcon: UserSolid, label: t('nav.profile') },

@@ -18,10 +18,10 @@ const Gdpr = lazy(() => import('./pages/landing/Gdpr'))
 const UserDashboard = lazy(() => import('./pages/student/UserDashboard'))
 const Profile = lazy(() => import('./pages/student/Profile'))
 const Courses = lazy(() => import('./pages/student/Courses'))
+const Events = lazy(() => import('./pages/student/Events'))
 const CourseDetail = lazy(() => import('./pages/student/CourseDetail'))
 const ChapterDetail = lazy(() => import('./pages/student/ChapterDetail'))
 const ExamPage = lazy(() => import('./pages/student/ExamPage'))
-const ExamResult = lazy(() => import('./pages/student/ExamResult'))
 const Results = lazy(() => import('./pages/student/Results'))
 const QuickQuiz = lazy(() => import('./pages/student/QuickQuiz'))
 const AdminCourses = lazy(() => import('./pages/admin/AdminCourses'))
@@ -29,9 +29,14 @@ const AdminChapters = lazy(() => import('./pages/admin/AdminChapters'))
 const AdminChaptersImport = lazy(() => import('./pages/admin/AdminChaptersImport'))
 const AdminQuestions = lazy(() => import('./pages/admin/AdminQuestions'))
 const AdminExams = lazy(() => import('./pages/admin/AdminExams'))
+const AdminSeminars = lazy(() => import('./pages/admin/AdminSeminars'))
+const AdminCompetitions = lazy(() => import('./pages/admin/AdminCompetitions'))
 const AdminExamResults = lazy(() => import('./pages/admin/AdminExamResults'))
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
 const AdminImport = lazy(() => import('./pages/admin/AdminImport'))
+const AdminPdfImport = lazy(() => import('./pages/admin/AdminPdfImport'))
+const AdminImportQuiz = lazy(() => import('./pages/admin/AdminImportQuiz'))
+const ExamMonitoring = lazy(() => import('./pages/admin/ExamMonitoring'))
 
 // ── Loading fallback ───────────────────────────────────────────────────
 function PageLoader() {
@@ -53,7 +58,11 @@ function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
   if (loading) return <PageLoader />
   if (!user) return <Navigate to="/login" />
-  if (user.verification === 'pending' || user.verification === 'rejected') {
+  // BUG-004: only explicit 'approved' (or admins) may pass. Previously only
+  // 'pending'/'rejected' were blocked, so a user with verification null
+  // (legacy accounts, users created outside the register flow) slipped through
+  // to student pages. Treat anything that is not 'approved' as blocked.
+  if (user.verification !== 'approved' && !user.isAdmin) {
     return <LoadingFallback><PendingApproval /></LoadingFallback>
   }
   return <Layout>{children}</Layout>
@@ -86,20 +95,25 @@ export default function App() {
           <Route path="/dashboard" element={<ProtectedRoute><UserDashboard /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/courses" element={<ProtectedRoute><Courses /></ProtectedRoute>} />
+          <Route path="/events" element={<ProtectedRoute><Events /></ProtectedRoute>} />
           <Route path="/courses/:documentId" element={<ProtectedRoute><CourseDetail /></ProtectedRoute>} />
           <Route path="/courses/:documentId/chapters/:chapterDocumentId" element={<ProtectedRoute><ChapterDetail /></ProtectedRoute>} />
           <Route path="/courses/:documentId/quiz" element={<ProtectedRoute><QuickQuiz /></ProtectedRoute>} />
           <Route path="/exam/:documentId" element={<ProtectedRoute><ExamPage /></ProtectedRoute>} />
-          <Route path="/exam-result" element={<ProtectedRoute><ExamResult /></ProtectedRoute>} />
           <Route path="/results" element={<ProtectedRoute><Results /></ProtectedRoute>} />
           <Route path="/admin/courses" element={<AdminRoute><AdminCourses /></AdminRoute>} />
           <Route path="/admin/chapters" element={<AdminRoute><AdminChapters /></AdminRoute>} />
           <Route path="/admin/chapters/import" element={<AdminRoute><AdminChaptersImport /></AdminRoute>} />
           <Route path="/admin/questions" element={<AdminRoute><AdminQuestions /></AdminRoute>} />
           <Route path="/admin/exams" element={<AdminRoute><AdminExams /></AdminRoute>} />
+          <Route path="/admin/seminars" element={<AdminRoute><AdminSeminars /></AdminRoute>} />
+          <Route path="/admin/competitions" element={<AdminRoute><AdminCompetitions /></AdminRoute>} />
           <Route path="/admin/results" element={<AdminRoute><AdminExamResults /></AdminRoute>} />
           <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
           <Route path="/admin/import" element={<AdminRoute><AdminImport /></AdminRoute>} />
+          <Route path="/admin/import-pdf" element={<AdminRoute><AdminPdfImport /></AdminRoute>} />
+          <Route path="/admin/import-quiz" element={<AdminRoute><AdminImportQuiz /></AdminRoute>} />
+          <Route path="/admin/exams/:examDocumentId/monitoring" element={<AdminRoute><ExamMonitoring /></AdminRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </LoadingFallback>

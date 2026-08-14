@@ -20,7 +20,10 @@ import {
   ChevronDoubleRightIcon,
   ChevronDownIcon,
   ArrowUpTrayIcon,
-  DocumentArrowUpIcon
+  DocumentArrowUpIcon,
+  CalendarDaysIcon,
+  LightBulbIcon,
+  TrophyIcon
 } from '@heroicons/react/24/outline'
 import { createRipple } from '../hooks/useRipple'
 
@@ -53,8 +56,11 @@ function SidebarContent({
     { to: '/admin/exams', icon: ClipboardDocumentListIcon, label: t('nav.admin.exams') },
     { to: '/admin/results', icon: ChartBarIcon, label: t('nav.admin.results') },
     { to: '/admin/users', icon: UsersIcon, label: t('nav.admin.users') },
-    { to: '/admin/import', icon: ArrowUpTrayIcon, label: 'Import Questions' },
-    { to: '/admin/chapters/import', icon: DocumentArrowUpIcon, label: 'Import Chapters' },
+    { to: '/admin/seminars', icon: LightBulbIcon, label: t('nav.admin.seminars') },
+    { to: '/admin/competitions', icon: TrophyIcon, label: t('nav.admin.competitions') },
+    { to: '/admin/import', icon: ArrowUpTrayIcon, label: 'Import Questions (.docx)' },
+    { to: '/admin/import-pdf', icon: DocumentArrowUpIcon, label: 'Import Questions (.pdf)' },
+    { to: '/admin/chapters/import', icon: DocumentTextIcon, label: 'Import Chapters' },
   ]
 
   return (
@@ -90,6 +96,7 @@ function SidebarContent({
       <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto overflow-x-visible">
         <NavItem to="/dashboard" icon={HomeIcon} label={t('nav.dashboard')} active={isActive('/dashboard')} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
         <NavItem to="/courses" icon={BookOpenIcon} label={t('nav.courses')} active={isActive('/courses')} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
+        <NavItem to="/events" icon={CalendarDaysIcon} label={t('nav.events')} active={isActive('/events')} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
         <NavItem to="/results" icon={ChartBarIcon} label={t('nav.results')} active={isActive('/results')} onClick={isMobile ? close : undefined} collapsed={isCollapsed} />
 
         {user?.isAdmin && (

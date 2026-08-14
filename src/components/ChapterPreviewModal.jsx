@@ -1,19 +1,13 @@
-// ChapterPreviewModal.jsx — FULL CLEAN VERSION
-import { useEffect } from 'react'
-import { XMarkIcon } from '@heroicons/react/24/outline'
+// ChapterPreviewModal.jsx — read-only admin preview of a chapter. Renders
+// blocks through the shared <ChapterBlocks> document renderer.
+import { useEffect, useRef } from 'react'
+import { ClipboardDocumentListIcon, DocumentTextIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { mediaUrl } from '../api/media'
 import { getLocalizedArray } from '../api/strapi'
+import useFocusTrap from '../hooks/useFocusTrap'
+import ChapterBlocks from './ChapterBlocks'
 
-// ─── Shared helpers (copied here so the modal has zero external deps) ─────────
-
-function resolveImageSrc(block) {
-  if (block.media?.file?.url) return mediaUrl(block.media.file.url)
-  if (block.mediaItems?.[0]?.file?.url) return mediaUrl(block.mediaItems[0].file.url)
-  if (block.file?.url) return mediaUrl(block.file.url)
-  if (block.media?.url) return mediaUrl(block.media.url)
-  if (block.url) return block.url
-  return null
-}
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getYouTubeId(url) {
   try {
@@ -21,10 +15,6 @@ function getYouTubeId(url) {
     if (u.hostname.includes('youtu.be')) return u.pathname.slice(1)
     return u.searchParams.get('v') || null
   } catch { return null }
-}
-
-function getBlockFile(block) {
-  return block.media?.file || block.file || block.mediaItems?.[0]?.file || null
 }
 
 // ─── Legacy media renderer (old chapters without blocks) ─────────────────────
@@ -37,14 +27,20 @@ function LegacyMedia({ media }) {
         if (!item?.url) return null
         const src = mediaUrl(item.url)
         if (item.mime?.startsWith('image/')) return (
-          <figure key={i} className="rounded-xl overflow-hidden">
-            <img
-              src={src}
-              alt={item.alternativeText || item.name || ''}
-              className="w-full object-cover max-h-96"
-            />
+          <figure key={i} className="rounded-xl overflow-hidden shadow" style={{ backgroundColor: 'var(--bg-card)' }}>
+            <div
+              className="flex items-center justify-center p-4 sm:p-6"
+              style={{ backgroundColor: 'var(--bg-secondary)' }}
+            >
+              <img
+                src={src}
+                alt={item.alternativeText || item.name || ''}
+                loading="lazy"
+                className="max-h-[30rem] w-auto max-w-full rounded-lg object-contain shadow-sm"
+              />
+            </div>
             {item.caption && (
-              <figcaption className="text-xs text-center py-2" style={{ color: 'var(--text-muted)' }}>
+              <figcaption className="text-xs text-center px-4 py-3 border-t" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
                 {item.caption}
               </figcaption>
             )}
@@ -72,125 +68,12 @@ function RichContent({ html }) {
   )
 }
 
-// ─── Block renderer for preview (read-only, no interactive questions) ─────────
-
-function PreviewBlock({ block, i }) {
-  if (block.type === 'text') return (
-    <div
-      key={i}
-      className="prose prose-sm max-w-none"
-      style={{ color: 'var(--text-primary)' }}
-      dangerouslySetInnerHTML={{ __html: block.content }}
-    />
-  )
-
-  if (block.type === 'video') {
-    const videoId = getYouTubeId(block.url)
-    if (!videoId) return null
-    return (
-      <div key={i} className="rounded-xl overflow-hidden" style={{ aspectRatio: '16/9' }}>
-        <iframe
-          src={`https://www.youtube.com/embed/${videoId}`}
-          className="w-full h-full"
-          allowFullScreen
-          title="Video"
-        />
-      </div>
-    )
-  }
-
-  if (block.type === 'image' || block.type === 'image_url') {
-    const file = getBlockFile(block)
-    const src = resolveImageSrc(block)
-    if (!src) return null
-
-    if (file?.mime?.startsWith('video/')) {
-      return (
-        <figure key={i} className="rounded-xl overflow-hidden shadow">
-          <video controls className="w-full max-h-96 bg-black">
-            <source src={src} type={file.mime} />
-          </video>
-          {block.caption && (
-            <figcaption className="text-xs text-center py-2" style={{ color: 'var(--text-muted)' }}>
-              {block.caption}
-            </figcaption>
-          )}
-        </figure>
-      )
-    }
-
-    return (
-      <figure key={i} className="rounded-xl overflow-hidden shadow">
-        <img
-          src={src}
-          alt={block.caption || block.alt || file?.alternativeText || ''}
-          className="w-full object-cover max-h-96"
-        />
-        {block.caption && (
-          <figcaption className="text-xs text-center py-2" style={{ color: 'var(--text-muted)' }}>
-            {block.caption}
-          </figcaption>
-        )}
-      </figure>
-    )
-  }
-
-  if (block.type === 'note') return (
-    <div
-      key={i}
-      className="border-l-4 border-blue-500 pl-4 py-3 rounded-r-lg"
-      style={{ backgroundColor: 'rgba(59,130,246,0.08)' }}
-    >
-      <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{block.content}</p>
-    </div>
-  )
-
-  if (block.type === 'question' || block.type === 'bank_question') return (
-    <div
-      key={i}
-      className="rounded-xl p-4 border"
-      style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
-    >
-      <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-primary)' }}>
-        <span className="text-blue-600 mr-1">Q.</span>
-        {block.content}
-      </p>
-      {(block.questionType === 'yes_no' || !block.questionType) && (
-        <div className="flex gap-3">
-          {['Yes', 'No'].map(opt => (
-            <div
-              key={opt}
-              className="px-4 py-2 rounded-lg border text-sm"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-            >
-              {opt}
-            </div>
-          ))}
-        </div>
-      )}
-      {block.questionType === 'multiple_choice' && (
-        <div className="space-y-2">
-          {(block.options || []).filter(o => o.trim()).map((opt, j) => (
-            <div
-              key={j}
-              className="px-3 py-2 rounded-lg border text-sm"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-            >
-              {opt}
-            </div>
-          ))}
-        </div>
-      )}
-      <p className="text-xs mt-2 text-green-600">✓ Correct: {block.correctAnswer}</p>
-    </div>
-  )
-
-  return null
-}
-
 // ─── Main modal ───────────────────────────────────────────────────────────────
 
 export default function ChapterPreviewModal({ chapter, language, onClose }) {
+  const overlayRef = useRef(null)
+  useFocusTrap(overlayRef)
+
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', handler)
@@ -209,7 +92,13 @@ export default function ChapterPreviewModal({ chapter, language, onClose }) {
   const hasLegacyContent = chapter.videoUrl || chapter.content || chapter.media?.length
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 bg-black/70 backdrop-blur-sm overflow-y-auto">
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-8 bg-black/70 backdrop-blur-sm overflow-y-auto"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="chapter-preview-title"
+    >
       <div
         className="w-full max-w-3xl rounded-2xl shadow-2xl mb-8"
         style={{ backgroundColor: 'var(--bg-primary)' }}
@@ -228,7 +117,7 @@ export default function ChapterPreviewModal({ chapter, language, onClose }) {
                 Chapter {chapter.order}
               </span>
             </div>
-            <h2 className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>
+            <h2 id="chapter-preview-title" className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>
               {chapter.title}
             </h2>
           </div>
@@ -249,11 +138,7 @@ export default function ChapterPreviewModal({ chapter, language, onClose }) {
 
           {/* ── Block-based (new chapters) ── */}
           {hasBlocks && (
-            <div className="space-y-6">
-              {blocks.map((block, i) => (
-                <PreviewBlock key={i} block={block} i={i} />
-              ))}
-            </div>
+            <ChapterBlocks blocks={blocks} language={language || 'lv'} />
           )}
 
           {/* ── Legacy fallback (old chapters) ── */}
@@ -281,7 +166,9 @@ export default function ChapterPreviewModal({ chapter, language, onClose }) {
           {/* ── Empty state ── */}
           {!hasBlocks && !hasLegacyContent && (
             <div className="text-center py-12">
-              <p className="text-3xl sm:text-4xl mb-3">📄</p>
+              <div className="w-14 h-14 mx-auto mb-3 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                <DocumentTextIcon className="w-7 h-7" style={{ color: 'var(--text-muted)' }} />
+              </div>
               <p style={{ color: 'var(--text-muted)' }}>This chapter has no content yet.</p>
             </div>
           )}
@@ -291,8 +178,9 @@ export default function ChapterPreviewModal({ chapter, language, onClose }) {
             <div className="mt-8">
               <div className="flex items-center gap-2 mb-4">
                 <div className="h-px flex-1" style={{ backgroundColor: 'var(--border)' }} />
-                <span className="text-sm font-semibold px-3" style={{ color: 'var(--text-muted)' }}>
-                  📝 Chapter Quiz ({chapter.questions.length} questions)
+                <span className="text-sm font-semibold px-3 inline-flex items-center gap-1.5" style={{ color: 'var(--text-muted)' }}>
+                  <ClipboardDocumentListIcon className="w-4 h-4" />
+                  Chapter Quiz ({chapter.questions.length} questions)
                 </span>
                 <div className="h-px flex-1" style={{ backgroundColor: 'var(--border)' }} />
               </div>
@@ -322,7 +210,7 @@ export default function ChapterPreviewModal({ chapter, language, onClose }) {
                     )}
                     {q.type === 'multiple_choice' && (
                       <div className="space-y-2">
-                        {(q.options || []).map((opt, j) => (
+                        {(q.optionsLv || q.options || []).map((opt, j) => (
                           <div
                             key={j}
                             className="px-3 py-2 rounded-lg border text-sm"

@@ -2,7 +2,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import api from '../../api/strapi'
 import IconButton from '../../components/IconButton'
-import { CheckCircleIcon, XCircleIcon, ArrowPathIcon, PencilIcon } from '@heroicons/react/24/outline'
+import RankSelect from '../../components/RankSelect'
+import UserRanks from '../../components/UserRanks'
+import { KUMITE_RANKS, KATA_RANKS } from '../../utils/refereeRanks'
+import { CheckCircleIcon, XCircleIcon, ArrowPathIcon, PencilIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 
 export default function AdminUsers() {
@@ -11,8 +14,11 @@ export default function AdminUsers() {
   const [rejectingUser, setRejectingUser] = useState(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [sortBy, setSortBy] = useState('newest')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterVerification, setFilterVerification] = useState('all')
   const [selectedUser, setSelectedUser] = useState(null)
-  const [editRank, setEditRank] = useState('')
+  const [editRankKumite, setEditRankKumite] = useState('')
+  const [editRankKata, setEditRankKata] = useState('')
 
   const { data: users, isLoading } = useQuery({
     queryKey: ['admin-users'],
@@ -54,8 +60,18 @@ export default function AdminUsers() {
 
   if (isLoading) return <p className="text-gray-500">{t('common.loading')}</p>
 
-  const pending = users?.filter(u => u.verification === 'pending') || []
-  const others = users?.filter(u => u.verification !== 'pending') || []
+  const matchesFilters = (u) => {
+    if (filterVerification !== 'all' && u.verification !== filterVerification) return false
+    const query = searchQuery.trim().toLowerCase()
+    if (query) {
+      const haystack = [u.firstName, u.lastName, u.username, u.email].filter(Boolean).join(' ').toLowerCase()
+      if (!haystack.includes(query)) return false
+    }
+    return true
+  }
+
+  const pending = users?.filter(u => u.verification === 'pending' && matchesFilters(u)) || []
+  const others = users?.filter(u => u.verification !== 'pending' && matchesFilters(u)) || []
 
   const sortUsers = (arr) => {
     if (!arr) return []
@@ -74,7 +90,7 @@ export default function AdminUsers() {
     return (
       <div>
         <button
-          onClick={() => { setSelectedUser(null); setEditRank('') }}
+          onClick={() => { setSelectedUser(null); setEditRankKumite(''); setEditRankKata('') }}
           className="text-blue-600 hover:underline text-sm mb-5 block"
         >
           ← {t('admin.users.backToUsers') || 'Back to Users'}
@@ -89,18 +105,20 @@ export default function AdminUsers() {
             @{selectedUser.username} — {selectedUser.email}
           </p>
 
-          <div className="max-w-sm">
-            <label className="block text-sm font-medium mb-1" htmlFor="user-rank" style={{ color: 'var(--text-primary)' }}>
-              {t('admin.users.rankLabel') || 'Rank'}
-            </label>
-            <input
-              id="user-rank"
-              type="text"
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-              value={editRank}
-              onChange={e => setEditRank(e.target.value)}
-              placeholder={t('admin.users.rankPlaceholder') || 'e.g. 1st Kyu, 1st Dan, etc.'}
+          <div className="max-w-sm space-y-4">
+            <RankSelect
+              id="user-rank-kumite"
+              label={t('ranks.kumiteRank') || 'Kumite rank'}
+              ladder={KUMITE_RANKS}
+              value={editRankKumite}
+              onChange={setEditRankKumite}
+            />
+            <RankSelect
+              id="user-rank-kata"
+              label={t('ranks.kataRank') || 'Kata rank'}
+              ladder={KATA_RANKS}
+              value={editRankKata}
+              onChange={setEditRankKata}
             />
           </div>
 
@@ -109,10 +127,11 @@ export default function AdminUsers() {
               onClick={() => {
                 updateMutation.mutate({
                   id: selectedUser.id,
-                  data: { rank: editRank },
+                  data: { rankKumite: editRankKumite, rankKata: editRankKata },
                 })
                 setSelectedUser(null)
-                setEditRank('')
+                setEditRankKumite('')
+                setEditRankKata('')
               }}
               disabled={updateMutation.isPending}
               className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
@@ -120,7 +139,7 @@ export default function AdminUsers() {
               {updateMutation.isPending ? t('common.saving') || 'Saving...' : t('common.save') || 'Save'}
             </button>
             <button
-              onClick={() => { setSelectedUser(null); setEditRank('') }}
+              onClick={() => { setSelectedUser(null); setEditRankKumite(''); setEditRankKata('') }}
               className="border px-6 py-2 rounded-lg hover:bg-gray-50"
               style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
             >
@@ -139,6 +158,44 @@ export default function AdminUsers() {
           <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">{t('admin.users.title')}</h1>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('admin.users.total', { count: users?.length || 0 })}</p>
         </div>
+      </div>
+
+      {/* Filters: search + verification */}
+      <div className="mb-4 flex flex-col sm:flex-row gap-2.5">
+        <div className="relative flex-1">
+          <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={t('admin.users.searchPlaceholder') || 'Search users...'}
+            aria-label={t('admin.users.searchPlaceholder') || 'Search users...'}
+            className="w-full border rounded-lg pl-9 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              aria-label={t('common.clearSearch') || 'Clear search'}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors hover:bg-slate-200 dark:hover:bg-slate-700/50"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <select
+          className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          value={filterVerification}
+          onChange={e => setFilterVerification(e.target.value)}
+          aria-label={t('admin.users.colStatus')}
+        >
+          <option value="all">{t('admin.users.allUsers')}</option>
+          <option value="pending">{t('admin.users.awaiting')}</option>
+          <option value="approved">{t('admin.users.filterApproved') || 'Approved'}</option>
+          <option value="rejected">{t('admin.users.filterRejected') || 'Rejected'}</option>
+        </select>
       </div>
 
       {/* Pending approvals */}
@@ -163,8 +220,10 @@ export default function AdminUsers() {
                     </p>
                     <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>@{user.username}</p>
                     <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{user.email}</p>
-                    {user.rank && (
-                      <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Rank: {user.rank}</p>
+                    {(user.rankKumite || user.rankKata) && (
+                      <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                        <UserRanks user={user} />
+                      </div>
                     )}
                   </div>
                   <div className="flex gap-1">
@@ -209,6 +268,10 @@ export default function AdminUsers() {
         </div>
       )}
 
+      {/* When filtering by Pending, the pending cards above ARE the list —
+          hide the "All users" table so the two sections never contradict. */}
+      {filterVerification !== 'pending' && (
+        <>
       {/* Sort + table header */}
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
@@ -242,10 +305,28 @@ export default function AdminUsers() {
             </tr>
           </thead>
           <tbody>
+            {sortedOthers.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center">
+                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    {t('admin.users.noResults') || 'No users match your filters.'}
+                  </p>
+                  {(searchQuery || filterVerification !== 'all') && (
+                    <button
+                      type="button"
+                      onClick={() => { setSearchQuery(''); setFilterVerification('all') }}
+                      className="mt-2 text-sm font-medium text-blue-600 hover:underline"
+                    >
+                      {t('common.clearFilters') || 'Clear filters'}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            )}
             {sortedOthers.map(user => (
               <tr key={user.id} className="border-t transition hover:opacity-80 cursor-pointer"
                 style={{ borderColor: 'var(--border)' }}
-                onClick={() => { setSelectedUser(user); setEditRank(user.rank || '') }}>
+                onClick={() => { setSelectedUser(user); setEditRankKumite(user.rankKumite || ''); setEditRankKata(user.rankKata || '') }}>
                 <td className="px-4 py-3 font-medium text-sm" style={{ color: 'var(--text-primary)' }}>
                   {user.firstName} {user.lastName}
                 </td>
@@ -256,7 +337,7 @@ export default function AdminUsers() {
                   {user.email}
                 </td>
                 <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>
-                  {user.rank || '—'}
+                  <UserRanks user={user} />
                 </td>
                 <td className="px-4 py-3">
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${getVerificationBadge(user.verification)}`}>
@@ -266,7 +347,7 @@ export default function AdminUsers() {
                 <td className="px-4 py-3">
                   <div className="flex gap-1 justify-end">
                     <IconButton icon={PencilIcon} label={t('admin.users.iconEdit') || 'Edit user'}
-                      onClick={(e) => { e.stopPropagation(); setSelectedUser(user); setEditRank(user.rank || '') }} variant="default" />
+                      onClick={(e) => { e.stopPropagation(); setSelectedUser(user); setEditRankKumite(user.rankKumite || ''); setEditRankKata(user.rankKata || '') }} variant="default" />
                     {user.verification === 'rejected' && (
                       <IconButton icon={ArrowPathIcon} label={t('admin.users.iconReapprove') || 'Re-approve user'}
                         onClick={(e) => { e.stopPropagation(); handleApprove(user) }} variant="success" />
@@ -289,6 +370,27 @@ export default function AdminUsers() {
           </tbody>
         </table>
       </div>
+        </>
+      )}
+
+      {/* Pending filter with no matches — the pending cards section is hidden */}
+      {filterVerification === 'pending' && pending.length === 0 && (
+        <div
+          className="rounded-xl p-10 text-center"
+          style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }}
+        >
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {t('admin.users.noResults') || 'No users match your filters.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => { setSearchQuery(''); setFilterVerification('all') }}
+            className="mt-2 text-sm font-medium text-blue-600 hover:underline"
+          >
+            {t('common.clearFilters') || 'Clear filters'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

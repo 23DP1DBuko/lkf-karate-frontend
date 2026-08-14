@@ -62,10 +62,10 @@ export default function ForgotPassword() {
           </div>
           <h1 className={`text-xl font-bold ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{t('auth.forgotPasswordSentTitle')}</h1>
           <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t('auth.forgotPasswordSentDesc')}</p>
-          <p className={`text-sm font-medium ${isDark ? 'text-indigo-400' : 'text-indigo-500'}`}>{email}</p>
+          <p className={`text-sm font-medium ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`}>{email}</p>
           <p className={`text-xs ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{t('auth.forgotPasswordSentHint')}</p>
           <Link to="/login" className={`inline-flex items-center gap-1.5 text-sm transition-colors font-medium ${
-            isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-500 hover:text-indigo-600'
+            isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-600 hover:text-indigo-700'
           }`}>
             <ArrowLeftIcon className="w-3.5 h-3.5" />
             {t('auth.backToSignIn')}
@@ -106,7 +106,7 @@ export default function ForgotPassword() {
 
       <p className={`text-xs text-center ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
         <Link to="/login" className={`inline-flex items-center gap-1.5 text-sm transition-colors font-medium ${
-          isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-500 hover:text-indigo-600'
+          isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-600 hover:text-indigo-700'
         }`}>
           <ArrowLeftIcon className="w-3.5 h-3.5" />
           {t('auth.backToSignIn')}

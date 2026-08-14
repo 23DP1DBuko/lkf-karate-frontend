@@ -1,8 +1,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
+import useFocusTrap from '../../hooks/useFocusTrap'
 import api, { getLocalizedField } from '../../api/strapi'
 import IconButton from '../../components/IconButton'
-import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { PencilIcon, TrashIcon, MagnifyingGlassIcon, XMarkIcon, EyeIcon } from '@heroicons/react/24/outline'
+import { useNavigate } from 'react-router-dom'
 import DateTimeStepPicker from '../../components/DateTimeStepPicker'
 import { SkeletonTable } from '../../components/Skeleton'
 import ErrorState from '../../components/ErrorState'
@@ -10,10 +12,17 @@ import { useTranslation } from 'react-i18next'
 
 export default function AdminExams() {
   const { t, i18n } = useTranslation()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editingExam, setEditingExam] = useState(null)
+  const [filterCourse, setFilterCourse] = useState('all')
+  const [filterStatus, setFilterStatus] = useState('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const deleteModalRef = useRef(null)
+  useFocusTrap(deleteModalRef)
+  const [questionsError, setQuestionsError] = useState('')
   const [form, setForm] = useState({
     title: '', duration: 30, questionCount: 10, passingScore: 70,
     openAt: '', closeAt: '', course: '', showResults: true,
@@ -93,9 +102,11 @@ export default function AdminExams() {
     })
     setShowForm(false)
     setEditingExam(null)
+    setQuestionsError('')
   }
 
   const handleEdit = (exam) => {
+    setQuestionsError('')
     setEditingExam(exam)
     setForm({
       title: exam.title,
@@ -149,6 +160,16 @@ export default function AdminExams() {
 
     setDateError('')
 
+    // Exams must have an explicit question set — no random course-pool fallback.
+    if (form.selectedQuestions.length === 0) {
+      setQuestionsError(
+        t('admin.exams.selectQuestionsRequired') ||
+          'Select at least one question before saving the exam.'
+      )
+      return
+    }
+    setQuestionsError('')
+
     const data = {
       title: form.title,
       duration: Number(form.duration),
@@ -183,6 +204,7 @@ export default function AdminExams() {
   }
 
   const toggleQuestion = (documentId) => {
+    setQuestionsError('')
     setForm(prev => ({
       ...prev,
       selectedQuestions: prev.selectedQuestions.includes(documentId)
@@ -192,6 +214,7 @@ export default function AdminExams() {
   }
 
   const selectAll = () => {
+    setQuestionsError('')
     setForm(prev => ({
       ...prev,
       selectedQuestions: courseQuestions?.map(q => q.documentId) || []
@@ -202,12 +225,33 @@ export default function AdminExams() {
     setForm(prev => ({ ...prev, selectedQuestions: [] }))
   }
 
-  const getExamStatus = (exam) => {
+  const getStatusValue = (exam) => {
     const now = new Date()
-    if (exam.openAt && new Date(exam.openAt) > now) return { label: t('admin.exams.statusScheduled'), color: 'bg-yellow-100 text-yellow-700' }
-    if (exam.closeAt && new Date(exam.closeAt) < now) return { label: t('admin.exams.statusClosed'), color: 'bg-gray-100 text-gray-500' }
-    return { label: t('admin.exams.statusOpen'), color: 'bg-green-100 text-green-700' }
+    if (exam.openAt && new Date(exam.openAt) > now) return 'scheduled'
+    if (exam.closeAt && new Date(exam.closeAt) < now) return 'closed'
+    return 'open'
   }
+
+  const getExamStatus = (exam) => {
+    const map = {
+      scheduled: { label: t('admin.exams.statusScheduled'), color: 'bg-yellow-100 text-yellow-700' },
+      open: { label: t('admin.exams.statusOpen'), color: 'bg-green-100 text-green-700' },
+      closed: { label: t('admin.exams.statusClosed'), color: 'bg-gray-100 text-gray-500' },
+    }
+    return map[getStatusValue(exam)] || map.open
+  }
+
+  const filtered = exams?.filter(exam => {
+    if (filterCourse !== 'all' && exam.course?.documentId !== filterCourse) return false
+    if (filterStatus !== 'all' && getStatusValue(exam) !== filterStatus) return false
+    const query = searchQuery.trim().toLowerCase()
+    if (query) {
+      const haystack = [exam.title, getLocalizedField(exam.course, i18n.language, 'title') || exam.course?.titleLv]
+        .filter(Boolean).join(' ').toLowerCase()
+      if (!haystack.includes(query)) return false
+    }
+    return true
+  })
 
   if (isError) {
     return <ErrorState error={error} onRetry={refetch} title="Failed to load exams" />
@@ -397,12 +441,16 @@ export default function AdminExams() {
                             <div className="flex gap-2 mt-1">
                               <span className={`text-xs px-2 py-0.5 rounded-full ${
                                 question.type === 'multiple_choice' ? 'bg-blue-100 text-blue-700'
+                                : question.type === 'single_choice' ? 'bg-teal-100 text-teal-700'
                                 : question.type === 'yes_no' ? 'bg-purple-100 text-purple-700'
+                                : question.type === 'aka_ao' ? 'bg-amber-100 text-amber-700'
                                 : 'bg-orange-100 text-orange-700'
                               }`}>
-                                {question.type === 'multiple_choice' ? t('admin.exams.typeMultipleChoice')
-                                : question.type === 'yes_no' ? t('admin.exams.typeYesNo')
-                                : t('admin.exams.typeOpenText')}
+                                {question.type === 'multiple_choice' ? t('admin.questions.mcBadge')
+                                : question.type === 'single_choice' ? t('admin.questions.scBadge')
+                                : question.type === 'yes_no' ? t('admin.questions.ynBadge')
+                                : question.type === 'aka_ao' ? t('admin.questions.akaAoBadge')
+                                : t('admin.questions.textBadge')}
                               </span>
                               {question.media?.length > 0 && (
                                 <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
@@ -417,6 +465,12 @@ export default function AdminExams() {
                   </div>
                 )}
               </div>
+            )}
+
+            {questionsError && (
+              <p className="text-sm font-medium text-red-600">
+                {questionsError}
+              </p>
             )}
 
             <div className="flex gap-3">
@@ -435,6 +489,55 @@ export default function AdminExams() {
         </div>
       )}
 
+      {/* Filters: search + course + status */}
+      <div className="mb-4 flex flex-col sm:flex-row gap-2.5">
+        <div className="relative flex-1">
+          <MagnifyingGlassIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: 'var(--text-muted)' }} />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={t('admin.exams.searchPlaceholder') || 'Search exams...'}
+            aria-label={t('admin.exams.searchPlaceholder') || 'Search exams...'}
+            className="w-full border rounded-lg pl-9 pr-8 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              aria-label={t('common.clearSearch') || 'Clear search'}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md transition-colors hover:bg-slate-200 dark:hover:bg-slate-700/50"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <XMarkIcon className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <select
+          className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          value={filterCourse}
+          onChange={e => setFilterCourse(e.target.value)}
+          aria-label={t('admin.exams.courseLabel')}
+        >
+          <option value="all">{t('admin.exams.allCourses') || 'All courses'}</option>
+          {courses?.map(course => (
+            <option key={course.id} value={course.documentId}>{getLocalizedField(course, i18n.language, 'title') || course.titleLv}</option>
+          ))}
+        </select>
+        <select
+          className="border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          aria-label={t('admin.exams.colStatus')}
+        >
+          <option value="all">{t('admin.exams.allStatuses') || 'All statuses'}</option>
+          <option value="scheduled">{t('admin.exams.statusScheduled')}</option>
+          <option value="open">{t('admin.exams.statusOpen')}</option>
+          <option value="closed">{t('admin.exams.statusClosed')}</option>
+        </select>
+      </div>
+
       <div className="bg-white rounded-xl shadow overflow-hidden overflow-x-auto">
         <table className="w-full min-w-[600px]">
           <thead className="border-b" style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}>
@@ -448,7 +551,25 @@ export default function AdminExams() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {exams?.map(exam => {
+            {filtered?.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center">
+                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+                    {t('admin.exams.noResults') || 'No exams match your filters.'}
+                  </p>
+                  {(searchQuery || filterStatus !== 'all' || filterCourse !== 'all') && (
+                    <button
+                      type="button"
+                      onClick={() => { setSearchQuery(''); setFilterStatus('all'); setFilterCourse('all') }}
+                      className="mt-2 text-sm font-medium text-blue-600 hover:underline"
+                    >
+                      {t('common.clearFilters') || 'Clear filters'}
+                    </button>
+                  )}
+                </td>
+              </tr>
+            )}
+            {filtered?.map(exam => {
               const status = getExamStatus(exam)
               return (
                 <tr key={exam.id} className="border-b hover:opacity-80 transition" style={{ borderColor: 'var(--border)' }}>
@@ -463,6 +584,13 @@ export default function AdminExams() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-end">
+                      <IconButton
+                        icon={EyeIcon}
+                        label={t('admin.exams.monitor')}
+                        onClick={() => navigate(`/admin/exams/${exam.documentId}/monitoring`)}
+                        variant="default"
+                        size="sm"
+                      />
                       <IconButton icon={PencilIcon} label={t('admin.exams.iconEdit')} onClick={() => handleEdit(exam)} variant="default" size="sm" />
                       <IconButton icon={TrashIcon} label={t('admin.exams.iconDelete')} onClick={() => handleDelete(exam)} variant="danger" size="sm" />
                     </div>
@@ -475,6 +603,7 @@ export default function AdminExams() {
       </div>
       {deleteTarget && (
         <div
+          ref={deleteModalRef}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
           role="dialog"
           aria-modal="true"
