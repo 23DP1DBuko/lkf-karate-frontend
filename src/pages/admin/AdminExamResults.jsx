@@ -1,10 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
-import api from '../../api/strapi'
+import api, { getLocalizedField } from '../../api/strapi'
 import IconButton from '../../components/IconButton'
 import QuestionReviewCard from '../../components/QuestionReviewCard'
 import { formatTimeSpent, isAnswerCorrect } from '../../utils/attempts'
-import { EyeIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import {
+  getAnswerFieldCount,
+  getFieldGrades,
+  getExpectedAnswer,
+  getEffectiveFieldDecision,
+  computeReviewTotals,
+  normalizeOpenTextAnswer,
+  setFieldGrade,
+} from '../../utils/grading'
+import { EyeIcon, MagnifyingGlassIcon, XMarkIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 
 function YearGroup({ year, attempts, onReview }) {
@@ -118,10 +127,12 @@ function YearGroup({ year, attempts, onReview }) {
 }
 
 export default function AdminExamResults() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
   const [selectedAttempt, setSelectedAttempt] = useState(null)
-  const [manualScores, setManualScores] = useState({})
+  const [manualGrades, setManualGrades] = useState({})
+  const [decisionModal, setDecisionModal] = useState(null) // { questionDocumentId, fieldIndex, decision }
+  const [reviewNotice, setReviewNotice] = useState(null) // { kind: 'saved'|'success'|'nochange'|'error', count? }
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [examsOnly, setExamsOnly] = useState(false)
@@ -131,11 +142,50 @@ export default function AdminExamResults() {
     queryFn: () => api.get('/exam-attempts/all').then(r => r.data.data),
   })
 
+  const questionIds = useMemo(
+    () => (selectedAttempt?.questions || []).map(q => q.id),
+    [selectedAttempt]
+  )
 
+  // Current question-bank data for the attempt's questions — gives judges the
+  // up-to-date expected answers + bank decisions (old snapshots lack them).
+  const { data: bankQuestions = {} } = useQuery({
+    queryKey: ['bank-questions', questionIds.join(',')],
+    queryFn: async () => {
+      if (questionIds.length === 0) return {}
+      const res = await api.get('/questions', {
+        params: {
+          'filters[id][$in]': questionIds.join(','),
+          'pagination[pageSize]': 100,
+        },
+      })
+      const map = {}
+      for (const q of res.data.data || []) map[q.id] = q
+      return map
+    },
+    enabled: !!selectedAttempt && questionIds.length > 0,
+  })
+
+  // Exam-specific grading decisions ("used in this exam").
+  const { data: examDecisions = [] } = useQuery({
+    queryKey: ['exam-decisions', selectedAttempt?.exam?.documentId],
+    queryFn: () =>
+      api.get(`/exam-attempts/decisions/${selectedAttempt.exam.documentId}`).then(r => r.data.data || []),
+    enabled: !!selectedAttempt?.exam?.documentId,
+  })
+
+  const decisionsMap = useMemo(() => {
+    const map = {}
+    for (const d of examDecisions) {
+      const key = d.questionNumericId ?? d.questionId
+      if (!map[key]) map[key] = {}
+      map[key][d.fieldIndex] = d.decision
+    }
+    return map
+  }, [examDecisions])
 
   const filteredAttempts = useMemo(() => {
     return attempts?.filter(attempt => {
-      // Search filter
       if (search.trim()) {
         const fullName = `${attempt.user?.firstName} ${attempt.user?.lastName}`.toLowerCase()
         const username = attempt.user?.username?.toLowerCase() || ''
@@ -145,25 +195,46 @@ export default function AdminExamResults() {
           return false
         }
       }
-      // Status filter: passed / failed / still in progress
       if (statusFilter === 'passed' && !(attempt.submittedAt && attempt.passed)) return false
       if (statusFilter === 'failed' && !(attempt.submittedAt && !attempt.passed)) return false
       if (statusFilter === 'in_progress' && attempt.submittedAt) return false
-      // Exams-only filter: a quick quiz has a course but NO exam relation
-      if (examsOnly && !attempt.exam) {
-        return false
-      }
+      if (examsOnly && !attempt.exam) return false
       return true
     })
   }, [attempts, search, statusFilter, examsOnly])
 
   const gradeMutation = useMutation({
-    mutationFn: ({ attemptId, score, passed, manualGrades }) =>
-      api.put(`/exam-attempts/grade/${attemptId}`, { score, passed, manualGrades }),
-    onSuccess: () => {
+    mutationFn: ({ attemptId, manualGrades: mg }) =>
+      api.put(`/exam-attempts/grade/${attemptId}`, { manualGrades: mg }),
+    onSuccess: (res) => {
       queryClient.invalidateQueries(['admin-attempts'])
-      setSelectedAttempt(null)
-    }
+      // Keep the review open so the judge can change decisions further.
+      const data = res.data?.data
+      if (data && typeof data.score === 'number') {
+        setSelectedAttempt(prev => (prev ? { ...prev, score: data.score, passed: data.passed } : prev))
+      }
+      setReviewNotice({ kind: 'saved' })
+    },
+    onError: () => setReviewNotice({ kind: 'error' }),
+  })
+
+  const changeDecisionMutation = useMutation({
+    mutationFn: (payload) => api.put('/exam-attempts/change-answer-decision', payload),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries(['admin-attempts'])
+      queryClient.invalidateQueries(['bank-questions'])
+      queryClient.invalidateQueries(['exam-decisions'])
+      setDecisionModal(null)
+      if (res.data?.changed) {
+        setReviewNotice({ kind: 'success', count: res.data.recalculatedAttempts })
+      } else {
+        setReviewNotice({ kind: 'nochange' })
+      }
+    },
+    onError: () => {
+      setDecisionModal(null)
+      setReviewNotice({ kind: 'error' })
+    },
   })
 
   const releaseMutation = useMutation({
@@ -173,22 +244,15 @@ export default function AdminExamResults() {
   })
 
   const handleGrade = (attempt) => {
-    const questions = attempt.questions || []
-    const answers = attempt.answers || {}
-    let autoCorrect = 0
-
-    questions.forEach(q => {
-      if (isAnswerCorrect(q, answers[q.id])) {
-        autoCorrect++
-      }
-    })
-
-    const openTextPoints = Object.values(manualScores).reduce((sum, val) => sum + (Number(val) || 0), 0)
-    const totalPoints = autoCorrect + openTextPoints
-    const score = Math.round((totalPoints / questions.length) * 100)
-    const passed = score >= (attempt.exam?.passingScore || 70)
-
-    gradeMutation.mutate({ attemptId: attempt.id, score, passed, manualGrades: manualScores })
+    // Only send the open-text grades the judge actually reviewed — the server
+    // recomputes score + passed and never trusts client-supplied values.
+    const manual = {}
+    for (const q of attempt.questions || []) {
+      if (q.type !== 'open_text') continue
+      const grades = getFieldGrades(manualGrades, q.id, getAnswerFieldCount(q))
+      if (Object.keys(grades).length > 0) manual[q.id] = grades
+    }
+    gradeMutation.mutate({ attemptId: attempt.id, manualGrades: manual })
   }
 
   if (isLoading) return <p className="text-gray-500">{t('common.loading')}</p>
@@ -196,6 +260,9 @@ export default function AdminExamResults() {
   if (selectedAttempt) {
     const questions = selectedAttempt.questions || []
     const answers = selectedAttempt.answers || {}
+    // Merge the attempt's question snapshot with the current question-bank
+    // data so judges see the latest expected answers and bank decisions.
+    const mergedQuestions = questions.map(q => ({ ...q, ...(bankQuestions[q.id] || {}) }))
 
     const timeSpent = formatTimeSpent(selectedAttempt.timeSpentSeconds)
 
@@ -203,10 +270,19 @@ export default function AdminExamResults() {
       typeof selectedAttempt.score === 'number' ? `${selectedAttempt.score}%` : '—'
     const isPassed = selectedAttempt.passed === true
 
+    const totals = computeReviewTotals(mergedQuestions, answers, manualGrades)
+
+    // Did the attempt's snapshot predate answer-field configuration?
+    const isLegacyOpenText = (q) =>
+      q.type === 'open_text' &&
+      !Array.isArray(q.answerFieldsLv) &&
+      !Array.isArray(q.answerFieldsRu) &&
+      !Array.isArray(q.answerFieldsEn)
+
     return (
       <div>
         <button
-          onClick={() => { setSelectedAttempt(null); setManualScores({}) }}
+          onClick={() => { setSelectedAttempt(null); setManualGrades({}); setReviewNotice(null) }}
           className="text-blue-600 hover:underline text-sm mb-5 block"
         >
           ← {t('admin.results.backToResults')}
@@ -217,11 +293,9 @@ export default function AdminExamResults() {
           className={`rounded-2xl shadow-lg p-5 sm:p-6 border relative overflow-hidden ${isPassed ? 'border-green-400' : 'border-red-400'}`}
           style={{ backgroundColor: 'var(--bg-card)' }}
         >
-          {/* Color accent bar */}
           <div className={`absolute top-0 left-0 right-0 h-1 ${isPassed ? 'bg-gradient-to-r from-emerald-400 to-green-500' : 'bg-gradient-to-r from-rose-400 to-red-500'}`} />
 
           <div className="flex items-start justify-between gap-4">
-            {/* Left: info */}
             <div className="min-w-0 flex-1">
               <p
                 className="text-[11px] sm:text-xs uppercase tracking-[0.18em] mb-1"
@@ -240,15 +314,12 @@ export default function AdminExamResults() {
               </p>
               {timeSpent && (
                 <p className="mt-2 sm:mt-3 flex items-center gap-1.5 text-xs sm:text-sm" style={{ color: 'var(--text-muted)' }}>
-                  <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
+                  <ClockIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                   {t('results.timeSpent')}: {timeSpent}
                 </p>
               )}
             </div>
 
-            {/* Right: score + status */}
             <div className="text-right shrink-0 min-w-[52px]">
               <div className={`text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight ${isPassed ? 'text-green-500' : 'text-red-500'}`}>
                 {score}
@@ -258,16 +329,28 @@ export default function AdminExamResults() {
                   ? (isPassed ? t('admin.results.passed').toLowerCase() : t('admin.results.failed').toLowerCase())
                   : t('admin.results.inProgress').toLowerCase()}
               </p>
-              {selectedAttempt.submittedAt && (
-                <p className="mt-1 text-[10px] sm:text-xs" style={{ color: 'var(--text-muted)' }}>
-                  {new Date(selectedAttempt.submittedAt).toLocaleDateString()}
-                </p>
-              )}
             </div>
           </div>
         </div>
 
-        {/* Detailed review using QuestionReviewCard matching Results.jsx style */}
+        {/* Review notice */}
+        {reviewNotice && (
+          <div
+            role="status"
+            className={`mt-4 rounded-xl px-4 py-3 text-sm font-medium ${
+              reviewNotice.kind === 'error'
+                ? 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+                : 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+            }`}
+          >
+            {reviewNotice.kind === 'saved' && t('admin.results.savedReview')}
+            {reviewNotice.kind === 'success' && t('admin.results.recalcSuccess', { count: reviewNotice.count ?? 0 })}
+            {reviewNotice.kind === 'nochange' && t('admin.results.recalcNoChange')}
+            {reviewNotice.kind === 'error' && t('admin.results.recalcError')}
+          </div>
+        )}
+
+        {/* Detailed review */}
         <div className="mt-8 space-y-4">
           <div className="flex items-center justify-between">
             <h2
@@ -283,73 +366,219 @@ export default function AdminExamResults() {
             )}
           </div>
 
-          {questions.map((q, i) => {
+          {mergedQuestions.map((q, i) => {
             const userAnswer = answers[q.id]
             const isOpenText = q.type === 'open_text'
-            const isCorrect = isAnswerCorrect(q, userAnswer)
+
+            if (!isOpenText) {
+              return (
+                <QuestionReviewCard
+                  key={q.id}
+                  question={q}
+                  index={i + 1}
+                  userAnswer={userAnswer}
+                  correctAnswer={q.correctAnswer}
+                  isCorrect={isAnswerCorrect(q, userAnswer)}
+                  isOpenText={false}
+                  language={i18n.language}
+                  labels={{
+                    correctChoice: t('results.correctChoice') || 'Correct answer',
+                    yourChoice: t('admin.results.studentAnswer') || 'Student answer',
+                    correct: t('admin.results.correctLabel') || 'Correct',
+                    incorrect: t('admin.results.incorrectLabel') || 'Incorrect',
+                  }}
+                  t={(key) => key}
+                />
+              )
+            }
+
+            // ── Open-text: one review block per answer field ───────────────
+            const count = getAnswerFieldCount(q)
+            const studentFields = normalizeOpenTextAnswer(userAnswer)
+            const fieldGrades = getFieldGrades(manualGrades, q.id, count)
+            const questionPoints = Array.from({ length: count }, (_, f) => fieldGrades[f]).filter(v => v === 1).length
+            const reviewedCount = Object.keys(fieldGrades).length
+            const allReviewed = reviewedCount >= count
 
             return (
-              <QuestionReviewCard
+              <div
                 key={q.id}
-                question={q}
-                index={i + 1}
-                userAnswer={userAnswer}
-                correctAnswer={q.correctAnswer}
-                isCorrect={isCorrect}
-                isOpenText={isOpenText}
-                language="en"
-                labels={{
-                  correctChoice: t('results.correctChoice') || 'Correct answer',
-                  yourChoice: t('admin.results.studentAnswer') || 'Student answer',
-                  openTextNote: t('results.openTextNote') || 'Open text answers are reviewed manually based on the stored correct answer.',
-                  correct: t('admin.results.correctLabel') || 'Correct',
-                  incorrect: t('admin.results.incorrectLabel') || 'Incorrect',
-                }}
-                t={(key) => key}
-                renderExtra={isOpenText ? () => (
-                  <div className="mt-3">
-                    <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-muted)' }}>
-                      {t('admin.results.awardPoints')}
-                    </label>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setManualScores(prev => ({ ...prev, [q.id]: 0 }))}
-                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
-                          manualScores[q.id] === 0
-                            ? 'bg-red-500 text-white border-red-500'
-                            : 'border-gray-300 hover:border-red-400'
-                        }`}
-                      >
-                        {t('admin.results.btnIncorrect')} (0 pts)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setManualScores(prev => ({ ...prev, [q.id]: 1 }))}
-                        className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
-                          manualScores[q.id] === 1
-                            ? 'bg-green-500 text-white border-green-500'
-                            : 'border-gray-300 hover:border-green-400'
-                        }`}
-                      >
-                        {t('admin.results.btnCorrect')} (1 pt)
-                      </button>
+                className="rounded-2xl shadow-lg p-5 border"
+                style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
+              >
+                <div className="flex items-start gap-4">
+                  <div className={`shrink-0 mt-1 flex h-9 w-9 items-center justify-center rounded-full font-semibold ${allReviewed ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                    {i + 1}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base sm:text-lg font-semibold leading-relaxed" style={{ color: 'var(--text-primary)' }}>
+                      {getLocalizedField(q, i18n.language, 'text')}
+                    </p>
+
+                    {isLegacyOpenText(q) && (
+                      <p className="mt-2 text-xs rounded-lg px-3 py-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300">
+                        {t('admin.results.legacyNote')}
+                      </p>
+                    )}
+
+                    {/* Question-level progress + points */}
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                      <span>
+                        {allReviewed ? '✓ ' : ''}
+                        {t('admin.results.reviewed')}: {reviewedCount}/{count}
+                      </span>
+                      <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        {t('admin.results.questionPoints')}: {questionPoints}/{count}
+                      </span>
+                    </div>
+
+                    {/* Per-field review cards */}
+                    <div className="mt-4 space-y-3">
+                      {Array.from({ length: count }, (_, f) => {
+                        const studentText = studentFields[f] ?? ''
+                        const expected = getExpectedAnswer(q, f, i18n.language)
+                        const grade = fieldGrades[f]
+                        const reviewed = grade === 1 || grade === 0
+                        const bankDecision = getEffectiveFieldDecision(q, f, decisionsMap[q.id]?.[f])
+                        const nextDecision = bankDecision === 'correct' ? 'incorrect' : 'correct'
+
+                        return (
+                          <div
+                            key={f}
+                            className="rounded-xl border p-3.5"
+                            style={{
+                              borderColor: reviewed ? (grade === 1 ? '#059669' : '#dc2626') : 'var(--border)',
+                              backgroundColor: 'var(--bg-secondary)',
+                            }}
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                              <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                                {t('admin.results.answerOfTotal', { current: f + 1, total: count })}
+                              </p>
+                              <span
+                                className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                                  reviewed
+                                    ? grade === 1
+                                      ? 'bg-green-100 text-green-700'
+                                      : 'bg-red-100 text-red-700'
+                                    : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                                }`}
+                              >
+                                {reviewed
+                                  ? (grade === 1 ? t('admin.results.correctLabel') : t('admin.results.incorrectLabel'))
+                                  : t('admin.results.notReviewedYet')}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                              {/* Student's answer */}
+                              <div>
+                                <p className="text-[11px] font-medium uppercase tracking-wide mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                                  {t('admin.results.studentAnswerLabel')}
+                                </p>
+                                <p className="rounded-lg px-3 py-2" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}>
+                                  {studentText.trim() ? studentText : (
+                                    <span style={{ color: 'var(--text-muted)' }}>{t('admin.results.noStudentAnswer')}</span>
+                                  )}
+                                </p>
+                              </div>
+
+                              {/* Expected answer (answer bank) */}
+                              <div>
+                                <p className="text-[11px] font-medium uppercase tracking-wide mb-0.5" style={{ color: 'var(--text-muted)' }}>
+                                  {t('admin.results.expectedAnswer')}
+                                </p>
+                                <p className="rounded-lg px-3 py-2" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}>
+                                  {expected || (
+                                    <span style={{ color: 'var(--text-muted)' }}>{t('admin.results.noExpectedAnswer')}</span>
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Bank vs exam vs final decision */}
+                            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs" style={{ color: 'var(--text-muted)' }}>
+                              <span>
+                                {t('admin.results.bankAnswerLabel')}:{' '}
+                                <strong style={{ color: bankDecision === 'correct' ? '#059669' : '#dc2626' }}>
+                                  {bankDecision === 'correct' ? t('admin.results.correctLabel') : t('admin.results.incorrectLabel')}
+                                </strong>
+                              </span>
+                              <span>
+                                {t('admin.results.finalDecisionLabel')}:{' '}
+                                <strong style={{ color: 'var(--text-primary)' }}>
+                                  {reviewed
+                                    ? (grade === 1 ? t('admin.results.correctLabel') : t('admin.results.incorrectLabel'))
+                                    : t('admin.results.notReviewedYet')}
+                                </strong>
+                              </span>
+                              <span>
+                                {t('admin.results.pointsAwarded')}: <strong style={{ color: 'var(--text-primary)' }}>{grade === 1 ? 1 : 0}</strong>
+                              </span>
+                            </div>
+
+                            {/* Decision controls */}
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setManualGrades(prev => setFieldGrade(prev, q.id, f, 0))}
+                                aria-pressed={grade === 0}
+                                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
+                                  grade === 0
+                                    ? 'bg-red-500 text-white border-red-500'
+                                    : 'border-gray-300 hover:border-red-400'
+                                }`}
+                              >
+                                ✗ {t('admin.results.markAsIncorrect')}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setManualGrades(prev => setFieldGrade(prev, q.id, f, 1))}
+                                aria-pressed={grade === 1}
+                                className={`px-4 py-2 rounded-lg border text-sm font-medium transition ${
+                                  grade === 1
+                                    ? 'bg-green-500 text-white border-green-500'
+                                    : 'border-gray-300 hover:border-green-400'
+                                }`}
+                              >
+                                ✓ {t('admin.results.markAsCorrect')}
+                              </button>
+
+                              {expected && (
+                                <button
+                                  type="button"
+                                  onClick={() => setDecisionModal({ questionDocumentId: q.documentId, fieldIndex: f, decision: nextDecision })}
+                                  className="ml-auto text-xs font-medium text-blue-600 hover:underline"
+                                >
+                                  {t('admin.results.changeBankDecision')}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
-                ) : null}
-              />
+                </div>
+              </div>
             )
           })}
         </div>
 
-        {/* Save Grades bar */}
-        <div className="mt-6 rounded-2xl shadow-lg p-6 flex items-center justify-between border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
+        {/* Save Review bar */}
+        <div className="mt-6 rounded-2xl shadow-lg p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border" style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}>
           <div>
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-              Current score: <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{score}</span>
+            <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {t('admin.results.gradingSummary')}
             </p>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-              {t('admin.results.openTextGraded') || 'Open text questions graded'}: {Object.keys(manualScores).length}
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              {t('admin.results.examTotalPoints')}: <span className="font-bold" style={{ color: 'var(--text-primary)' }}>{totals.totalPoints}</span> / {totals.maxPoints} ({totals.percent}%)
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              {totals.totalPoints === totals.maxPoints
+                ? '✓ ' + t('admin.results.reviewComplete')
+                : t('admin.results.reviewIncomplete')}
             </p>
           </div>
           <button
@@ -357,9 +586,58 @@ export default function AdminExamResults() {
             disabled={gradeMutation.isPending}
             className="bg-blue-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-blue-700 disabled:opacity-50"
           >
-            {gradeMutation.isPending ? t('admin.results.saving') : t('admin.results.saveGrades')}
+            {gradeMutation.isPending ? t('admin.results.saving') : t('admin.results.saveReview')}
           </button>
         </div>
+
+        {/* Change answer-bank decision — confirmation modal */}
+        {decisionModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="recalc-confirm-title"
+          >
+            <div className="w-full max-w-md rounded-2xl shadow-2xl p-6" style={{ backgroundColor: 'var(--bg-card)' }}>
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                  <CheckCircleIcon className="w-5 h-5 text-amber-600" />
+                </div>
+                <h2 id="recalc-confirm-title" className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>
+                  {t('admin.results.recalcConfirmTitle')}
+                </h2>
+              </div>
+
+              <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+                {t('admin.results.recalcConfirmBody')}
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDecisionModal(null)}
+                  className="flex-1 py-2.5 rounded-xl border text-sm font-medium"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-secondary)' }}
+                >
+                  {t('common.cancel')}
+                </button>
+                <button
+                  onClick={() =>
+                    changeDecisionMutation.mutate({
+                      examDocumentId: selectedAttempt.exam?.documentId,
+                      questionDocumentId: decisionModal.questionDocumentId,
+                      fieldIndex: decisionModal.fieldIndex,
+                      decision: decisionModal.decision,
+                    })
+                  }
+                  disabled={changeDecisionMutation.isPending}
+                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {changeDecisionMutation.isPending ? t('admin.results.saving') : t('admin.results.yesUpdateExam')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -482,7 +760,6 @@ export default function AdminExamResults() {
 
       {/* Grouped by year */}
       {(() => {
-        // Group attempts by year
         const byYear = {}
         filteredAttempts?.forEach(attempt => {
           const year = attempt.submittedAt
@@ -499,7 +776,12 @@ export default function AdminExamResults() {
             key={year}
             year={year}
             attempts={byYear[year]}
-            onReview={(attempt) => { setSelectedAttempt(attempt); setManualScores(attempt.manualGrades || {}) }}
+            onReview={(attempt) => {
+              setSelectedAttempt(attempt)
+              setManualGrades(attempt.manualGrades || {})
+              setReviewNotice(null)
+              setDecisionModal(null)
+            }}
           />
         ))
       })()}

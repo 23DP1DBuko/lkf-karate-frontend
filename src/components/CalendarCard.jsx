@@ -69,7 +69,7 @@ export default function CalendarCard() {
           <button
             onClick={() => shift(-1)}
             aria-label={t('events.prevMonth')}
-            className="p-1.5 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-blue-50 dark:text-slate-300 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 transition-colors"
+            className="p-1.5 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-blue-50 dark:text-slate-300 dark:hover:text-blue-300 dark:hover:bg-blue-500/20 transition-colors"
           >
             <ChevronLeftIcon className="w-4 h-4" />
           </button>
@@ -79,7 +79,7 @@ export default function CalendarCard() {
           <button
             onClick={() => shift(1)}
             aria-label={t('events.nextMonth')}
-            className="p-1.5 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-blue-50 dark:text-slate-300 dark:hover:text-blue-400 dark:hover:bg-blue-500/10 transition-colors"
+            className="p-1.5 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-blue-50 dark:text-slate-300 dark:hover:text-blue-300 dark:hover:bg-blue-500/20 transition-colors"
           >
             <ChevronRightIcon className="w-4 h-4" />
           </button>

@@ -113,6 +113,49 @@ export default function EventCard({ event, onSelect, compact = false }) {
             </span>
           )}
         </p>
+
+        {/* Seminar agenda — topics with hours, right on the card (same
+            rendering as the modal, legacy i18n keys still resolve). */}
+        {event.type === 'seminar' && event.topics?.length > 0 && (
+          <ul
+            className={`mt-2 pt-1.5 border-t space-y-0.5 ${compact ? 'text-[11px]' : 'text-xs'}`}
+            style={{ borderColor: 'var(--border)' }}
+          >
+            {event.topics.map((topic, i) => {
+              if (typeof topic === 'string') {
+                const label = t(`topics.${topic}`)
+                return (
+                  <li
+                    key={i}
+                    className="flex items-center justify-between gap-3 min-w-0"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    <span className="truncate">{label !== `topics.${topic}` ? label : topic}</span>
+                  </li>
+                )
+              }
+              const text = (topic && topic.text) || ''
+              const hours = topic && topic.hours
+              return (
+                <li
+                  key={i}
+                  className="flex items-center justify-between gap-3 min-w-0"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  <span className="truncate">{text}</span>
+                  {hours ? (
+                    <span
+                      className="flex-shrink-0 font-medium whitespace-nowrap"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
+                      {hours} {t('events.hours')}
+                    </span>
+                  ) : null}
+                </li>
+              )
+            })}
+          </ul>
+        )}
       </div>
 
       {/* Type icon + chevron (tooltip on hover) */}

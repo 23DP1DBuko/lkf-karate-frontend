@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import {
   parsePdfQuestions,
+  parseSingleLanguagePdfQuestions,
+  detectMultilingualLayout,
+  extractPdfText,
   normalizeSourceKey,
   normalizeQuestionText,
   buildReport,
@@ -225,6 +228,107 @@ describe('normalizeSourceKey', () => {
     const b = normalizeSourceKey('eng.pdf')
     expect(a).toBe(b)
     expect(a.startsWith('doc-')).toBe(true)
+  })
+})
+
+describe('parseSingleLanguagePdfQuestions', () => {
+  it('parses numbered questions, merges continuations, skips instructions and footers', async () => {
+    const pdfjs = makePdfjs([
+      [
+        item('TRUE OR FALSE', 180, 770, 80),
+        item('Examination Questions', 180, 750, 90),
+        item('1. A referee must always', 40, 690, 100),
+        item('wear white gloves.', 40, 660, 70),   // wrapped continuation
+        item('2. The area is 8x8 meters.', 40, 620, 100),
+        item('2', 300, 20, 10),                     // footer strip
+        item('3', 300, 40, 10),                     // isolated page number
+      ],
+    ])
+    const result = await parseSingleLanguagePdfQuestions(pdfjs, fakeFile('allquestions_eng.pdf'), 'en')
+
+    expect(result.language).toBe('en')
+    expect(result.questions.length).toBe(2)
+    expect(result.questions[0].order).toBe(1)
+    expect(result.questions[0].textEn).toBe('A referee must always wear white gloves.')
+    expect(result.questions[1].order).toBe(2)
+    expect(result.questions[1].textEn).toBe('The area is 8x8 meters.')
+    // No answer is ever inferred from the file.
+    expect(result.questions[0].correctAnswer).toBeNull()
+    expect(result.questions[0].answerStatus).toBe('missing')
+    // Footer page numbers must not become questions.
+    expect(result.questions.some((q) => q.order === 2 || q.order === 3)).toBe(true) // 2 is real, 3 not
+    expect(result.questions.some((q) => q.order === 3)).toBe(false)
+  })
+
+  it('keeps a question open across a page break', async () => {
+    const pdfjs = makePdfjs([
+      [
+        item('7. The Karate Gi jacket must be', 40, 690, 100),
+      ],
+      [
+        item('longer than three quarters.', 40, 690, 90), // continuation on page 2
+        item('8. Next question.', 40, 640, 70),
+      ],
+    ])
+    const result = await parseSingleLanguagePdfQuestions(pdfjs, fakeFile('allquestions_rus.pdf'), 'ru')
+    expect(result.questions.length).toBe(2)
+    expect(result.questions[0].order).toBe(7)
+    expect(result.questions[0].textRu).toBe('The Karate Gi jacket must be longer than three quarters.')
+    expect(result.questions[0].sourcePages).toEqual([1, 2])
+  })
+
+  it('stores the text in the requested language field only', async () => {
+    const pdfjs = makePdfjs([
+      [
+        item('1. Latviski teksts.', 40, 690, 80),
+      ],
+    ])
+    const result = await parseSingleLanguagePdfQuestions(pdfjs, fakeFile('allquestions_lat.pdf'), 'lv')
+    expect(result.questions[0].textLv).toBe('Latviski teksts.')
+    expect(result.questions[0].textEn).toBeUndefined()
+    expect(result.questions[0].textRu).toBeUndefined()
+  })
+
+  it('reports duplicate numbers', async () => {
+    const pdfjs = makePdfjs([
+      [
+        item('1. First.', 40, 690, 50),
+        item('1. Duplicate.', 40, 650, 60),
+        item('2. Second.', 40, 610, 50),
+      ],
+    ])
+    const result = await parseSingleLanguagePdfQuestions(pdfjs, fakeFile('questions.pdf'), 'en')
+    expect(result.report.duplicateOrders).toEqual([1])
+    expect(result.questions.filter((q) => q.order === 1).every((q) => q.warnings.includes('duplicate-number'))).toBe(true)
+  })
+})
+
+describe('detectMultilingualLayout + extractPdfText', () => {
+  it('detects the three-language table layout', async () => {
+    const pdfjs = makePdfjs([page1, page2])
+    expect(await detectMultilingualLayout(pdfjs, fakeFile('ENG_LAT_RUS_Questions.pdf'))).toBe(true)
+  })
+
+  it('returns false for a single-language document', async () => {
+    const pdfjs = makePdfjs([
+      [
+        item('Examination Questions', 180, 760, 90),
+        item('1. Some question.', 40, 690, 80),
+      ],
+    ])
+    expect(await detectMultilingualLayout(pdfjs, fakeFile('allquestions_eng.pdf'))).toBe(false)
+  })
+
+  it('extracts plain text for language detection', async () => {
+    const pdfjs = makePdfjs([
+      [
+        item('TRUE OR FALSE', 180, 770, 80),
+        item('1. One.', 40, 690, 40),
+      ],
+    ])
+    const text = await extractPdfText(pdfjs, fakeFile('questions.pdf'), 1)
+    expect(text).toContain('TRUE OR FALSE')
+    expect(text).toContain('1. One.')
   })
 })
 

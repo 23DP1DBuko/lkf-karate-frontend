@@ -16,6 +16,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { SkeletonTable } from '../../components/Skeleton'
 import ErrorState from '../../components/ErrorState'
+import AdminEmptyState from '../../components/AdminEmptyState'
 import { useTranslation } from 'react-i18next'
 
 const COMPETITION_RATINGS = ['International', 'EKF', 'LV']
@@ -445,9 +446,9 @@ export default function AdminCompetitions() {
       )}
 
       {!filtered.length && (
-        <div className="text-sm text-gray-400 border rounded-lg p-6 text-center">
-          <p>{filtersActive ? t('admin.competitions.noResults') : t('admin.competitions.empty')}</p>
-          {filtersActive && (
+        filtersActive ? (
+          <div className="text-sm text-gray-400 border rounded-lg p-6 text-center">
+            <p>{t('admin.competitions.noResults')}</p>
             <button
               type="button"
               onClick={() => { setSearch(''); setRatingFilter('all'); setStatusFilter('all') }}
@@ -455,8 +456,16 @@ export default function AdminCompetitions() {
             >
               {t('common.clearFilters') || 'Clear filters'}
             </button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <AdminEmptyState
+            icon={TrophyIcon}
+            title={t('admin.competitions.empty')}
+            description={t('admin.competitions.emptyDesc')}
+            actionLabel={t('admin.competitions.new')}
+            onAction={() => setShowForm(true)}
+          />
+        )
       )}
 
       {/* Mobile card view — icon + text rows, no chips */}

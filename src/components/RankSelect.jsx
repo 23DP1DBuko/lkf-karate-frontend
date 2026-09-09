@@ -24,7 +24,7 @@ export default function RankSelect({ id, label, value, onChange, ladder }) {
               .filter(r => r.level === level.key)
               .map(r => (
                 <option key={r.value} value={r.value}>
-                  {r.label}
+                  {t(r.labelKey, r.label)}
                 </option>
               ))}
           </optgroup>

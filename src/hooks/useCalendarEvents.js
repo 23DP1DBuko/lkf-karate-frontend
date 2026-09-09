@@ -74,6 +74,11 @@ export function useCalendarEvents({ types } = {}) {
   const wanted = types && types.length ? types : ['seminar', 'competition', 'exam']
   return useQuery({
     queryKey: ['calendar-events', wanted],
+    // A failed calendar fetch (e.g. a 403 from a missing permission) must
+    // surface immediately — the default 3 retries with backoff make the
+    // calendar spin for ~7s before showing anything, which reads as "stuck
+    // loading" when the collections are empty.
+    retry: false,
     queryFn: async () => {
       const fetchType = {
         seminar: () => api.get(`/seminars?${PAGE}`).then(r => r.data.data || []).then((list) => list.map(mapSeminar)),

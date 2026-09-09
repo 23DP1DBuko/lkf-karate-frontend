@@ -72,6 +72,15 @@ function cyrb53(str, seed = 0) {
 }
 
 /**
+ * Stable content hash for a question text — used for change detection between
+ * imports (textHashEn/textHashLv/textHashRu). Normalized before hashing so
+ * whitespace-only differences never look like content changes.
+ */
+export function hashText(text) {
+  return cyrb53(normalizeQuestionText(text))
+}
+
+/**
  * Normalize a source file name into a stable source document key used for
  * duplicate detection: course + sourceDocumentKey + order.
  *
@@ -450,4 +459,190 @@ export function buildReport(questions, malformedRows, lowConfidencePages, typeDe
     firstOrder: questions.length ? questions[0].order : null,
     lastOrder: questions.length ? questions[questions.length - 1].order : null,
   }
+}
+
+// ── Multilingual alias ─────────────────────────────────────────────────────
+// Named per the unified importer contract — identical to parsePdfQuestions.
+export const parseMultilingualPdfQuestions = parsePdfQuestions
+
+/**
+ * Extract plain text from the first `maxPages` pages of a PDF (joined with
+ * newlines). Used by language auto-detection — not for question parsing.
+ */
+export async function extractPdfText(pdfjsLib, file, maxPages = 3) {
+  const data = file instanceof ArrayBuffer || ArrayBuffer.isView(file)
+    ? file
+    : await file.arrayBuffer()
+  const pdf = await pdfjsLib.getDocument({ data }).promise
+  const parts = []
+  const limit = Math.min(maxPages || 1, pdf.numPages)
+  for (let p = 1; p <= limit; p++) {
+    const page = await pdf.getPage(p)
+    const content = await page.getTextContent()
+    const texts = content.items
+      .filter((it) => it.str && it.str.trim())
+      .map((it) => it.str)
+    parts.push(texts.join(' '))
+  }
+  return parts.join('\n')
+}
+
+// ── Layout detection ───────────────────────────────────────────────────────
+
+/**
+ * Detect whether a PDF uses the multilingual three-language table layout
+ * (No. | English | Latviešu valodā | По русски). True when ANY page carries a
+ * header row with all three language labels as separate cells.
+ */
+export async function detectMultilingualLayout(pdfjsLib, file) {
+  const data = file instanceof ArrayBuffer || ArrayBuffer.isView(file)
+    ? file
+    : await file.arrayBuffer()
+  const pdf = await pdfjsLib.getDocument({ data }).promise
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p)
+    const content = await page.getTextContent()
+    const items = content.items
+      .filter((it) => it.str && it.str.trim())
+      .map((it) => ({
+        x: it.transform[4],
+        y: it.transform[5],
+        w: it.width || 0,
+        text: normalizeQuestionText(it.str),
+      }))
+    const rows = groupItemsIntoRows(items)
+    if (rows.some((r) => isHeaderRow(r))) return true
+  }
+  return false
+}
+
+// ── Single-language PDF parsing ────────────────────────────────────────────
+
+// Lines that belong to the document chrome (instructions / headers) rather than
+// to a question. Skipped entirely; they never open or extend a question.
+const SINGLE_LANG_SKIP_RE = [
+  /true\s*or\s*false|patiesi\s*vai\s*aplami|правда\s*или\s*ложь/i,
+  /examination\s+questions|eksāmena\s+jautājumi|экзаменационные\s+вопросы/i,
+  /^english$|^latviešu(\s*valodā)?$|^latviski$|^по\s*русски$/i,
+  /^no\.?\s*$/i,                       // table "No." header
+  /^question(s)?\s*$/i,
+  /^page\s*\d+\s*(of\s*\d+)?$/i,
+]
+
+function isSkippableRow(text) {
+  const t = normalizeQuestionText(text)
+  return SINGLE_LANG_SKIP_RE.some((re) => re.test(t))
+}
+
+/**
+ * Parse a single-language True/False question PDF (one language per file).
+ *
+ * A new question starts when a line begins with a question number ("1", "1.",
+ * "1)"); every following line is continuation text merged into the current
+ * question until the next number (wrapped lines and page breaks included).
+ * The correct answer is NEVER inferred from the file.
+ *
+ * @param {object} pdfjsLib        pdfjs-dist module (already configured)
+ * @param {File|ArrayBuffer} file  the PDF file
+ * @param {string} language        'en' | 'lv' | 'ru' — which text field to fill
+ * @param {object} [options]       { onProgress }
+ * @returns {Promise<{ questions, report, language }>}
+ */
+export async function parseSingleLanguagePdfQuestions(pdfjsLib, file, language = 'lv', options = {}) {
+  const { onProgress = null } = options
+  const lang = ['en', 'lv', 'ru'].includes(language) ? language : 'lv'
+  const textKey = `text${cap(lang)}`
+
+  const data = file instanceof ArrayBuffer || ArrayBuffer.isView(file)
+    ? file
+    : await file.arrayBuffer()
+
+  const pdf = await pdfjsLib.getDocument({ data }).promise
+
+  const questions = []
+  const byOrder = new Map()
+  const malformedRows = []
+  let current = null
+
+  for (let p = 1; p <= pdf.numPages; p++) {
+    if (onProgress) onProgress({ page: p, total: pdf.numPages })
+    const page = await pdf.getPage(p)
+    const content = await page.getTextContent()
+    const items = content.items
+      .filter((it) => it.str && it.str.trim())
+      .map((it) => ({
+        x: it.transform[4],
+        y: it.transform[5],
+        w: it.width || 0,
+        text: normalizeQuestionText(it.str),
+      }))
+    const rows = groupItemsIntoRows(items)
+
+    for (const row of rows) {
+      if (isFooterRow(row)) continue
+      if (isSkippableRow(row.text)) continue
+
+      const m = row.text.match(/^(\d{1,4})[.)]?\s*(.*)$/)
+      if (m && m[1]) {
+        const order = parseInt(m[1], 10)
+        current = {
+          order,
+          [textKey]: cleanPdfText(m[2] || ''),
+          type: 'yes_no',
+          options: ['true', 'false'],
+          correctAnswer: null,
+          answerStatus: 'missing',
+          warnings: [],
+          sourcePages: [p],
+        }
+        questions.push(current)
+        if (byOrder.has(order)) {
+          current.warnings.push('duplicate-number')
+          byOrder.get(order).warnings.push('duplicate-number')
+        }
+        byOrder.set(order, current)
+      } else if (current) {
+        // Continuation — wrapped line or spill onto the next page.
+        const text = cleanPdfText(row.text)
+        if (text) {
+          current[textKey] = current[textKey] ? `${current[textKey]} ${text}` : text
+          if (current.sourcePages[current.sourcePages.length - 1] !== p) {
+            current.sourcePages.push(p)
+          }
+        }
+      } else if (row.text.trim()) {
+        malformedRows.push({ page: p, text: row.text, reason: 'orphan-row' })
+      }
+    }
+  }
+
+  // Final cleanup pass on the assembled texts.
+  for (const q of questions) q[textKey] = cleanPdfText(q[textKey])
+
+  const missingTexts = questions
+    .filter((q) => !(q[textKey] || '').trim())
+    .map((q) => q.order)
+  const duplicateOrders = [...new Set(
+    questions.filter((q) => q.warnings.includes('duplicate-number')).map((q) => q.order),
+  )]
+
+  return {
+    questions,
+    language: lang,
+    report: {
+      total: questions.length,
+      missingTexts,
+      duplicateOrders,
+      malformedRows,
+      firstOrder: questions.length ? questions[0].order : null,
+      lastOrder: questions.length ? questions[questions.length - 1].order : null,
+      // Imported without answers by design.
+      answersMissing: questions.length,
+    },
+  }
+}
+
+function cap(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1)
 }

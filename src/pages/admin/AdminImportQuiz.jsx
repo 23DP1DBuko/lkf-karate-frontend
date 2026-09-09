@@ -1,16 +1,22 @@
 // AdminImportQuiz.jsx — admin-only True/False answer-key quiz.
 //
-// Two entry modes:
-//   ?courseId=...&questionIds=...  — explicit question list (Word "import
-//                                    without answers" flow)
-//   ?courseId=...&sourceFile=...   — every still-unanswered question of the
-//                                    course (optionally from one source file)
-//                                    — used by the PDF import flow
+// Three entry modes:
+//   ?courseId=...&questionIds=...   — explicit question list (legacy Word
+//                                     "import without answers" flow)
+//   ?courseId=...&sourceFile=...    — every still-unanswered question of the
+//                                     course (optionally from one source file)
+//                                     — legacy PDF import flow
+//   ?courseId=...&questionSetKey=...— every still-unanswered question of one
+//                                     question set (e.g. kumite-2024) — used by
+//                                     the unified import page. Because the quiz
+//                                     is scoped to a set, later translation-only
+//                                     imports never reopen it: questions that
+//                                     already have a correctAnswer are excluded.
 //
 // The quiz assigns official correct answers to questions imported WITHOUT
 // answers. Progress is autosaved to localStorage (draft) so the admin can
 // continue later; final completion is blocked while questions remain
-// unanswered, and submitting writes the answer key (answerStatus → answered)
+// unanswered, and submitting writes the answer key (answerStatus → fromQuiz)
 // through PUT /questions/bulk-update-answers.
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -30,6 +36,7 @@ export default function AdminImportQuiz() {
 
   const courseId = searchParams.get('courseId') || ''
   const sourceFile = searchParams.get('sourceFile') || ''
+  const questionSetKey = searchParams.get('questionSetKey') || ''
   const questionIds = useMemo(
     () =>
       (searchParams.get('questionIds') || '')
@@ -40,8 +47,8 @@ export default function AdminImportQuiz() {
   )
 
   const draftKey = useMemo(
-    () => `${DRAFT_PREFIX}${courseId}:${sourceFile || 'all'}`,
-    [courseId, sourceFile],
+    () => `${DRAFT_PREFIX}${courseId}:${questionSetKey || sourceFile || 'all'}`,
+    [courseId, questionSetKey, sourceFile],
   )
 
   const [questions, setQuestions] = useState(null) // null = loading
@@ -73,6 +80,7 @@ export default function AdminImportQuiz() {
       // (Every import flow sets answerStatus='missing' explicitly.)
       params['filters[course][documentId][$eq]'] = courseId
       params['filters[answerStatus][$eq]'] = 'missing'
+      if (questionSetKey) params['filters[questionSetKey][$eq]'] = questionSetKey
       if (sourceFile) params['filters[sourceFile][$eq]'] = sourceFile
       params['pagination[pageSize]'] = 1000
     }
@@ -112,7 +120,7 @@ export default function AdminImportQuiz() {
     return () => {
       cancelled = true
     }
-  }, [courseId, questionIds, sourceFile, draftKey, t])
+  }, [courseId, questionIds, sourceFile, questionSetKey, draftKey, t])
 
   // Autosave the draft to localStorage on every change (resume later).
   useEffect(() => {
@@ -285,7 +293,12 @@ export default function AdminImportQuiz() {
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             {t('admin.importQuiz.subtitle')}
           </p>
-          {sourceFile && (
+          {questionSetKey && (
+            <p className="text-xs font-mono mt-1" style={{ color: 'var(--text-muted)' }}>
+              {t('admin.importQuiz.questionSet') || 'Question set'}: {questionSetKey}
+            </p>
+          )}
+          {!questionSetKey && sourceFile && (
             <p className="text-xs font-mono mt-1" style={{ color: 'var(--text-muted)' }}>
               {sourceFile}
             </p>

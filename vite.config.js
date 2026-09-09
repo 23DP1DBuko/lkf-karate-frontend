@@ -97,5 +97,8 @@ export default defineConfig(({ command }) => ({
     globals: true,
     environment: "jsdom",
     setupFiles: "./src/test/setup.js",
+    // Threads pool is more reliable than forks on Windows dev machines
+    // (the forks worker can fail to spawn and time out).
+    pool: "threads",
   },
 }));

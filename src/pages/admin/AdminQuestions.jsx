@@ -5,9 +5,13 @@ import MediaUpload from '../../components/MediaUpload'
 import FileDropzone from '../../components/FileDropzone'
 import IconButton from '../../components/IconButton'
 import { mediaUrl } from '../../api/media'
-import { PencilIcon, TrashIcon, ArrowUpTrayIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { PencilIcon, TrashIcon, ArrowUpTrayIcon, MagnifyingGlassIcon, XMarkIcon, PlusIcon, MinusIcon, EyeIcon } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 import { SkeletonTable } from '../../components/Skeleton'
+import { buildAnswerFieldsFromQuestion } from '../../utils/grading'
+
+// Maximum number of configurable answer fields for an open-text question.
+const MAX_ANSWER_FIELDS = 50
 
 async function fetchAllQuestions(params = {}) {
   let page = 1
@@ -145,8 +149,10 @@ export default function AdminQuestions() {
     correctAnswer: '', correctAnswers: [],
     videoAkaUrl: '', videoAoUrl: '', videoMode: 'single',
     course: '', media: null, chapter: '',
-    order: ''
+    order: '',
+    answerFields: [],
   })
+  const [answerFieldsError, setAnswerFieldsError] = useState('')
   const [akaDragFrom, setAkaDragFrom] = useState(null)
   const [deleteModal, setDeleteModal] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
@@ -204,7 +210,8 @@ export default function AdminQuestions() {
     correctAnswer: '', correctAnswers: [],
     videoAkaUrl: '', videoAoUrl: '', videoMode: 'single',
     course: '', media: null, chapter: '',
-    order: ''
+    order: '',
+    answerFields: [],
   }
 
   const resetForm = () => {
@@ -234,12 +241,26 @@ export default function AdminQuestions() {
       media: question.media || null,
       chapter: question.chapter?.documentId || '',
       order: question.order || '',
+      answerFields: buildAnswerFieldsFromQuestion(question),
     })
+    setAnswerFieldsError('')
     setShowForm(true)
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
+
+    // Open-text questions need at least one configured answer field.
+    if (form.type === 'open_text' && form.answerFields.length === 0) {
+      setAnswerFieldsError(t('admin.questions.minOneField'))
+      return
+    }
+    if (form.type === 'open_text' && form.answerFields.length > MAX_ANSWER_FIELDS) {
+      setAnswerFieldsError(t('admin.questions.maxAnswerFields', { count: MAX_ANSWER_FIELDS }))
+      return
+    }
+    setAnswerFieldsError('')
+
     const options = form.type === 'yes_no'
       ? ['true', 'false']
       : form.type === 'open_text'
@@ -279,11 +300,46 @@ export default function AdminQuestions() {
           : 1
       })(),
     }
+    // Open-text answer fields: keep the three language arrays in sync (same
+    // count and same per-field decision; only the expected text differs).
+    if (form.type === 'open_text') {
+      data.answerFieldsLv = form.answerFields.map(f => ({ expected: f.expectedLv || '', correct: f.correct }))
+      data.answerFieldsRu = form.answerFields.map(f => ({ expected: f.expectedRu || '', correct: f.correct }))
+      data.answerFieldsEn = form.answerFields.map(f => ({ expected: f.expectedEn || '', correct: f.correct }))
+    }
+
     if (editingQuestion) {
       updateMutation.mutate({ documentId: editingQuestion.documentId, data })
     } else {
       createMutation.mutate(data)
     }
+  }
+
+  const addAnswerField = () => {
+    if (form.answerFields.length >= MAX_ANSWER_FIELDS) {
+      setAnswerFieldsError(t('admin.questions.maxAnswerFields', { count: MAX_ANSWER_FIELDS }))
+      return
+    }
+    setAnswerFieldsError('')
+    setForm(prev => ({
+      ...prev,
+      answerFields: [...prev.answerFields, { expectedLv: '', expectedRu: '', expectedEn: '', correct: true }],
+    }))
+  }
+
+  const removeAnswerField = (index) => {
+    if (!window.confirm(t('admin.questions.removeAnswerFieldConfirm', { n: index + 1 }))) return
+    setForm(prev => ({
+      ...prev,
+      answerFields: prev.answerFields.filter((_, i) => i !== index),
+    }))
+  }
+
+  const updateAnswerField = (index, patch) => {
+    setForm(prev => ({
+      ...prev,
+      answerFields: prev.answerFields.map((f, i) => (i === index ? { ...f, ...patch } : f)),
+    }))
   }
 
   const swapAkaAo = (dropKey) => {
@@ -477,12 +533,19 @@ export default function AdminQuestions() {
               <select
                 className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 value={form.type}
-                onChange={e => setForm({
-                  ...form,
-                  type: e.target.value,
-                  options: e.target.value === 'yes_no' ? ['true', 'false'] : ['', '', '', ''],
-                  correctAnswer: '',
-                  correctAnswers: [],
+                onChange={e => setForm(prev => {
+                  const nextType = e.target.value
+                  return {
+                    ...prev,
+                    type: nextType,
+                    options: nextType === 'yes_no' ? ['true', 'false'] : ['', '', '', ''],
+                    correctAnswer: '',
+                    correctAnswers: [],
+                    // Switching to open-text starts with one answer field.
+                    answerFields: nextType === 'open_text' && prev.answerFields.length === 0
+                      ? [{ expectedLv: '', expectedRu: '', expectedEn: '', correct: true }]
+                      : prev.answerFields,
+                  }
                 })}
               >
                 <option value="multiple_choice">{t('admin.questions.typeMultipleChoice') || 'Multiple Choice (select all correct)'}</option>
@@ -687,10 +750,173 @@ export default function AdminQuestions() {
             )}
 
             {form.type === 'open_text' && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <p className="text-sm text-yellow-700">
-                  {t('admin.questions.openTextWarning')}
-                </p>
+              <div className="space-y-4">
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-3">
+                  <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                    {t('admin.questions.openTextWarning')}
+                  </p>
+                </div>
+
+                {/* Number of answers + field editor */}
+                <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}>
+                  <div className="flex items-center justify-between gap-3 mb-1">
+                    <label className="block text-sm font-medium">
+                      {t('admin.questions.answerFieldsLabel')}
+                    </label>
+                    <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+                      {form.answerFields.length}
+                    </span>
+                  </div>
+                  <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+                    {t('admin.questions.answerFieldsHint')}
+                  </p>
+
+                  {answerFieldsError && (
+                    <p role="alert" className="text-sm font-medium text-red-600 mb-3">
+                      {answerFieldsError}
+                    </p>
+                  )}
+
+                  <div className="space-y-3">
+                    {form.answerFields.map((field, index) => (
+                      <div
+                        key={index}
+                        className="rounded-xl border p-3 space-y-3"
+                        style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-card)' }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                            {t('admin.questions.answerFieldN', { n: index + 1 })}
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => removeAnswerField(index)}
+                            className="inline-flex items-center gap-1 text-xs font-medium text-red-600 hover:text-red-700 px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                            aria-label={t('admin.questions.removeAnswerField')}
+                          >
+                            <MinusIcon className="w-3.5 h-3.5" />
+                            {t('admin.questions.removeAnswerField')}
+                          </button>
+                        </div>
+
+                        {/* Expected answers per language */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          {[
+                            { key: 'expectedLv', label: t('admin.questions.lvText'), placeholder: t('admin.questions.expectedAnswerPlaceholder') },
+                            { key: 'expectedRu', label: t('admin.questions.ruText'), placeholder: t('admin.questions.expectedAnswerPlaceholder') },
+                            { key: 'expectedEn', label: t('admin.questions.enText'), placeholder: t('admin.questions.expectedAnswerPlaceholder') },
+                          ].map(lang => (
+                            <div key={lang.key} className="flex flex-col gap-1">
+                              <label className="text-[11px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+                                {lang.label}
+                              </label>
+                              <input
+                                type="text"
+                                value={field[lang.key]}
+                                onChange={e => updateAnswerField(index, { [lang.key]: e.target.value })}
+                                placeholder={lang.placeholder}
+                                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                          {t('admin.questions.expectedAnswerHint')}
+                        </p>
+
+                        {/* Answer-bank decision: Correct / Incorrect */}
+                        <fieldset>
+                          <legend className="text-[11px] font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>
+                            {t('admin.questions.bankDecisionLabel')}
+                          </legend>
+                          <div className="flex gap-2">
+                            {[
+                              { value: true, label: t('admin.questions.decisionCorrect') },
+                              { value: false, label: t('admin.questions.decisionIncorrect') },
+                            ].map(opt => (
+                              <button
+                                key={String(opt.value)}
+                                type="button"
+                                onClick={() => updateAnswerField(index, { correct: opt.value })}
+                                aria-pressed={field.correct === opt.value}
+                                className={`flex-1 sm:flex-none sm:px-4 py-2 rounded-lg border-2 text-sm font-semibold transition ${
+                                  field.correct === opt.value
+                                    ? opt.value
+                                      ? 'bg-green-500 text-white border-green-500'
+                                      : 'bg-red-500 text-white border-red-500'
+                                    : 'border-gray-300 hover:border-green-400 dark:hover:border-gray-500'
+                                }`}
+                                style={{ borderColor: field.correct === opt.value ? undefined : 'var(--border)' }}
+                              >
+                                {opt.value ? '✓ ' : '✗ '}{opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </fieldset>
+                      </div>
+                    ))}
+                  </div>
+
+                  {form.answerFields.length === 0 && (
+                    <p className="text-sm text-red-600 font-medium">{t('admin.questions.minOneField')}</p>
+                  )}
+
+                  {form.answerFields.length > 0 &&
+                    form.answerFields.some(f => !f.expectedLv.trim() && !f.expectedRu.trim() && !f.expectedEn.trim()) && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-2">
+                        {t('admin.questions.emptyExpectedWarning')}
+                      </p>
+                    )}
+
+                  <button
+                    type="button"
+                    onClick={addAnswerField}
+                    disabled={form.answerFields.length >= MAX_ANSWER_FIELDS}
+                    className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition disabled:opacity-40"
+                    style={{ borderColor: 'var(--border)', color: 'var(--text-primary)', backgroundColor: 'var(--bg-secondary)' }}
+                  >
+                    <PlusIcon className="w-4 h-4" />
+                    {t('admin.questions.addAnswerField')}
+                  </button>
+                </div>
+
+                {/* Student preview */}
+                {form.answerFields.length > 0 && (
+                  <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <EyeIcon className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+                      <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                        {t('admin.questions.studentPreviewTitle')}
+                      </p>
+                    </div>
+                    <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+                      {t('admin.questions.studentPreviewHint')}
+                    </p>
+                    <p className="text-base font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+                      {form.textLv || form.text || t('admin.questions.textLabel')}
+                    </p>
+                    <div className="space-y-2.5">
+                      {form.answerFields.map((_, index) => (
+                        <div key={index} className="flex flex-col gap-1">
+                          <label className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                            {t('admin.questions.answerFieldN', { n: index + 1 })}
+                          </label>
+                          <input
+                            type="text"
+                            disabled
+                            readOnly
+                            tabIndex={-1}
+                            aria-hidden="true"
+                            placeholder={t('admin.questions.answerFieldsLabel')}
+                            className="w-full border rounded-lg px-3 py-2 text-sm opacity-60 cursor-not-allowed"
+                            style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
