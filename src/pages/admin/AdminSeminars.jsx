@@ -15,11 +15,15 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   VideoCameraIcon,
+  QuestionMarkCircleIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
 } from '@heroicons/react/24/outline'
 import { SkeletonTable } from '../../components/Skeleton'
 import ErrorState from '../../components/ErrorState'
 import { useTranslation } from 'react-i18next'
-import { SEMINAR_DEFAULTS, SEMINAR_TOPICS } from '../../utils/seminarDefaults'
+import { SEMINAR_DEFAULTS } from '../../utils/seminarDefaults'
+import AdminEmptyState from '../../components/AdminEmptyState'
 
 const SEMINAR_TYPES = [
   'Practical Kata',
@@ -54,6 +58,16 @@ const DetailRow = ({ icon: Icon, iconClass, children }) => (
 // Strapi time fields may include seconds ("10:00:00.000") — inputs need HH:MM.
 const fmtTime = (v) => (v || '').slice(0, 5)
 
+// Hours must be a number — decimals like "1.5" are fine, everything else is
+// stripped as it's typed. Keeps at most one decimal separator (commas and
+// dots both accepted, normalized to a dot).
+const sanitizeHours = (value) => {
+  const cleaned = (value || '').replace(/,/g, '.').replace(/[^0-9.]/g, '')
+  const dot = cleaned.indexOf('.')
+  if (dot === -1) return cleaned
+  return cleaned.slice(0, dot + 1) + cleaned.slice(dot + 1).replace(/\./g, '')
+}
+
 const emptyForm = {
   title: '',
   isOnline: false,
@@ -82,6 +96,21 @@ const placeFromItem = (item) => {
   }
 }
 
+// `topics` is stored as agenda rows — [{ text, hours }] — where one row is one
+// session (e.g. "praktiskais Kata uzdevumi — 2 stundas"). Old seminars kept
+// stable i18n keys instead (['kata_theory', ...]); resolve those to their
+// translated label when opening the form so editing never loses data.
+const normalizeTopics = (topics, t) => {
+  if (!Array.isArray(topics)) return []
+  return topics.map((topic) => {
+    if (typeof topic === 'string') {
+      const label = t(`topics.${topic}`)
+      return { text: label !== `topics.${topic}` ? label : topic, hours: '' }
+    }
+    return { text: topic?.text || '', hours: topic?.hours != null ? String(topic.hours) : '' }
+  })
+}
+
 export default function AdminSeminars() {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
@@ -92,6 +121,7 @@ export default function AdminSeminars() {
   useFocusTrap(deleteModalRef)
   const [form, setForm] = useState(emptyForm)
   const [timeError, setTimeError] = useState('')
+  const [helpOpen, setHelpOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -142,7 +172,7 @@ export default function AdminSeminars() {
       isOnline: !!item.isOnline,
       ...placeFromItem(item),
       meetingUrl: item.meetingUrl || '',
-      topics: Array.isArray(item.topics) ? item.topics : [],
+      topics: normalizeTopics(item.topics, t),
       certificateSignerName: item.certificateSignerName || '',
       certificateSignerTitle: item.certificateSignerTitle || '',
       presidentSignerName: item.presidentSignerName || SEMINAR_DEFAULTS.presidentSignerName,
@@ -170,13 +200,24 @@ export default function AdminSeminars() {
     }))
   }
 
-  const toggleTopic = (key) => {
+  const updateTopic = (index, patch) => {
     setForm(prev => ({
       ...prev,
-      topics: prev.topics.includes(key)
-        ? prev.topics.filter(k => k !== key)
-        : [...prev.topics, key],
+      topics: prev.topics.map((topic, i) => {
+        if (i !== index) return topic
+        const next = { ...topic, ...patch }
+        if (patch.hours !== undefined) next.hours = sanitizeHours(patch.hours)
+        return next
+      }),
     }))
+  }
+
+  const addTopic = () => {
+    setForm(prev => ({ ...prev, topics: [...prev.topics, { text: '', hours: '' }] }))
+  }
+
+  const removeTopic = (index) => {
+    setForm(prev => ({ ...prev, topics: prev.topics.filter((_, i) => i !== index) }))
   }
 
   // Slug is always derived from the title — admins never type it.
@@ -218,7 +259,11 @@ export default function AdminSeminars() {
             address: form.placeAddress.trim(),
           },
       meetingUrl: form.isOnline ? (meetingUrl || null) : null,
-      topics: form.topics,
+      // Agenda rows — drop rows with no text, trim everything, and re-run
+      // the numeric sanitizer so pasted junk can never reach the database.
+      topics: form.topics
+        .filter(topic => (topic.text || '').trim())
+        .map(topic => ({ text: topic.text.trim(), hours: sanitizeHours(topic.hours).trim() })),
       certificateSignerName: form.certificateSignerName.trim() || null,
       certificateSignerTitle: form.certificateSignerTitle.trim() || null,
       presidentSignerName: form.presidentSignerName.trim() || SEMINAR_DEFAULTS.presidentSignerName,
@@ -373,6 +418,39 @@ export default function AdminSeminars() {
           <h2 className="text-lg font-semibold mb-4">
             {editingItem ? t('admin.seminars.edit') : t('admin.seminars.create')}
           </h2>
+
+          {/* In-app help — collapsible so it never blocks the form */}
+          <div
+            className="rounded-xl border mb-5"
+            style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}
+          >
+            <button
+              type="button"
+              onClick={() => setHelpOpen(open => !open)}
+              aria-expanded={helpOpen}
+              className="w-full flex items-center justify-between gap-3 px-4 py-3 text-sm font-semibold"
+              style={{ color: 'var(--text-primary)' }}
+            >
+              <span className="inline-flex items-center gap-2">
+                <QuestionMarkCircleIcon className="w-4 h-4 text-blue-500 flex-shrink-0" aria-hidden="true" />
+                {t('admin.seminars.helpTitle')}
+              </span>
+              {helpOpen ? (
+                <ChevronUpIcon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+              ) : (
+                <ChevronDownIcon className="w-4 h-4 flex-shrink-0" aria-hidden="true" />
+              )}
+            </button>
+            {helpOpen && (
+              <ul className="px-4 pb-4 space-y-2 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+                <li>• {t('admin.seminars.helpAgenda')}</li>
+                <li>• {t('admin.seminars.helpOnline')}</li>
+                <li>• {t('admin.seminars.helpSigners')}</li>
+                <li>• {t('admin.seminars.helpPublish')}</li>
+              </ul>
+            )}
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
@@ -476,34 +554,47 @@ export default function AdminSeminars() {
               </div>
             )}
 
-            {/* Topics — stable keys, labels come from i18n */}
+            {/* Agenda — one row per session: free text + hours */}
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">
                 {t('admin.seminars.topicsLabel')}
               </p>
-              <div className="flex flex-wrap gap-2">
-                {SEMINAR_TOPICS.map(key => {
-                  const checked = form.topics.includes(key)
-                  return (
-                    <label
-                      key={key}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm cursor-pointer transition ${
-                        checked
-                          ? 'bg-blue-50 border-blue-300'
-                          : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => toggleTopic(key)}
-                        className="accent-blue-600"
-                      />
-                      {t(`topics.${key}`)}
-                    </label>
-                  )
-                })}
+              <div className="space-y-2">
+                {form.topics.map((topic, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={topic.text}
+                      onChange={e => updateTopic(i, { text: e.target.value })}
+                      placeholder={t('admin.seminars.topicTextPlaceholder')}
+                      aria-label={t('admin.seminars.topicTextPlaceholder')}
+                      className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      maxLength={4}
+                      value={topic.hours}
+                      onChange={e => updateTopic(i, { hours: e.target.value })}
+                      placeholder={t('admin.seminars.topicHoursPlaceholder')}
+                      aria-label={t('admin.seminars.topicHoursPlaceholder')}
+                      title={t('admin.seminars.topicHoursHint')}
+                      className="w-24 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <IconButton icon={TrashIcon} label={t('admin.seminars.removeTopic')} onClick={() => removeTopic(i)} variant="danger" size="sm" />
+                  </div>
+                ))}
               </div>
+              <button
+                type="button"
+                onClick={addTopic}
+                className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:underline"
+              >
+                {t('admin.seminars.addTopic')}
+              </button>
+              <p className="mt-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+                {t('admin.seminars.topicsHint')}
+              </p>
             </div>
 
             {/* Certificate signers — president always signs, second signer configurable */}
@@ -662,9 +753,9 @@ export default function AdminSeminars() {
       )}
 
       {!filtered.length && (
-        <div className="text-sm text-gray-400 border rounded-lg p-6 text-center">
-          <p>{filtersActive ? t('admin.seminars.noResults') : t('admin.seminars.empty')}</p>
-          {filtersActive && (
+        filtersActive ? (
+          <div className="text-sm text-gray-400 border rounded-lg p-6 text-center">
+            <p>{t('admin.seminars.noResults')}</p>
             <button
               type="button"
               onClick={() => { setSearch(''); setTypeFilter('all'); setStatusFilter('all') }}
@@ -672,8 +763,16 @@ export default function AdminSeminars() {
             >
               {t('common.clearFilters') || 'Clear filters'}
             </button>
-          )}
-        </div>
+          </div>
+        ) : (
+          <AdminEmptyState
+            icon={AcademicCapIcon}
+            title={t('admin.seminars.empty')}
+            description={t('admin.seminars.emptyDesc')}
+            actionLabel={t('admin.seminars.new')}
+            onAction={() => setShowForm(true)}
+          />
+        )
       )}
 
       {/* Mobile card view — icon + text rows, no chips */}

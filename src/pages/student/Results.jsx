@@ -17,6 +17,11 @@ import {
   canShowScoreAndReview,
   isAnswerCorrect,
 } from '../../utils/attempts'
+import {
+  getAnswerFieldCount,
+  getFieldGrades,
+  normalizeOpenTextAnswer,
+} from '../../utils/grading'
 
 function SummaryCard({ attempt, onShowReview, t }) {
   const meta = getAttemptMeta(attempt, t)
@@ -221,16 +226,22 @@ export default function Results() {
             const displayCorrect = correctAnswers || q.correctAnswer
             const isOpenText = q.type === 'open_text'
 
-            // Open text has no automatic correct answer — an admin grades it
-            // manually and the result is stored per question in manualGrades
-            // (1 = correct, 0 = incorrect, missing = not reviewed yet).
-            const openTextGrade =
-              isOpenText && activeAttempt?.manualGrades
-                ? (activeAttempt.manualGrades[q.id] ?? null)
-                : null
-            const awaitingReview = isOpenText && openTextGrade === null
+            // Open text has no automatic correct answer — an admin grades each
+            // answer field manually and the result is stored per question in
+            // manualGrades (1 = correct, 0 = incorrect, missing = not reviewed).
+            const fieldCount = isOpenText ? getAnswerFieldCount(q) : 1
+            const fieldGrades = isOpenText
+              ? getFieldGrades(activeAttempt?.manualGrades, q.id, fieldCount)
+              : {}
+            const studentFields = isOpenText ? normalizeOpenTextAnswer(userAnswer) : []
+            const awaitingReview =
+              isOpenText && Object.keys(fieldGrades).length < fieldCount
+            const correctFieldCount = isOpenText
+              ? Object.values(fieldGrades).filter(v => v === 1).length
+              : 0
+            const allCorrect = isOpenText && correctFieldCount === fieldCount
             const isCorrect = isOpenText
-              ? openTextGrade === 1
+              ? allCorrect
               : isAnswerCorrect(q, userAnswer)
 
             const pillColor = awaitingReview
@@ -275,22 +286,53 @@ export default function Results() {
                           {awaitingReview
                             ? (t('results.openTextAwaitingReview') ||
                                 'Awaiting review')
-                            : isCorrect
+                            : allCorrect
                               ? (t('results.openTextGradedCorrect') ||
                                   'Graded as correct')
-                              : (t('results.openTextGradedIncorrect') ||
-                                  'Graded as incorrect')}
+                              : (t('results.openTextFieldStatus', {
+                                  correct: correctFieldCount,
+                                  total: fieldCount,
+                                }) ||
+                                  `${correctFieldCount} of ${fieldCount} fields correct`)}
                         </p>
 
-                        <p
-                          className="mt-1 text-sm"
-                          style={{ color: 'var(--text-muted)' }}
-                        >
-                          {t('results.yourChoice') || 'Your answer'}:{' '}
-                          <span className="font-semibold">
-                            {formatAnswerValue(userAnswer, q, t)}
-                          </span>
-                        </p>
+                        <div className="mt-2 space-y-2">
+                          {Array.from({ length: fieldCount }, (_, f) => {
+                            const grade = fieldGrades[f]
+                            const reviewed = grade === 1 || grade === 0
+                            return (
+                              <div
+                                key={f}
+                                className="rounded-xl p-3"
+                                style={{ backgroundColor: 'var(--bg-secondary)' }}
+                              >
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                  <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                                    {t('exam.answerField', { n: f + 1 })}
+                                  </p>
+                                  {reviewed && (
+                                    <span
+                                      className={`text-[11px] px-2 py-0.5 rounded-full font-medium ${
+                                        grade === 1
+                                          ? 'bg-green-100 text-green-700'
+                                          : 'bg-red-100 text-red-700'
+                                      }`}
+                                    >
+                                      {grade === 1
+                                        ? (t('results.openTextGradedCorrect') || 'Correct')
+                                        : (t('results.openTextGradedIncorrect') || 'Incorrect')}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-sm" style={{ color: 'var(--text-primary)' }}>
+                                  {String(studentFields[f] ?? '').trim()
+                                    ? studentFields[f]
+                                    : (t('admin.results.noStudentAnswer') || 'No answer given')}
+                                </p>
+                              </div>
+                            )
+                          })}
+                        </div>
 
                         <p
                           className="mt-2 text-xs"

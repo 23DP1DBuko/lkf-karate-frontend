@@ -103,6 +103,7 @@ export default function LandingCompetitionsCalendar({ isDark }) {
   const selectedComps = activeKey ? byDate.get(activeKey) || [] : []
   const selectedDate = activeKey ? parseDate(activeKey) : null
   const monthHasComps = cells.some((d) => d && byDate.has(dateKey(d)))
+  const hasAnyCompetitions = (competitions?.length || 0) > 0
 
   return (
     <section
@@ -161,7 +162,24 @@ export default function LandingCompetitionsCalendar({ isDark }) {
         </div>
       </div>
 
-      {/* Two columns on desktop: calendar left, details right. Stacked on mobile. */}
+      {/* No competitions at all → one clean empty state, NOT nested inside a
+          second card (avoids the card-in-card look). */}
+      {!isLoading && !isError && !hasAnyCompetitions ? (
+        <div className="flex flex-col items-center justify-center text-center py-12 px-4">
+          <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-3 ${
+            isDark ? 'bg-amber-500/15' : 'bg-amber-100'
+          }`}>
+            <TrophyIcon className={`w-7 h-7 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
+          </div>
+          <p className={`text-base font-semibold mb-1 ${isDark ? 'text-slate-200' : 'text-slate-700'}`}>
+            {t('landing.competitionsEmptyTitle')}
+          </p>
+          <p className={`text-sm max-w-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            {t('landing.competitionsEmptyDesc')}
+          </p>
+        </div>
+      ) : (
+      /* Two columns on desktop: calendar left, details right. Stacked on mobile. */
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] gap-5">
         {/* Calendar — roomy cells so dates read at a glance */}
         <div role="grid" aria-label={monthLabel}>
@@ -262,6 +280,7 @@ export default function LandingCompetitionsCalendar({ isDark }) {
           )}
         </div>
       </div>
+      )}
 
       {selected && <EventModal event={selected} onClose={closeModal} />}
     </section>

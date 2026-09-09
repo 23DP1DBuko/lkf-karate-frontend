@@ -1,20 +1,23 @@
 // questionImport.js
 // ---------------------------------------------------------------------------
-// Shared duplicate-detection + merge helpers used by BOTH the Word importer
-// (AdminImport) and the PDF importer (AdminPdfImport). Keeping the identity
-// rules in one place means repeated imports never create duplicates, missing
-// translations get attached, and existing answers are never overwritten with
-// null — regardless of which importer ran first.
+// Shared duplicate-detection + merge helpers used by the unified import page
+// (Word + multilingual PDF + single-language PDFs). Keeping the identity and
+// merge rules in one place means repeated imports never create duplicates,
+// missing translations get attached, and existing answers are never
+// overwritten with null — regardless of which file type ran first.
 //
-// Identity: courseId + sourceDocumentKey + order (see buildQuestionIdentity).
-// Questions created before sourceDocumentKey existed (legacy rows, e.g. Word
-// imports) are matched by order alone and "adopted" — so a PDF import merges
-// into a previously Word-imported question instead of duplicating it.
+// Identity chain (see findExistingQuestion):
+//   1. questionSetKey + order        — exact set match (new model)
+//   2. sourceDocumentKey + order     — old PDF importer identity
+//   3. order only (legacy)           — pre-set questions are \"adopted\"
+// Different questionSetKeys (e.g. kumite-2024 vs kumite-2026) are SEPARATE
+// sets and never match each other.
 // ---------------------------------------------------------------------------
 
-import { normalizeQuestionText } from './pdfQuestionParser'
+import { normalizeQuestionText, hashText } from './pdfQuestionParser'
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1)
+const LANGS = ['en', 'lv', 'ru']
 
 /**
  * Fetch every question belonging to a course (paginated), ordered by order.
@@ -54,37 +57,50 @@ async function apiGetQuestions(courseId, page) {
  * Stable identity for one parsed question. `order` is the ORIGINAL document
  * number — never renumbered from the array index.
  */
-export function buildQuestionIdentity({ courseId, sourceDocumentKey, order }) {
+export function buildQuestionIdentity({ courseId, sourceDocumentKey, questionSetKey, order }) {
   return {
     courseId,
     sourceDocumentKey: sourceDocumentKey || null,
+    questionSetKey: questionSetKey || null,
     order: Number(order),
   }
 }
 
 /**
- * Find the existing question matching an identity:
- *   - when a sourceDocumentKey is given, prefer key + order; fall back to a
- *     legacy question (no sourceDocumentKey) with the same order so old Word
- *     imports are adopted instead of duplicated
- *   - without a sourceDocumentKey (Word importer), plain order match
+ * Find the existing question matching an identity, walking the chain:
+ *   1. questionSetKey + order (exact set)
+ *   2. legacy adoption: a pre-set question (no questionSetKey) with the same
+ *      order — so old Word/PDF imports merge instead of duplicating
+ *   3. sourceDocumentKey + order (old PDF importer identity)
+ *   4. plain order match (old Word importer identity)
+ * Questions from a DIFFERENT questionSetKey are never matched.
  * Returns the existing question or null.
  */
 export function findExistingQuestion(existing, identity) {
   if (!existing || !existing.length) return null
+  const order = Number(identity.order)
+
+  if (identity.questionSetKey) {
+    const keyed = existing.find(
+      (e) => e.questionSetKey === identity.questionSetKey && Number(e.order) === order,
+    )
+    if (keyed) return keyed
+    // Legacy adopt: pre-set questions merge into the new set by order.
+    return existing.find((e) => !e.questionSetKey && Number(e.order) === order) || null
+  }
 
   if (identity.sourceDocumentKey) {
     const keyed = existing.find(
-      (e) => e.sourceDocumentKey === identity.sourceDocumentKey && Number(e.order) === identity.order,
+      (e) => e.sourceDocumentKey === identity.sourceDocumentKey && Number(e.order) === order,
     )
     if (keyed) return keyed
     const legacy = existing.find(
-      (e) => !e.sourceDocumentKey && Number(e.order) === identity.order,
+      (e) => !e.sourceDocumentKey && !e.questionSetKey && Number(e.order) === order,
     )
     return legacy || null
   }
 
-  return existing.find((e) => Number(e.order) === identity.order) || null
+  return existing.find((e) => Number(e.order) === order) || null
 }
 
 /**
@@ -94,7 +110,7 @@ export function findExistingQuestion(existing, identity) {
  */
 export function buildMultilingualPatch(existing, parsed) {
   const patch = {}
-  for (const lang of ['en', 'lv', 'ru']) {
+  for (const lang of LANGS) {
     const key = `text${cap(lang)}`
     if (normalizeQuestionText(existing?.[key]) !== normalizeQuestionText(parsed?.[key])) {
       patch[key] = parsed?.[key] ?? ''
@@ -115,21 +131,185 @@ export function preserveCorrectAnswer(existing, data) {
   return rest
 }
 
+/** Attach content hashes for change detection (textHashEn/Lv/Ru). */
+export function attachQuestionHashes(q) {
+  const hashes = {}
+  for (const lang of LANGS) {
+    const key = `text${cap(lang)}`
+    hashes[`textHash${cap(lang)}`] = q[key] ? hashText(q[key]) : null
+  }
+  return { ...q, ...hashes }
+}
+
+// ── In-session merge (multiple files → one Question per number) ────────────
+
+/**
+ * Merge questions parsed from ALL uploaded files of one import session into a
+ * single normalized Question per `order`. Languages are filled from whichever
+ * file carries them; a Word-derived correctAnswer wins over a PDF's null;
+ * sourceFiles accumulate. Same order + same language + different text is
+ * recorded as a session conflict.
+ *
+ * @param {Array} parsedList  flat list of parsed questions (Word + PDF results)
+ * @returns {Array} merged questions sorted by order
+ */
+export function mergeSessionQuestions(parsedList) {
+  const byOrder = new Map()
+
+  const ensure = (order) => {
+    let entry = byOrder.get(order)
+    if (!entry) {
+      entry = {
+        order,
+        type: 'yes_no',
+        textEn: '',
+        textLv: '',
+        textRu: '',
+        correctAnswer: null,
+        answerStatus: 'missing',
+        sourceFiles: [],
+        sessionConflicts: [],
+      }
+      byOrder.set(order, entry)
+    }
+    return entry
+  }
+
+  for (const q of parsedList) {
+    if (q.order == null || !Number.isFinite(Number(q.order))) continue
+    const order = Number(q.order)
+    const entry = ensure(order)
+
+    for (const lang of LANGS) {
+      const key = `text${cap(lang)}`
+      const incoming = normalizeQuestionText(q[key])
+      if (!incoming) continue
+      const existing = normalizeQuestionText(entry[key])
+      if (!existing) {
+        entry[key] = q[key]
+      } else if (existing !== incoming) {
+        entry.sessionConflicts.push({
+          lang,
+          order,
+          existingText: entry[key],
+          importedText: q[key],
+        })
+      }
+    }
+
+    if (q.type) entry.type = q.type
+    // Word answers win; a PDF never overwrites an existing answer with null.
+    if (q.correctAnswer != null) {
+      entry.correctAnswer = q.correctAnswer
+      entry.answerStatus = q.answerStatus || 'fromWord'
+    }
+    if (Array.isArray(q.sourceFiles)) {
+      for (const f of q.sourceFiles) {
+        if (f && !entry.sourceFiles.includes(f)) entry.sourceFiles.push(f)
+      }
+    }
+  }
+
+  return [...byOrder.values()].sort((a, b) => a.order - b.order)
+}
+
+// ── DB comparison / conflict detection ─────────────────────────────────────
+
+/**
+ * Compare one parsed question against the existing set and decide what to do:
+ *
+ *   { action: 'create',   q }                                nothing exists
+ *   { action: 'skip',     q, existing }                      identical texts
+ *   { action: 'update',   q, existing, patch }               translations added/changed
+ *   { action: 'conflict', q, existing, patch, conflicts }    same text differs / type differs
+ *
+ * correctAnswer is NEVER part of the patch — existing answers are preserved by
+ * construction; a PDF's null never overwrites an existing answer.
+ */
+export function mergeImportedQuestions(parsed, existing, { courseId, questionSetKey }) {
+  const all = existing || []
+  return parsed.map((q) => {
+    const identity = buildQuestionIdentity({ courseId, questionSetKey, order: q.order })
+    const eq = findExistingQuestion(all, identity)
+
+    if (!eq) {
+      return { q, existing: null, action: 'create', patch: null, conflicts: [], hasAnswer: false }
+    }
+
+    const patch = {}
+    const conflicts = []
+    for (const lang of LANGS) {
+      const key = `text${cap(lang)}`
+      const imported = normalizeQuestionText(q[key])
+      const existingText = normalizeQuestionText(eq[key])
+      if (!imported) continue // nothing to add — never erase existing text
+      if (!existingText) {
+        patch[key] = q[key] // new translation
+        continue
+      }
+      if (imported !== existingText) {
+        conflicts.push({ lang, existingText: eq[key], importedText: q[key] })
+      }
+    }
+    if (eq.type && q.type && eq.type !== q.type) {
+      conflicts.push({ lang: 'type', existingText: eq.type, importedText: q.type })
+    }
+
+    if (conflicts.length > 0) {
+      return { q, existing: eq, action: 'conflict', patch, conflicts, hasAnswer: eq.correctAnswer != null }
+    }
+    if (Object.keys(patch).length > 0) {
+      return { q, existing: eq, action: 'update', patch, conflicts: [], hasAnswer: eq.correctAnswer != null }
+    }
+    return { q, existing: eq, action: 'skip', patch: null, conflicts: [], hasAnswer: eq.correctAnswer != null }
+  })
+}
+
+// ── Validation stats ───────────────────────────────────────────────────────
+
+/** Per-language coverage + numbering stats for the merged import preview. */
+export function buildQuestionStats(questions) {
+  if (!questions || !questions.length) return null
+  const texts = (q, lang) => normalizeQuestionText(q[`text${cap(lang)}`])
+  const missing = (lang) => questions.filter((q) => !texts(q, lang)).map((q) => q.order)
+  const orders = questions.map((q) => q.order).sort((a, b) => a - b)
+  const seen = new Set()
+  const duplicates = []
+  const gaps = []
+  for (const o of orders) {
+    if (seen.has(o)) duplicates.push(o)
+    seen.add(o)
+  }
+  for (let o = orders[0]; o <= orders[orders.length - 1]; o++) {
+    if (!seen.has(o)) gaps.push(o)
+  }
+
+  return {
+    total: questions.length,
+    completeTranslations: questions.filter(
+      (q) => texts(q, 'en') && texts(q, 'lv') && texts(q, 'ru'),
+    ).length,
+    missingEn: missing('en'),
+    missingLv: missing('lv'),
+    missingRu: missing('ru'),
+    answersMissing: questions.filter((q) => q.correctAnswer == null).length,
+    duplicates: [...new Set(duplicates)],
+    gaps,
+    firstOrder: questions.length ? questions[0].order : null,
+    lastOrder: questions.length ? questions[questions.length - 1].order : null,
+    sessionConflicts: questions.flatMap((q) => q.sessionConflicts || []),
+  }
+}
+
+// ── Legacy planner (kept for the old Word importer semantics + tests) ──────
+
 /**
  * Decide what to do with each parsed question against the existing set.
- *
  * Returns an array aligned with `parsed`:
  *   { action: 'create', q }
  *   { action: 'skip',   q, existing }             identical text
  *   { action: 'update', q, existing, patch }      translation changed / added
  *   { action: 'conflict', q, existing, reason }   same order, different source
- *
- * Recommended behavior table (from the spec):
- *   new question                        → create
- *   same question, no answer            → skip
- *   same question, new translation      → update translation
- *   same question, existing answer      → preserve answer (update translations)
- *   same order but changed text/source  → conflict for admin review
  */
 export function planQuestionActions(parsed, existing, { courseId, sourceDocumentKey }) {
   const all = existing || []

@@ -11,6 +11,7 @@ import MultipleChoiceQuestion from '../../components/questions/MultipleChoiceQue
 import AkaAoQuestion from '../../components/questions/AkaAoQuestion'
 import QuestionProgressDots from '../../components/questions/QuestionProgressDots'
 import OpenTextQuestion from '../../components/questions/OpenTextQuestion'
+import { isOpenTextQuestion, isOpenTextAnswered } from '../../utils/grading'
 import {
   CheckCircleIcon,
   ChevronLeftIcon,
@@ -315,9 +316,12 @@ export default function ExamPage() {
   const hasImage = !!currentImageSrc
 
   // Array-aware "is this question answered?" check — multiple_choice
-  // multi-select stores arrays, everything else stores a string.
+  // multi-select stores arrays, everything else stores a string. Open-text
+  // questions with configurable fields count as answered when at least one
+  // field has text (empty fields simply score 0).
   const hasAnswer = (q) => {
     const value = answers[q?.id]
+    if (isOpenTextQuestion(q)) return isOpenTextAnswered(value)
     if (Array.isArray(value)) return value.length > 0
     return value !== undefined && value !== null && String(value).trim() !== ''
   }
@@ -452,8 +456,10 @@ export default function ExamPage() {
 
         {q.type === 'open_text' && (
           <OpenTextQuestion
+            id={`open-text-${q.id}`}
             questionText={q.text}
-            value={answers[q.id] || ''}
+            fieldCount={q.answerFieldCount || 1}
+            value={answers[q.id]}
             onChange={(val) => setAnswers(prev => ({ ...prev, [q.id]: val }))}
             onSubmit={() => {
               if (isLastQuestion) {
@@ -462,9 +468,11 @@ export default function ExamPage() {
                 goNext()
               }
             }}
-            canSubmit={!!(answers[q.id] || '').trim()}
+            canSubmit={hasAnswer(q)}
             submitLabel={isLastQuestion ? t('exam.submit') : undefined}
             placeholder={t('exam.typeAnswer')}
+            instruction={t('exam.answerFieldsInstruction')}
+            getFieldLabel={(i) => t('exam.answerField', { n: i + 1 })}
           />
         )}
 
@@ -478,8 +486,10 @@ export default function ExamPage() {
               {t('exam.unsupportedType')}
             </p>
             <OpenTextQuestion
+              id={`open-text-fallback-${q.id}`}
               questionText={q.text}
-              value={answers[q.id] || ''}
+              fieldCount={1}
+              value={answers[q.id]}
               onChange={(val) => setAnswers(prev => ({ ...prev, [q.id]: val }))}
               onSubmit={() => {
                 if (isLastQuestion) {
@@ -488,9 +498,10 @@ export default function ExamPage() {
                   goNext()
                 }
               }}
-              canSubmit={!!(answers[q.id] || '').trim()}
+              canSubmit={hasAnswer(q)}
               submitLabel={isLastQuestion ? t('exam.submit') : undefined}
               placeholder={t('exam.typeAnswer')}
+              getFieldLabel={(i) => t('exam.answerField', { n: i + 1 })}
             />
           </div>
         )}

@@ -12,13 +12,13 @@ export default function UserRanks({ user }) {
       {user.rankKumite && (
         <p>
           <span className="font-medium">{t('ranks.kumiteShort')}:</span>{' '}
-          {findRankLabel(user.rankKumite, KUMITE_RANKS)}
+          {findRankLabel(user.rankKumite, KUMITE_RANKS, t)}
         </p>
       )}
       {user.rankKata && (
         <p>
           <span className="font-medium">{t('ranks.kataShort')}:</span>{' '}
-          {findRankLabel(user.rankKata, KATA_RANKS)}
+          {findRankLabel(user.rankKata, KATA_RANKS, t)}
         </p>
       )}
     </div>

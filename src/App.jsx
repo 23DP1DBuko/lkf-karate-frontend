@@ -33,8 +33,7 @@ const AdminSeminars = lazy(() => import('./pages/admin/AdminSeminars'))
 const AdminCompetitions = lazy(() => import('./pages/admin/AdminCompetitions'))
 const AdminExamResults = lazy(() => import('./pages/admin/AdminExamResults'))
 const AdminUsers = lazy(() => import('./pages/admin/AdminUsers'))
-const AdminImport = lazy(() => import('./pages/admin/AdminImport'))
-const AdminPdfImport = lazy(() => import('./pages/admin/AdminPdfImport'))
+const AdminQuestionImport = lazy(() => import('./pages/admin/AdminQuestionImport'))
 const AdminImportQuiz = lazy(() => import('./pages/admin/AdminImportQuiz'))
 const ExamMonitoring = lazy(() => import('./pages/admin/ExamMonitoring'))
 
@@ -110,8 +109,9 @@ export default function App() {
           <Route path="/admin/competitions" element={<AdminRoute><AdminCompetitions /></AdminRoute>} />
           <Route path="/admin/results" element={<AdminRoute><AdminExamResults /></AdminRoute>} />
           <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
-          <Route path="/admin/import" element={<AdminRoute><AdminImport /></AdminRoute>} />
-          <Route path="/admin/import-pdf" element={<AdminRoute><AdminPdfImport /></AdminRoute>} />
+          <Route path="/admin/import" element={<AdminRoute><AdminQuestionImport /></AdminRoute>} />
+          {/* Legacy alias — the unified import page replaces the old PDF importer */}
+          <Route path="/admin/import-pdf" element={<AdminRoute><AdminQuestionImport /></AdminRoute>} />
           <Route path="/admin/import-quiz" element={<AdminRoute><AdminImportQuiz /></AdminRoute>} />
           <Route path="/admin/exams/:examDocumentId/monitoring" element={<AdminRoute><ExamMonitoring /></AdminRoute>} />
           <Route path="*" element={<Navigate to="/" />} />

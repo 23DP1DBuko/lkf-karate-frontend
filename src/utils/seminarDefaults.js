@@ -13,15 +13,3 @@ export const SEMINAR_DEFAULTS = {
   onlineTitle: 'Online Zoom seminārs',
 }
 
-// Stable topic keys stored in the seminar's `topics` JSON. Labels always come
-// from the i18n translation keys `topics.<key>` — never save translated text.
-export const SEMINAR_TOPICS = [
-  'kata_theory',
-  'kata_practice',
-  'kumite_theory',
-  'kumite_practice',
-  'secretary',
-  'refereeing',
-  'competition_organisation',
-  'other',
-]

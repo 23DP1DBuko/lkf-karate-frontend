@@ -20,7 +20,6 @@ import {
   ChevronDoubleRightIcon,
   ChevronDownIcon,
   ArrowUpTrayIcon,
-  DocumentArrowUpIcon,
   CalendarDaysIcon,
   LightBulbIcon,
   TrophyIcon
@@ -58,8 +57,7 @@ function SidebarContent({
     { to: '/admin/users', icon: UsersIcon, label: t('nav.admin.users') },
     { to: '/admin/seminars', icon: LightBulbIcon, label: t('nav.admin.seminars') },
     { to: '/admin/competitions', icon: TrophyIcon, label: t('nav.admin.competitions') },
-    { to: '/admin/import', icon: ArrowUpTrayIcon, label: 'Import Questions (.docx)' },
-    { to: '/admin/import-pdf', icon: DocumentArrowUpIcon, label: 'Import Questions (.pdf)' },
+    { to: '/admin/import', icon: ArrowUpTrayIcon, label: 'Import Questions' },
     { to: '/admin/chapters/import', icon: DocumentTextIcon, label: 'Import Chapters' },
   ]
 

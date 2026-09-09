@@ -5,6 +5,9 @@ import {
   buildMultilingualPatch,
   preserveCorrectAnswer,
   planQuestionActions,
+  mergeSessionQuestions,
+  mergeImportedQuestions,
+  attachQuestionHashes,
 } from '../utils/questionImport'
 
 const COURSE = 'course-doc-1'
@@ -23,11 +26,18 @@ function parsed(order, { en, lv, ru } = {}) {
 }
 
 describe('buildQuestionIdentity', () => {
-  it('normalizes order to a number and keeps the source key', () => {
+  it('normalizes order to a number and keeps the source key + set key', () => {
     expect(buildQuestionIdentity({ courseId: COURSE, sourceDocumentKey: SOURCE_KEY, order: '41' })).toEqual({
       courseId: COURSE,
       sourceDocumentKey: SOURCE_KEY,
+      questionSetKey: null,
       order: 41,
+    })
+    expect(buildQuestionIdentity({ courseId: COURSE, questionSetKey: 'kumite-2024', order: 7 })).toEqual({
+      courseId: COURSE,
+      sourceDocumentKey: null,
+      questionSetKey: 'kumite-2024',
+      order: 7,
     })
     expect(buildQuestionIdentity({ courseId: COURSE, order: 7 }).sourceDocumentKey).toBeNull()
   })
@@ -150,5 +160,135 @@ describe('buildMultilingualPatch', () => {
     const existing = { textEn: 'Hello  world', textLv: 'x', textRu: 'y' }
     const parsedQ = { textEn: ' Hello world ', textLv: 'x', textRu: 'y' }
     expect(buildMultilingualPatch(existing, parsedQ)).toEqual({})
+  })
+})
+
+describe('findExistingQuestion — questionSetKey identity', () => {
+  const existing = [
+    { documentId: 'd1', order: 1, questionSetKey: 'kumite-2024', textEn: 'A' },
+    { documentId: 'd2', order: 1, questionSetKey: 'kumite-2026', textEn: 'B' },
+    { documentId: 'd3', order: 2, questionSetKey: null, textEn: 'legacy' }, // pre-set question
+    { documentId: 'd4', order: 2, sourceDocumentKey: 'other-source', textEn: 'old pdf' }, // no set key
+  ]
+
+  it('matches the exact question set first', () => {
+    expect(findExistingQuestion(existing, { courseId: COURSE, questionSetKey: 'kumite-2024', order: 1 }))
+      .toBe(existing[0])
+  })
+
+  it('never merges questions from a DIFFERENT question set', () => {
+    // order 1 exists only in kumite-2024/2026 — a new set kumite-2025 must NOT match either.
+    expect(findExistingQuestion(existing, { courseId: COURSE, questionSetKey: 'kumite-2025', order: 1 }))
+      .toBeNull()
+  })
+
+  it('adopts pre-set (legacy) questions by order only', () => {
+    expect(findExistingQuestion(existing, { courseId: COURSE, questionSetKey: 'kumite-2026', order: 2 }))
+      .toBe(existing[2]) // d3 (no questionSetKey) is adopted
+  })
+})
+
+describe('mergeSessionQuestions', () => {
+  it('merges languages across files into one question per order', () => {
+    const merged = mergeSessionQuestions([
+      { order: 1, textEn: 'EN 1', correctAnswer: null, sourceFiles: ['all_en.pdf'] },
+      { order: 1, textLv: 'LV 1', correctAnswer: null, sourceFiles: ['all_lat.pdf'] },
+      { order: 2, textEn: 'EN 2', correctAnswer: null, sourceFiles: ['all_en.pdf'] },
+    ])
+    expect(merged.length).toBe(2)
+    expect(merged[0]).toMatchObject({ order: 1, textEn: 'EN 1', textLv: 'LV 1', textRu: '' })
+    expect(merged[0].sourceFiles).toEqual(['all_en.pdf', 'all_lat.pdf'])
+  })
+
+  it('lets a Word answer win over a PDF null answer', () => {
+    const merged = mergeSessionQuestions([
+      { order: 1, textEn: 'EN 1', correctAnswer: null, answerStatus: 'missing' },
+      { order: 1, textEn: 'EN 1', correctAnswer: 'true', answerStatus: 'fromWord' },
+    ])
+    expect(merged[0].correctAnswer).toBe('true')
+    expect(merged[0].answerStatus).toBe('fromWord')
+  })
+
+  it('records a session conflict when two files disagree on the same language', () => {
+    const merged = mergeSessionQuestions([
+      { order: 1, textEn: 'Version A', correctAnswer: null },
+      { order: 1, textEn: 'Version B', correctAnswer: null },
+    ])
+    expect(merged[0].sessionConflicts.length).toBe(1)
+    expect(merged[0].sessionConflicts[0]).toMatchObject({ order: 1, lang: 'en' })
+  })
+})
+
+describe('mergeImportedQuestions', () => {
+  it('creates when nothing exists', () => {
+    const plan = mergeImportedQuestions([parsed(1)], [], { courseId: COURSE, questionSetKey: 'kumite-2024' })
+    expect(plan[0].action).toBe('create')
+    expect(plan[0].hasAnswer).toBe(false)
+  })
+
+  it('skips identical questions and preserves existing answers', () => {
+    const existing = [{
+      documentId: 'd1', order: 1, questionSetKey: 'kumite-2024',
+      textEn: 'EN 1', textLv: 'LV 1', textRu: 'RU 1', correctAnswer: 'true',
+    }]
+    const plan = mergeImportedQuestions([parsed(1)], existing, { courseId: COURSE, questionSetKey: 'kumite-2024' })
+    expect(plan[0].action).toBe('skip')
+    expect(plan[0].existing.correctAnswer).toBe('true')
+  })
+
+  it('updates only the new translation and never carries an answer', () => {
+    const existing = [{
+      documentId: 'd1', order: 1, questionSetKey: 'kumite-2024',
+      textEn: 'EN 1', textLv: null, textRu: 'RU 1', correctAnswer: 'true',
+    }]
+    const q = parsed(1, { lv: 'LV 1' })
+    const plan = mergeImportedQuestions([q], existing, { courseId: COURSE, questionSetKey: 'kumite-2024' })
+    expect(plan[0].action).toBe('update')
+    expect(plan[0].patch).toEqual({ textLv: 'LV 1' })
+    expect('correctAnswer' in plan[0].patch).toBe(false)
+  })
+
+  it('flags a same-language text difference as a conflict (no auto-overwrite)', () => {
+    const existing = [{
+      documentId: 'd1', order: 1, questionSetKey: 'kumite-2024',
+      textEn: 'OLD TEXT', textLv: 'LV 1', textRu: 'RU 1', correctAnswer: 'false',
+    }]
+    const plan = mergeImportedQuestions([parsed(1)], existing, { courseId: COURSE, questionSetKey: 'kumite-2024' })
+    expect(plan[0].action).toBe('conflict')
+    expect(plan[0].conflicts).toEqual([{ lang: 'en', existingText: 'OLD TEXT', importedText: 'EN 1' }])
+    // The existing answer is preserved even though the imported question has none.
+    expect(plan[0].existing.correctAnswer).toBe('false')
+  })
+
+  it('flags a type mismatch as a conflict', () => {
+    const existing = [{
+      documentId: 'd1', order: 1, questionSetKey: 'kumite-2024',
+      textEn: 'EN 1', textLv: 'LV 1', textRu: 'RU 1', type: 'single_choice',
+    }]
+    const q = { ...parsed(1), type: 'yes_no' }
+    const plan = mergeImportedQuestions([q], existing, { courseId: COURSE, questionSetKey: 'kumite-2024' })
+    expect(plan[0].action).toBe('conflict')
+    expect(plan[0].conflicts.some((c) => c.lang === 'type')).toBe(true)
+  })
+
+  it('treats the same order in a different set as a NEW question', () => {
+    const existing = [{
+      documentId: 'd1', order: 1, questionSetKey: 'kumite-2024',
+      textEn: 'EN 1', textLv: 'LV 1', textRu: 'RU 1', correctAnswer: 'true',
+    }]
+    const plan = mergeImportedQuestions([parsed(1)], existing, { courseId: COURSE, questionSetKey: 'kumite-2026' })
+    expect(plan[0].action).toBe('create')
+  })
+})
+
+describe('attachQuestionHashes', () => {
+  it('computes stable hashes only for present texts', () => {
+    const q = { textEn: 'Hello  world', textLv: '', textRu: 'Привет' }
+    const hashed = attachQuestionHashes(q)
+    expect(typeof hashed.textHashEn).toBe('string')
+    expect(hashed.textHashLv).toBeNull()
+    expect(typeof hashed.textHashRu).toBe('string')
+    // Whitespace normalization → identical hash for identical content.
+    expect(attachQuestionHashes({ textEn: 'Hello world' }).textHashEn).toBe(hashed.textHashEn)
   })
 })

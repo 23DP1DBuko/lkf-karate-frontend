@@ -7,6 +7,8 @@
 //   questions      — array of question objects (with .id)
 //   onJump         — called with the target index when a dot is clicked
 
+import { isOpenTextQuestion, isOpenTextAnswered } from '../../utils/grading'
+
 export default function QuestionProgressDots({
   totalQuestions,
   currentIndex,
@@ -20,10 +22,13 @@ export default function QuestionProgressDots({
     <nav className="flex flex-wrap items-center justify-center gap-2 mb-8" aria-label="Question progress">
       {questions.map((q, i) => {
         const isCurrent = i === currentIndex
-        // Array answers (multi-select) count as answered only when non-empty
-        const isAnswered = Array.isArray(answers[q.id])
-          ? answers[q.id].length > 0
-          : !!answers[q.id]
+        // Open-text questions count as answered when at least one field has
+        // text; array answers (multi-select) only when non-empty.
+        const isAnswered = isOpenTextQuestion(q)
+          ? isOpenTextAnswered(answers[q.id])
+          : Array.isArray(answers[q.id])
+            ? answers[q.id].length > 0
+            : !!answers[q.id]
 
         let dotStyle = {}
         let className = ''

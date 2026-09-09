@@ -191,16 +191,43 @@ export default function EventModal({ event, onClose }) {
             <p className="text-xs uppercase tracking-wide mb-2" style={{ color: 'var(--text-muted)' }}>
               {t('events.topics')}
             </p>
-            <div className="flex flex-wrap gap-1.5">
-              {event.topics.map(key => (
-                <span
-                  key={key}
-                  className="text-xs px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20"
-                >
-                  {t(`topics.${key}`)}
-                </span>
-              ))}
-            </div>
+            <ul className="space-y-1.5">
+              {event.topics.map((topic, i) => {
+                // Legacy rows stored i18n keys — resolve them to the label.
+                if (typeof topic === 'string') {
+                  const label = t(`topics.${topic}`)
+                  return (
+                    <li
+                      key={i}
+                      className="text-sm flex items-center justify-between gap-3"
+                      style={{ color: 'var(--text-secondary)' }}
+                    >
+                      <span>{label !== `topics.${topic}` ? label : topic}</span>
+                    </li>
+                  )
+                }
+                // New rows are [{ text, hours }] — one line per session.
+                const text = (topic && topic.text) || ''
+                const hours = topic && topic.hours
+                return (
+                  <li
+                    key={i}
+                    className="text-sm flex items-center justify-between gap-3"
+                    style={{ color: 'var(--text-secondary)' }}
+                  >
+                    <span>{text}</span>
+                    {hours ? (
+                      <span
+                        className="flex-shrink-0 font-medium whitespace-nowrap"
+                        style={{ color: 'var(--text-primary)' }}
+                      >
+                        {hours} {t('events.hours')}
+                      </span>
+                    ) : null}
+                  </li>
+                )
+              })}
+            </ul>
           </div>
         )}
 
