@@ -21,6 +21,9 @@ import {
 } from '@heroicons/react/24/outline'
 import { SkeletonTable } from '../../components/Skeleton'
 import ErrorState from '../../components/ErrorState'
+import Pagination from '../../components/Pagination'
+import usePagination from '../../hooks/usePagination'
+import useScrollToForm from '../../hooks/useScrollToForm'
 import { useTranslation } from 'react-i18next'
 import { SEMINAR_DEFAULTS } from '../../utils/seminarDefaults'
 import AdminEmptyState from '../../components/AdminEmptyState'
@@ -119,6 +122,9 @@ export default function AdminSeminars() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const deleteModalRef = useRef(null)
   useFocusTrap(deleteModalRef)
+  // Scroll the edit form into view and focus its first field when an item is
+  // selected. Keyed on the documentId so switching items rescrolls.
+  const formRef = useScrollToForm(editingItem?.documentId)
   const [form, setForm] = useState(emptyForm)
   const [timeError, setTimeError] = useState('')
   const [helpOpen, setHelpOpen] = useState(false)
@@ -323,6 +329,15 @@ export default function AdminSeminars() {
     return [...list].sort(sorters[sortBy] || sorters.date_asc)
   }, [items, search, typeFilter, statusFilter, sortBy])
 
+  // Seminars are filtered and sorted in memory, so paging happens client-side.
+  // The reset key returns to page 1 whenever a filter or the sort changes, and
+  // the slice keeps the visible rows identical to the Chapters list.
+  const { page, totalPages, pageSize, goToPage, slice } = usePagination({
+    total: filtered.length,
+    resetKey: `${search}|${typeFilter}|${statusFilter}|${sortBy}`,
+  })
+  const paginated = slice(filtered)
+
   if (isError) {
     return <ErrorState error={error} onRetry={refetch} title="Failed to load seminars" />
   }
@@ -414,7 +429,7 @@ export default function AdminSeminars() {
 
       {/* Form */}
       {showForm && (
-        <div className="rounded-xl shadow p-5 sm:p-6 mb-6" style={{ backgroundColor: 'var(--bg-card)' }}>
+        <div ref={formRef} className="rounded-xl shadow p-5 sm:p-6 mb-6" style={{ backgroundColor: 'var(--bg-card)' }}>
           <h2 className="text-lg font-semibold mb-4">
             {editingItem ? t('admin.seminars.edit') : t('admin.seminars.create')}
           </h2>
@@ -777,7 +792,7 @@ export default function AdminSeminars() {
 
       {/* Mobile card view — icon + text rows, no chips */}
       <div className="md:hidden space-y-3">
-        {filtered.map(item => {
+        {paginated.map(item => {
           const place = formatPlace(item.place)
           const time = formatTime(item)
           return (
@@ -828,7 +843,7 @@ export default function AdminSeminars() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filtered.map(item => {
+            {paginated.map(item => {
               const time = formatTime(item)
               return (
                 <tr key={item.id} className="border-b hover:opacity-80 transition" style={{ borderColor: 'var(--border)' }}>
@@ -884,6 +899,14 @@ export default function AdminSeminars() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={filtered.length}
+        pageSize={pageSize}
+        onPageChange={goToPage}
+      />
 
       {deleteTarget && (
         <div

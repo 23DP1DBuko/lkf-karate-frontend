@@ -43,6 +43,14 @@ export default function LandingFooter({ isDark = true }) {
           >
             {t('landing.gdpr')}
           </Link>
+          <span className={`select-none ${isDark ? 'text-slate-600' : 'text-slate-300'}`}>•</span>
+          <Link
+            to="/cookies"
+            aria-current={pathname === '/cookies' ? 'page' : undefined}
+            className="hover:text-blue-500 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900"
+          >
+            {t('landing.cookiesPolicy')}
+          </Link>
         </div>
 
         {/* Separator */}

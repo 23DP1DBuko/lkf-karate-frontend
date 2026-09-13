@@ -3,12 +3,20 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import api, { getLocalizedField } from '../../api/strapi'
 import { useTranslation } from 'react-i18next'
 import { parseChapterPdf, chapterContentHash, createCanvasFigureRenderer } from '../../utils/pdfChapterParser'
+import {
+  CHAPTER_LANGUAGES, toPreviewChapters, updateChapterTitle, updateBlock, addBlock,
+  removeBlock, moveBlock, copyLanguage, languageStats, countBlockTypes,
+  blocksNeedingReview, buildChapterImportData, collectFigures, moveBaseLanguage,
+} from '../../utils/chapterImportBlocks'
 import FileDropzone from '../../components/FileDropzone'
+import ChapterImportBlockEditor from '../../components/ChapterImportBlockEditor'
 import {
   DocumentArrowUpIcon, BookOpenIcon, CheckCircleIcon, ChevronDownIcon,
   DocumentTextIcon, PhotoIcon, TableCellsIcon, ListBulletIcon,
   ExclamationTriangleIcon, XMarkIcon,
 } from '@heroicons/react/24/outline'
+
+const LANGUAGE_LABELS = { lv: '🇱🇻 Latviešu', ru: '🇷🇺 Русский', en: '🇬🇧 English' }
 
 const BLOCK_BADGES = {
   text: { label: 'Text', icon: DocumentTextIcon, cls: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200' },
@@ -16,6 +24,8 @@ const BLOCK_BADGES = {
   table: { label: 'Table', icon: TableCellsIcon, cls: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300' },
   image: { label: 'Image', icon: PhotoIcon, cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
 }
+
+const ADDABLE_TYPES = ['text', 'list', 'table', 'image']
 
 async function uploadFigureBlob(blob, page) {
   const formData = new FormData()
@@ -30,15 +40,18 @@ export default function AdminChaptersImport() {
   const { t, i18n } = useTranslation()
   const queryClient = useQueryClient()
   const [file, setFile] = useState(null)
-  const [chapters, setChapters] = useState([]) // [{ title, chapterKey, order, sourcePageFrom/To, contentHash, blocks }]
+  // [{ title, chapterKey, order, sourcePageFrom/To, contentHash,
+  //    titles: { lv, ru, en }, blocks: { lv, ru, en }, edited }]
+  const [chapters, setChapters] = useState([])
   const [selectedCourse, setSelectedCourse] = useState('')
   const [baseLanguage, setBaseLanguage] = useState('lv')
+  const [activeLanguage, setActiveLanguage] = useState('lv')
   const [parsing, setParsing] = useState(false)
   const [parseProgress, setParseProgress] = useState(0)
   const [importing, setImporting] = useState(false)
+  const [importStage, setImportStage] = useState('')
   const [error, setError] = useState('')
   const [summary, setSummary] = useState(null) // { created, updated, skipped, failed: [] }
-  const [chapterTitles, setChapterTitles] = useState([])
   const [expandedChapters, setExpandedChapters] = useState(new Set())
 
   const { data: courses } = useQuery({
@@ -52,7 +65,6 @@ export default function AdminChaptersImport() {
     setFile(f)
     setError('')
     setChapters([])
-    setChapterTitles([])
     setSummary(null)
     setParsing(true)
     setParseProgress(0)
@@ -74,27 +86,26 @@ export default function AdminChaptersImport() {
         sourceVersion: result.sourceVersion,
         contentHash: chapterContentHash(ch),
       }))
-      setChapters(parsed)
-      setChapterTitles(parsed.map(ch => ch.title))
+      setChapters(toPreviewChapters(parsed, baseLanguage))
+      setActiveLanguage(baseLanguage)
       setExpandedChapters(new Set())
       setParseProgress(1)
     } catch (err) {
       console.error('Parse failed:', err)
-      setError('Failed to parse PDF: ' + err.message)
+      setError(t('admin.chaptersImport.parseFailed', { message: err.message }))
     } finally {
       setParsing(false)
     }
   }
 
-  const updateTitle = (index, newTitle) => {
-    const updated = [...chapterTitles]
-    updated[index] = newTitle
-    setChapterTitles(updated)
-  }
-
-  const stripInternal = (block) => {
-    const { _figure, _sourcePage, ...rest } = block
-    return rest
+  // The PDF is stored in exactly one base language. If the admin switches the
+  // base language after parsing, move the parsed content into the new language
+  // instead of leaving the payload's `baseLanguage` pointing at the old one.
+  const changeBaseLanguage = (next) => {
+    if (next === baseLanguage) return
+    setChapters(prev => moveBaseLanguage(prev, next))
+    setBaseLanguage(next)
+    setActiveLanguage(next)
   }
 
   const handleImportAll = async () => {
@@ -103,112 +114,97 @@ export default function AdminChaptersImport() {
     setError('')
     setSummary(null)
 
-    const lang = baseLanguage
-    const cap = s => s.charAt(0).toUpperCase() + s.slice(1)
-    const titleKey = `title${cap(lang)}`
-    const blocksKey = `blocks${cap(lang)}`
-
     const results = { created: 0, updated: 0, skipped: 0, failed: [] }
 
     try {
-      // Fetch existing chapters of this course (published + drafts) for dedupe
+      // 1. Upload every rendered figure once (block ids are shared across
+      //    languages) and remember the media object per block.
+      const mediaById = {}
+      const figures = collectFigures(chapters)
+      let uploaded = 0
+      for (const [blockId, figure] of figures) {
+        setImportStage(t('admin.chaptersImport.uploadingFigures', { done: uploaded, total: figures.size }))
+        const fileObj = await uploadFigureBlob(figure.blob, figure.page)
+        mediaById[blockId] = fileObj ? { type: 'image', file: fileObj } : null
+        uploaded += 1
+      }
+
+      // 2. Fetch existing chapters of this course (published + drafts) to dedupe.
+      setImportStage(t('admin.chaptersImport.savingChapters', { done: 0, total: chapters.length }))
       const FIELDS = 'fields[0]=documentId&fields[1]=chapterKey&fields[2]=contentHash&pagination[page]=1&pagination[pageSize]=200'
       const [pubRes, draftRes] = await Promise.all([
         api.get(`/chapters?filters[course][documentId][$eq]=${selectedCourse}&status=published&${FIELDS}`),
         api.get(`/chapters?filters[course][documentId][$eq]=${selectedCourse}&status=draft&${FIELDS}`),
       ])
       const byKey = new Map()
-      for (const e of [...(pubRes.data.data || []), ...(draftRes.data.data || [])]) {
-        if (!byKey.has(e.chapterKey)) byKey.set(e.chapterKey, e)
+      for (const entry of [...(pubRes.data.data || []), ...(draftRes.data.data || [])]) {
+        if (!byKey.has(entry.chapterKey)) byKey.set(entry.chapterKey, entry)
       }
 
       for (let i = 0; i < chapters.length; i++) {
-        const ch = chapters[i]
+        const chapter = chapters[i]
+        setImportStage(t('admin.chaptersImport.savingChapters', { done: i, total: chapters.length }))
         try {
-          // Decide the action FIRST so unchanged reimports never touch the media library
-          const match = byKey.get(ch.chapterKey)
-          if (match && match.contentHash === ch.contentHash) {
-            results.skipped++ // identical content – do not create a duplicate
+          const match = byKey.get(chapter.chapterKey)
+          // Identical, untouched re-imports must not overwrite anything — this
+          // also means edits made in a previous import survive a re-import.
+          if (match && !chapter.edited && match.contentHash === chapter.contentHash) {
+            results.skipped += 1
             continue
           }
 
-          // upload extracted figures to the media library (create/update only)
-          const blocks = []
-          for (const b of ch.blocks) {
-            if (b.type === 'image' && b._figure?.blob) {
-              const fileObj = await uploadFigureBlob(b._figure.blob, b._sourcePage || 0)
-              blocks.push({ ...stripInternal(b), media: fileObj ? { type: 'image', file: fileObj } : null })
-            } else {
-              blocks.push(stripInternal(b))
-            }
-          }
-
-          const data = {
-            [titleKey]: (chapterTitles[i] || ch.title).trim() || ch.title,
-            [blocksKey]: blocks,
-            order: ch.order,
-            baseLanguage: lang,
-            sourceMode: 'pdf',
-            sourceFile: ch.sourceFileName,
-            sourceVersion: ch.sourceVersion || null,
-            chapterKey: ch.chapterKey,
-            contentHash: ch.contentHash,
-            sourcePageFrom: ch.sourcePageFrom,
-            sourcePageTo: ch.sourcePageTo,
-          }
+          const data = buildChapterImportData(chapter, { mediaById })
 
           if (!match) {
             await api.post('/chapters?status=published', {
               data: { ...data, course: { connect: [selectedCourse] } },
             })
-            results.created++
+            results.created += 1
           } else {
             await api.put(`/chapters/${match.documentId}?status=published`, { data })
-            results.updated++
+            results.updated += 1
           }
         } catch (err) {
           results.failed.push({
-            title: ch.title,
+            title: chapter.titles?.[baseLanguage] || chapter.title,
             error: err.response?.data?.error?.message || err.message,
           })
         }
       }
 
+      setImportStage('')
       queryClient.invalidateQueries({ queryKey: ['admin-chapters'] })
       setSummary(results)
     } catch (err) {
       console.error('Import failed:', err.response?.data || err.message)
-      setError('Failed to import: ' + (err.response?.data?.error?.message || err.message))
+      setError(t('admin.chaptersImport.importFailed', {
+        message: err.response?.data?.error?.message || err.message,
+      }))
     } finally {
       setImporting(false)
+      setImportStage('')
     }
   }
 
   const reset = () => {
     setFile(null)
     setChapters([])
-    setChapterTitles([])
     setSelectedCourse('')
     setSummary(null)
     setError('')
   }
 
-  const countByType = (blocks) => {
-    const counts = {}
-    for (const b of blocks) counts[b.type] = (counts[b.type] || 0) + 1
-    return counts
-  }
-
-  const allExpanded = expandedChapters.size === chapters.length
+  const allExpanded = chapters.length > 0 && expandedChapters.size === chapters.length
+  const activeBlocksFor = (chapter) => chapter.blocks?.[activeLanguage] || []
 
   return (
     <div className="max-w-3xl">
       <h1 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-2">{t('admin.chaptersImport.title')}</h1>
       <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
-        {t('admin.chaptersImport.description') || 'Upload a rules PDF — each'}{' '}
+        {t('admin.chaptersImport.description')}{' '}
         <strong>INTRODUCTION / ARTICLE / APPENDIX</strong>{' '}
-        {t('admin.chaptersImport.headingBecomes') || 'heading becomes a separate chapter.'}{' '}
-        {t('admin.chaptersImport.tableHint') || 'Tables and figures are extracted as blocks. The table of contents is skipped automatically.'}
+        {t('admin.chaptersImport.headingBecomes')}
+        {t('admin.chaptersImport.tableHint')}
       </p>
 
       <div className="space-y-4">
@@ -221,7 +217,7 @@ export default function AdminChaptersImport() {
               file
                 ? file.name
                 : dragging
-                  ? 'Drop the PDF here'
+                  ? (t('admin.chaptersImport.dropHere') || 'Drop the PDF here')
                   : t('admin.chaptersImport.selectFile')
             }
             hint={t('admin.chaptersImport.acceptFormat')}
@@ -252,7 +248,7 @@ export default function AdminChaptersImport() {
           {error && <p className="mt-3 text-sm text-red-500">{error}</p>}
         </div>
 
-        {/* Step 2: Preview detected chapters */}
+        {/* Step 2: Preview + edit detected chapters */}
         {chapters.length > 0 && (
           <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }} className="rounded-xl p-5">
             <div className="flex items-center justify-between mb-3">
@@ -269,14 +265,57 @@ export default function AdminChaptersImport() {
               </button>
             </div>
 
-            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-              {chapters.map((ch, i) => {
+            {/* Spacing / formatting warning (required before saving) */}
+            <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-900/20 px-3 py-2.5">
+              <ExclamationTriangleIcon className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                {t('admin.chaptersImport.previewWarning')}
+              </p>
+            </div>
+
+            {/* Language tabs */}
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>
+                {t('admin.chaptersImport.editLanguage')}
+              </span>
+              {CHAPTER_LANGUAGES.map(language => {
+                const isActive = language === activeLanguage
+                const withContent = chapters.filter(c => languageStats(c)[language].hasContent).length
+                return (
+                  <button
+                    key={language}
+                    type="button"
+                    onClick={() => setActiveLanguage(language)}
+                    className="text-xs font-medium px-3 py-1.5 rounded-lg border transition"
+                    style={{
+                      backgroundColor: isActive ? '#2563eb' : 'var(--bg-secondary)',
+                      color: isActive ? 'white' : 'var(--text-primary)',
+                      borderColor: isActive ? '#2563eb' : 'var(--border)',
+                    }}
+                  >
+                    {LANGUAGE_LABELS[language]}
+                    <span className="ml-1.5 opacity-80">
+                      {withContent}/{chapters.length}
+                    </span>
+                    {language === baseLanguage && (
+                      <span className="ml-1.5 text-[10px] uppercase opacity-90">{t('admin.chaptersImport.baseBadge')}</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="space-y-3 max-h-[640px] overflow-y-auto pr-1">
+              {chapters.map((chapter, i) => {
                 const isExpanded = expandedChapters.has(i)
-                const counts = countByType(ch.blocks)
-                const reviewCount = ch.blocks.filter(b => b.needsReview).length
+                const blocks = activeBlocksFor(chapter)
+                const stats = languageStats(chapter)
+                const activeStats = stats[activeLanguage]
+                const counts = countBlockTypes(blocks)
+                const reviewCount = blocksNeedingReview(blocks)
                 return (
                   <div
-                    key={ch.chapterKey + i}
+                    key={chapter.chapterKey + i}
                     className="rounded-lg border overflow-hidden"
                     style={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)' }}
                   >
@@ -289,8 +328,10 @@ export default function AdminChaptersImport() {
                           <div className="flex items-center gap-2 mb-1.5">
                             <input
                               type="text"
-                              value={chapterTitles[i] || ''}
-                              onChange={e => updateTitle(i, e.target.value)}
+                              value={chapter.titles?.[activeLanguage] || ''}
+                              onChange={e => setChapters(updateChapterTitle(chapters, i, activeLanguage, e.target.value))}
+                              placeholder={t('admin.chaptersImport.titlePlaceholder') || 'Chapter title'}
+                              aria-label={`${t('admin.chaptersImport.titlePlaceholder') || 'Chapter title'} (${activeLanguage})`}
                               className="flex-1 border rounded-lg px-3 py-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                               style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                             />
@@ -314,10 +355,10 @@ export default function AdminChaptersImport() {
 
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700" style={{ color: 'var(--text-muted)' }}>
-                              {ch.chapterKey}
+                              {chapter.chapterKey}
                             </span>
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700" style={{ color: 'var(--text-muted)' }}>
-                              {t('admin.chaptersImport.source', { from: ch.sourcePageFrom, to: ch.sourcePageTo })}
+                              {t('admin.chaptersImport.source', { from: chapter.sourcePageFrom, to: chapter.sourcePageTo })}
                             </span>
                             {Object.entries(counts).map(([type, n]) => {
                               const badge = BLOCK_BADGES[type]
@@ -335,51 +376,77 @@ export default function AdminChaptersImport() {
                                 {t('admin.chaptersImport.needsReview')}
                               </span>
                             )}
+                            {chapter.edited && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+                                {t('admin.chaptersImport.edited')}
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Expandable block previews */}
+                    {/* Expandable block editing */}
                     {isExpanded && (
-                      <div className="border-t px-4 py-3 space-y-2 max-h-64 overflow-y-auto" style={{ borderColor: 'var(--border)' }}>
-                        {ch.blocks.map((block, bi) => (
-                          <div key={block.id || bi} className="p-2.5 rounded text-sm" style={{ backgroundColor: 'var(--bg-card)' }}>
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <span className="text-[10px] font-mono mr-1" style={{ color: 'var(--text-muted)' }}>#{bi + 1}</span>
-                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${BLOCK_BADGES[block.type]?.cls || ''}`}>
-                                {BLOCK_BADGES[block.type]?.label || block.type}
-                              </span>
-                              {block.needsReview && (
-                                <span className="text-[10px] font-medium text-amber-600">⚠ {t('admin.chaptersImport.needsReview')}</span>
-                              )}
-                            </div>
-                            {block.type === 'table' && (
-                              <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-                                {block.content?.headers?.join(' | ').slice(0, 120)}
-                                {block.content?.rows?.length ? ` · ${block.content.rows.length} rows` : ''}
-                              </p>
-                            )}
-                            {block.type === 'list' && (
-                              <p className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
-                                {block.items?.slice(0, 3).join(' · ')}{block.items?.length > 3 ? ' …' : ''}
-                              </p>
-                            )}
-                            {block.type === 'image' && (
-                              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                                {block.caption || 'Figure'}
-                              </p>
-                            )}
-                            {block.type === 'text' && (
-                              <span dangerouslySetInnerHTML={{
-                                __html: (block.content || '').replace(/<\/?p>/g, '').substring(0, 200),
-                              }} />
+                      <div className="border-t px-4 py-3 space-y-2 max-h-[28rem] overflow-y-auto" style={{ borderColor: 'var(--border)' }}>
+                        {activeStats.blocks === 0 && (
+                          <div className="rounded-lg border border-dashed px-3 py-3 text-xs space-y-2"
+                            style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                            <p>{t('admin.chaptersImport.languageEmpty')}</p>
+                            {activeLanguage !== baseLanguage && (
+                              <button
+                                type="button"
+                                onClick={() => setChapters(copyLanguage(chapters, i, baseLanguage, activeLanguage))}
+                                className="px-2.5 py-1 rounded-lg border font-medium"
+                                style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                              >
+                                {t('admin.chaptersImport.copyFromBase')}
+                              </button>
                             )}
                           </div>
-                        ))}
-                        {ch.blocks.length === 0 && (
-                          <p className="text-xs italic" style={{ color: 'var(--text-muted)' }}>{t('admin.chaptersImport.noContent')}</p>
                         )}
+
+                        {blocks.map((block, bi) => (
+                          <ChapterImportBlockEditor
+                            key={block.id || bi}
+                            block={block}
+                            index={bi}
+                            total={blocks.length}
+                            labels={{
+                              needsReview: t('admin.chaptersImport.needsReview'),
+                              textPlaceholder: t('admin.chaptersImport.blockTextPlaceholder'),
+                              listPlaceholder: t('admin.chaptersImport.blockListPlaceholder'),
+                              tableCaption: t('admin.chaptersImport.tableCaption'),
+                              tableCaptionPlaceholder: t('admin.chaptersImport.tableCaptionPlaceholder'),
+                              tableText: t('admin.chaptersImport.tableText'),
+                              regenerateTableText: t('admin.chaptersImport.regenerateTableText'),
+                              imageCaptured: t('admin.chaptersImport.imageCaptured'),
+                              imageMissing: t('admin.chaptersImport.imageMissing'),
+                              imageDescription: t('admin.chaptersImport.imageDescription'),
+                              imageDescriptionPlaceholder: t('admin.chaptersImport.imageDescriptionPlaceholder'),
+                            }}
+                            onChange={(updated) => setChapters(updateBlock(chapters, i, activeLanguage, bi, updated))}
+                            onRemove={() => setChapters(removeBlock(chapters, i, activeLanguage, bi))}
+                            onMove={(dir) => setChapters(moveBlock(chapters, i, activeLanguage, bi, dir))}
+                          />
+                        ))}
+
+                        <div className="flex flex-wrap gap-1.5 pt-1">
+                          {ADDABLE_TYPES.map(type => {
+                            const badge = BLOCK_BADGES[type]
+                            return (
+                              <button
+                                key={type}
+                                type="button"
+                                onClick={() => setChapters(addBlock(chapters, i, activeLanguage, type))}
+                                className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-lg border transition hover:border-blue-400"
+                                style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+                              >
+                                + <badge.icon className="w-3 h-3" /> {badge.label}
+                              </button>
+                            )
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -389,7 +456,7 @@ export default function AdminChaptersImport() {
           </div>
         )}
 
-        {/* Step 3: Course & Language */}
+        {/* Step 3: Course & base language */}
         {chapters.length > 0 && !summary && (
           <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)' }} className="rounded-xl p-5">
             <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>3. {t('admin.chaptersImport.courseLangStep')}</h2>
@@ -397,6 +464,7 @@ export default function AdminChaptersImport() {
               <select
                 value={selectedCourse}
                 onChange={e => setSelectedCourse(e.target.value)}
+                aria-label={t('admin.chaptersImport.selectCourse') || 'Select course'}
                 className="w-full border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
               >
@@ -409,27 +477,23 @@ export default function AdminChaptersImport() {
               </select>
 
               <div className="flex gap-2">
-                {[
-                  { code: 'lv', label: '🇱🇻 Latviešu' },
-                  { code: 'ru', label: '🇷🇺 Русский' },
-                  { code: 'en', label: '🇬🇧 English' },
-                ].map(lang => (
+                {CHAPTER_LANGUAGES.map(code => (
                   <button
-                    key={lang.code}
-                    onClick={() => setBaseLanguage(lang.code)}
+                    key={code}
+                    onClick={() => changeBaseLanguage(code)}
                     className="flex-1 py-2 rounded-lg border text-sm font-medium transition"
                     style={{
-                      backgroundColor: baseLanguage === lang.code ? '#2563eb' : 'var(--bg-secondary)',
-                      color: baseLanguage === lang.code ? 'white' : 'var(--text-primary)',
-                      borderColor: baseLanguage === lang.code ? '#2563eb' : 'var(--border)',
+                      backgroundColor: baseLanguage === code ? '#2563eb' : 'var(--bg-secondary)',
+                      color: baseLanguage === code ? 'white' : 'var(--text-primary)',
+                      borderColor: baseLanguage === code ? '#2563eb' : 'var(--border)',
                     }}
                   >
-                    {lang.label}
+                    {LANGUAGE_LABELS[code]}
                   </button>
                 ))}
               </div>
               <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {t('admin.chaptersImport.dupeHint') || 'Re-importing the same PDF is safe: identical chapters are skipped, changed ones are updated.'}
+                {t('admin.chaptersImport.dupeHint')}
               </p>
             </div>
           </div>
@@ -447,7 +511,7 @@ export default function AdminChaptersImport() {
               {importing ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  {t('admin.chaptersImport.importingChapters', { count: chapters.length })}
+                  {importStage || t('admin.chaptersImport.importingChapters', { count: chapters.length })}
                 </>
               ) : (
                 <>

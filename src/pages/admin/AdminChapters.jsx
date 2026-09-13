@@ -9,6 +9,8 @@ import { SkeletonTable } from '../../components/Skeleton'
 import ChapterPreviewModal from '../../components/ChapterPreviewModal'
 import BlockEditor from '../../components/BlockEditor'
 import ErrorState from '../../components/ErrorState'
+import Pagination from '../../components/Pagination'
+import useScrollToForm from '../../hooks/useScrollToForm'
 import { useTranslation } from 'react-i18next'
 
 const languages = [
@@ -42,6 +44,10 @@ export default function AdminChapters() {
   // Drag reorder only makes sense on a full, unfiltered course list — disable
   // it while a search is active so reorder never touches hidden chapters.
   const isDragReorder = filterCourse !== 'all' && filterCourse !== '' && !searchQuery.trim()
+
+  // Scroll the edit form into view and focus its first field when an item is
+  // selected. Keyed on the documentId so switching items rescrolls.
+  const formRef = useScrollToForm(editingId)
 
   const emptyForm = {
     titleLv: '', titleRu: '', titleEn: '',
@@ -136,7 +142,6 @@ export default function AdminChapters() {
     setActiveTab(baseLanguage)
     setEditingId(chapter.documentId)
     setShowForm(true)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleSubmit = (e) => {
@@ -307,7 +312,7 @@ export default function AdminChapters() {
       </div>
 
       {showForm && (
-        <div className="rounded-xl shadow p-5 sm:p-6 mb-6" style={{ backgroundColor: 'var(--bg-card)' }}>
+        <div ref={formRef} className="rounded-xl shadow p-5 sm:p-6 mb-6" style={{ backgroundColor: 'var(--bg-card)' }}>
           <h2 className="text-lg font-semibold mb-4">
             {editingId ? t('admin.chapters.edit') : t('admin.chapters.create')}
           </h2>
@@ -646,60 +651,13 @@ export default function AdminChapters() {
         </div>
       )}
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-4 px-1">
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            Showing {(safePage - 1) * ITEMS_PER_PAGE + 1}–{Math.min(safePage * ITEMS_PER_PAGE, allFiltered.length)} of {allFiltered.length}
-          </p>
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => goToPage(page - 1)}
-              disabled={page <= 1}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium border disabled:opacity-30 hover:bg-gray-50 transition"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-            >
-              Previous
-            </button>
-            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-              let pageNum
-              if (totalPages <= 7) {
-                pageNum = i + 1
-              } else if (page <= 4) {
-                pageNum = i + 1
-              } else if (page >= totalPages - 3) {
-                pageNum = totalPages - 6 + i
-              } else {
-                pageNum = page - 3 + i
-              }
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => goToPage(pageNum)}
-                  className={`w-8 h-8 rounded-lg text-sm font-medium transition ${
-                    safePage === pageNum
-                      ? 'bg-blue-600 text-white'
-                      : 'hover:bg-gray-100'
-                  }`}
-                  style={{
-                    color: safePage === pageNum ? 'white' : 'var(--text-secondary)',
-                    backgroundColor: safePage === pageNum ? '#2563eb' : 'transparent',
-                  }}
-                >
-                  {pageNum}
-                </button>
-              )
-            })}
-            <button
-              onClick={() => goToPage(page + 1)}
-              disabled={page >= totalPages}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium border disabled:opacity-30 hover:bg-gray-50 transition"
-              style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        page={safePage}
+        totalPages={totalPages}
+        total={allFiltered.length}
+        pageSize={ITEMS_PER_PAGE}
+        onPageChange={goToPage}
+      />
 
       {previewChapter && (
         <ChapterPreviewModal

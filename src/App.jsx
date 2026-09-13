@@ -13,6 +13,7 @@ const PendingApproval = lazy(() => import('./pages/auth/PendingApproval'))
 const Landing = lazy(() => import('./pages/Landing'))
 const Rules = lazy(() => import('./pages/landing/Rules'))
 const Privacy = lazy(() => import('./pages/landing/Privacy'))
+const CookiesPage = lazy(() => import('./pages/landing/Cookies'))
 const Terms = lazy(() => import('./pages/landing/Terms'))
 const Gdpr = lazy(() => import('./pages/landing/Gdpr'))
 const UserDashboard = lazy(() => import('./pages/student/UserDashboard'))
@@ -85,6 +86,7 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/rules" element={<Rules />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/cookies" element={<CookiesPage />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/gdpr" element={<Gdpr />} />
           <Route path="/login" element={<Login />} />

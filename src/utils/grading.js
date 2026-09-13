@@ -134,29 +134,9 @@ export function computeReviewTotals(questions, answers, manualGrades) {
 }
 
 /**
- * Effective decision for one answer field of an open-text question:
- * the exam-specific override wins, otherwise the question-bank decision.
- */
-export function getEffectiveFieldDecision(q, fieldIndex, examDecision) {
-  if (examDecision === 'correct') return 'correct'
-  if (examDecision === 'incorrect') return 'incorrect'
-  return getBankDecision(q, fieldIndex) ? 'correct' : 'incorrect'
-}
-
-export function getBankDecision(q, fieldIndex) {
-  if (!isOpenTextQuestion(q)) return true
-  for (const lang of ANSWER_FIELD_LANGS) {
-    const arr = q?.[`answerFields${lang}`]
-    if (Array.isArray(arr) && arr[fieldIndex] != null) {
-      return arr[fieldIndex].correct !== false
-    }
-  }
-  return true
-}
-
-/**
- * Expected-answer text (answer-bank reference) for one field, language-aware
- * with an Lv → En fallback.
+ * Example-answer text (judge reference) for one field, language-aware with an
+ * Lv → En fallback. The examples carry no correctness flag: correctness is
+ * decided per student answer while grading.
  */
 export function getExpectedAnswer(q, fieldIndex, language) {
   if (!isOpenTextQuestion(q)) return q?.correctAnswer || ''
@@ -200,8 +180,8 @@ export function isQuestionReviewed(manualGrades, qid) {
 }
 
 /**
- * Build the admin editor's per-field rows from a stored question. Falls back
- * to a single legacy field (expected answer = correctAnswer) when the
+ * Build the admin editor's per-field example rows from a stored question.
+ * Falls back to a single legacy field (example = correctAnswer) when the
  * question has no answer-field configuration yet.
  */
 export function buildAnswerFieldsFromQuestion(question) {
@@ -215,7 +195,6 @@ export function buildAnswerFieldsFromQuestion(question) {
       expectedLv: question?.correctAnswer || '',
       expectedRu: '',
       expectedEn: '',
-      correct: true,
     }]
   }
 
@@ -223,6 +202,5 @@ export function buildAnswerFieldsFromQuestion(question) {
     expectedLv: lv[i]?.expected ?? '',
     expectedRu: ru[i]?.expected ?? '',
     expectedEn: en[i]?.expected ?? '',
-    correct: (lv[i]?.correct ?? ru[i]?.correct ?? en[i]?.correct ?? true) !== false,
   }))
 }

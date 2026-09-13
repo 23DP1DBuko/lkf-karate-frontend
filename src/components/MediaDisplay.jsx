@@ -1,16 +1,5 @@
 import { mediaUrl } from '../api/media'
-
-function getYouTubeEmbedUrl(url) {
-  if (!url) return null
-  try {
-    const u = new URL(url)
-    if (u.hostname.includes('youtu.be')) return `https://www.youtube.com/embed${u.pathname}`
-    const v = u.searchParams.get('v')
-    return v ? `https://www.youtube.com/embed/${v}` : null
-  } catch {
-    return null
-  }
-}
+import YouTubeEmbed from './YouTubeEmbed'
 
 export default function MediaDisplay({ items = [] }) {
   if (!items || !Array.isArray(items) || items.length === 0) return null
@@ -47,16 +36,10 @@ export default function MediaDisplay({ items = [] }) {
         }
 
         if (item.type === 'youtube') {
-          const src = getYouTubeEmbedUrl(item.url)
-          if (!src) return null
+          // Consent-gated embed — YouTube only loads after the user clicks play.
           return (
-            <div key={i} className="w-full aspect-video overflow-hidden rounded-lg">
-              <iframe
-                className="w-full h-full"
-                src={src}
-                title={item.caption || 'YouTube video'}
-                allowFullScreen
-              />
+            <div key={i} className="w-full overflow-hidden rounded-lg">
+              <YouTubeEmbed url={item.url} title={item.caption || 'YouTube video'} />
             </div>
           )
         }

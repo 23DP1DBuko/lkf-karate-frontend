@@ -17,6 +17,9 @@ import {
 import { SkeletonTable } from '../../components/Skeleton'
 import ErrorState from '../../components/ErrorState'
 import AdminEmptyState from '../../components/AdminEmptyState'
+import Pagination from '../../components/Pagination'
+import usePagination from '../../hooks/usePagination'
+import useScrollToForm from '../../hooks/useScrollToForm'
 import { useTranslation } from 'react-i18next'
 
 const COMPETITION_RATINGS = ['International', 'EKF', 'LV']
@@ -70,6 +73,9 @@ export default function AdminCompetitions() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const deleteModalRef = useRef(null)
   useFocusTrap(deleteModalRef)
+  // Scroll the edit form into view and focus its first field when an item is
+  // selected. Keyed on the documentId so switching items rescrolls.
+  const formRef = useScrollToForm(editingItem?.documentId)
   const [form, setForm] = useState(emptyForm)
   const [dateError, setDateError] = useState('')
   const [search, setSearch] = useState('')
@@ -209,6 +215,15 @@ export default function AdminCompetitions() {
     return [...list].sort(sorters[sortBy] || sorters.date_asc)
   }, [items, search, ratingFilter, statusFilter, sortBy])
 
+  // Competitions are filtered and sorted in memory, so paging happens
+  // client-side. The reset key returns to page 1 whenever a filter or the sort
+  // changes, and the slice keeps the visible rows identical to the Chapters list.
+  const { page, totalPages, pageSize, goToPage, slice } = usePagination({
+    total: filtered.length,
+    resetKey: `${search}|${ratingFilter}|${statusFilter}|${sortBy}`,
+  })
+  const paginated = slice(filtered)
+
   if (isError) {
     return <ErrorState error={error} onRetry={refetch} title="Failed to load competitions" />
   }
@@ -300,7 +315,7 @@ export default function AdminCompetitions() {
 
       {/* Form */}
       {showForm && (
-        <div className="rounded-xl shadow p-5 sm:p-6 mb-6" style={{ backgroundColor: 'var(--bg-card)' }}>
+        <div ref={formRef} className="rounded-xl shadow p-5 sm:p-6 mb-6" style={{ backgroundColor: 'var(--bg-card)' }}>
           <h2 className="text-lg font-semibold mb-4">
             {editingItem ? t('admin.competitions.edit') : t('admin.competitions.create')}
           </h2>
@@ -470,7 +485,7 @@ export default function AdminCompetitions() {
 
       {/* Mobile card view — icon + text rows, no chips */}
       <div className="md:hidden space-y-3">
-        {filtered.map(item => {
+        {paginated.map(item => {
           const place = formatPlace(item.place)
           return (
             <div key={item.id} className="rounded-xl p-4 shadow" style={{ backgroundColor: 'var(--bg-card)' }}>
@@ -512,7 +527,7 @@ export default function AdminCompetitions() {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {filtered.map(item => (
+            {paginated.map(item => (
               <tr key={item.id} className="border-b hover:opacity-80 transition" style={{ borderColor: 'var(--border)' }}>
                 <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>{item.title || '—'}</td>
                 <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>
@@ -551,6 +566,14 @@ export default function AdminCompetitions() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={filtered.length}
+        pageSize={pageSize}
+        onPageChange={goToPage}
+      />
 
       {deleteTarget && (
         <div

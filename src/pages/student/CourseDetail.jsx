@@ -43,7 +43,7 @@ export default function CourseDetail() {
 
   const { data: exams } = useQuery({
     queryKey: ['exams', documentId],
-    queryFn: () => api.get(`/exams?filters[course][documentId][$eq]=${documentId}&populate[questions]=true`).then(r => r.data.data),
+    queryFn: () => api.get(`/exams?filters[course][documentId][$eq]=${documentId}&filters[reviewType][$null]=true&populate[questions]=true`).then(r => r.data.data),
     staleTime: 30_000,
     refetchOnWindowFocus: false,
   })

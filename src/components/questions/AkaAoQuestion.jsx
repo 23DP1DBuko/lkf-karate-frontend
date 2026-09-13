@@ -24,18 +24,8 @@
 
 import { CheckIcon } from '@heroicons/react/24/outline'
 import { mediaUrl } from '../../api/media'
-
-function getYouTubeEmbedUrl(url) {
-  if (!url) return null
-  try {
-    const u = new URL(url)
-    if (u.hostname.includes('youtu.be')) return `https://www.youtube.com/embed${u.pathname}`
-    const v = u.searchParams.get('v')
-    return v ? `https://www.youtube.com/embed/${v}` : null
-  } catch {
-    return null
-  }
-}
+import YouTubeEmbed from '../YouTubeEmbed'
+import { getYouTubeEmbedUrl } from '../../utils/youtube'
 
 // Render a single video — YouTube embeds as an iframe, anything else as a
 // <video> element (local uploads from Strapi resolve through mediaUrl).
@@ -44,16 +34,8 @@ function VideoPlayer({ url, className = '' }) {
   const src = mediaUrl(url)
 
   if (embed) {
-    return (
-      <div className={`w-full aspect-video overflow-hidden bg-black ${className}`}>
-        <iframe
-          className="w-full h-full"
-          src={embed}
-          title="Video"
-          allowFullScreen
-        />
-      </div>
-    )
+    // Consent-gated — YouTube only loads after the student clicks play.
+    return <YouTubeEmbed url={url} title="Video" className={className} />
   }
 
   if (!src) {

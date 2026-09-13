@@ -3,7 +3,7 @@ import { useState, useRef } from 'react'
 import useFocusTrap from '../../hooks/useFocusTrap'
 import api, { getLocalizedField } from '../../api/strapi'
 import IconButton from '../../components/IconButton'
-import { PencilIcon, TrashIcon, MagnifyingGlassIcon, XMarkIcon, EyeIcon } from '@heroicons/react/24/outline'
+import { PencilIcon, TrashIcon, MagnifyingGlassIcon, XMarkIcon, EyeIcon, AcademicCapIcon } from '@heroicons/react/24/outline'
 import { useNavigate } from 'react-router-dom'
 import DateTimeStepPicker from '../../components/DateTimeStepPicker'
 import { SkeletonTable } from '../../components/Skeleton'
@@ -573,7 +573,14 @@ export default function AdminExams() {
               const status = getExamStatus(exam)
               return (
                 <tr key={exam.id} className="border-b hover:opacity-80 transition" style={{ borderColor: 'var(--border)' }}>
-                  <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>{exam.title}</td>
+                  <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>
+                    <span>{exam.title}</span>
+                    {exam.reviewType === 'import_review' && (
+                      <span className="ml-2 text-[11px] px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-700">
+                        {t('admin.exams.reviewBadge')}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{getLocalizedField(exam.course, i18n.language, 'title') || exam.course?.titleLv || '—'}</td>
                   <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{exam.duration}m</td>
                   <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{exam.passingScore}%</td>
@@ -584,13 +591,23 @@ export default function AdminExams() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-end">
-                      <IconButton
-                        icon={EyeIcon}
-                        label={t('admin.exams.monitor')}
-                        onClick={() => navigate(`/admin/exams/${exam.documentId}/monitoring`)}
-                        variant="default"
-                        size="sm"
-                      />
+                      {exam.reviewType === 'import_review' ? (
+                        <IconButton
+                          icon={AcademicCapIcon}
+                          label={t('admin.exams.iconReview')}
+                          onClick={() => navigate(`/admin/import-quiz?examId=${encodeURIComponent(exam.documentId)}`)}
+                          variant="default"
+                          size="sm"
+                        />
+                      ) : (
+                        <IconButton
+                          icon={EyeIcon}
+                          label={t('admin.exams.monitor')}
+                          onClick={() => navigate(`/admin/exams/${exam.documentId}/monitoring`)}
+                          variant="default"
+                          size="sm"
+                        />
+                      )}
                       <IconButton icon={PencilIcon} label={t('admin.exams.iconEdit')} onClick={() => handleEdit(exam)} variant="default" size="sm" />
                       <IconButton icon={TrashIcon} label={t('admin.exams.iconDelete')} onClick={() => handleDelete(exam)} variant="danger" size="sm" />
                     </div>

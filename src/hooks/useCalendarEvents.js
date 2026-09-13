@@ -83,7 +83,7 @@ export function useCalendarEvents({ types } = {}) {
       const fetchType = {
         seminar: () => api.get(`/seminars?${PAGE}`).then(r => r.data.data || []).then((list) => list.map(mapSeminar)),
         competition: () => api.get(`/competitions?${PAGE}`).then(r => r.data.data || []).then((list) => list.map(mapCompetition)),
-        exam: () => api.get(`/exams?${PAGE}`).then(r => r.data.data || []).then((list) => list.map(mapExam)),
+        exam: () => api.get(`/exams?${PAGE}&filters[reviewType][$null]=true`).then(r => r.data.data || []).then((list) => list.map(mapExam)),
       }
       const results = await Promise.all(wanted.map((type) => fetchType[type]?.() ?? Promise.resolve([])))
       return results.flat().filter(Boolean)

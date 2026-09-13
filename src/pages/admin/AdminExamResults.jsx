@@ -8,12 +8,11 @@ import {
   getAnswerFieldCount,
   getFieldGrades,
   getExpectedAnswer,
-  getEffectiveFieldDecision,
   computeReviewTotals,
   normalizeOpenTextAnswer,
   setFieldGrade,
 } from '../../utils/grading'
-import { EyeIcon, MagnifyingGlassIcon, XMarkIcon, CheckCircleIcon, ClockIcon } from '@heroicons/react/24/outline'
+import { EyeIcon, MagnifyingGlassIcon, XMarkIcon, ClockIcon } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 
 function YearGroup({ year, attempts, onReview }) {
@@ -131,8 +130,7 @@ export default function AdminExamResults() {
   const queryClient = useQueryClient()
   const [selectedAttempt, setSelectedAttempt] = useState(null)
   const [manualGrades, setManualGrades] = useState({})
-  const [decisionModal, setDecisionModal] = useState(null) // { questionDocumentId, fieldIndex, decision }
-  const [reviewNotice, setReviewNotice] = useState(null) // { kind: 'saved'|'success'|'nochange'|'error', count? }
+  const [reviewNotice, setReviewNotice] = useState(null) // { kind: 'saved'|'error' }
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [examsOnly, setExamsOnly] = useState(false)
@@ -148,7 +146,7 @@ export default function AdminExamResults() {
   )
 
   // Current question-bank data for the attempt's questions — gives judges the
-  // up-to-date expected answers + bank decisions (old snapshots lack them).
+  // up-to-date example answers (old snapshots lack them).
   const { data: bankQuestions = {} } = useQuery({
     queryKey: ['bank-questions', questionIds.join(',')],
     queryFn: async () => {
@@ -165,24 +163,6 @@ export default function AdminExamResults() {
     },
     enabled: !!selectedAttempt && questionIds.length > 0,
   })
-
-  // Exam-specific grading decisions ("used in this exam").
-  const { data: examDecisions = [] } = useQuery({
-    queryKey: ['exam-decisions', selectedAttempt?.exam?.documentId],
-    queryFn: () =>
-      api.get(`/exam-attempts/decisions/${selectedAttempt.exam.documentId}`).then(r => r.data.data || []),
-    enabled: !!selectedAttempt?.exam?.documentId,
-  })
-
-  const decisionsMap = useMemo(() => {
-    const map = {}
-    for (const d of examDecisions) {
-      const key = d.questionNumericId ?? d.questionId
-      if (!map[key]) map[key] = {}
-      map[key][d.fieldIndex] = d.decision
-    }
-    return map
-  }, [examDecisions])
 
   const filteredAttempts = useMemo(() => {
     return attempts?.filter(attempt => {
@@ -216,25 +196,6 @@ export default function AdminExamResults() {
       setReviewNotice({ kind: 'saved' })
     },
     onError: () => setReviewNotice({ kind: 'error' }),
-  })
-
-  const changeDecisionMutation = useMutation({
-    mutationFn: (payload) => api.put('/exam-attempts/change-answer-decision', payload),
-    onSuccess: (res) => {
-      queryClient.invalidateQueries(['admin-attempts'])
-      queryClient.invalidateQueries(['bank-questions'])
-      queryClient.invalidateQueries(['exam-decisions'])
-      setDecisionModal(null)
-      if (res.data?.changed) {
-        setReviewNotice({ kind: 'success', count: res.data.recalculatedAttempts })
-      } else {
-        setReviewNotice({ kind: 'nochange' })
-      }
-    },
-    onError: () => {
-      setDecisionModal(null)
-      setReviewNotice({ kind: 'error' })
-    },
   })
 
   const releaseMutation = useMutation({
@@ -344,9 +305,7 @@ export default function AdminExamResults() {
             }`}
           >
             {reviewNotice.kind === 'saved' && t('admin.results.savedReview')}
-            {reviewNotice.kind === 'success' && t('admin.results.recalcSuccess', { count: reviewNotice.count ?? 0 })}
-            {reviewNotice.kind === 'nochange' && t('admin.results.recalcNoChange')}
-            {reviewNotice.kind === 'error' && t('admin.results.recalcError')}
+            {reviewNotice.kind === 'error' && t('admin.results.saveError')}
           </div>
         )}
 
@@ -440,8 +399,6 @@ export default function AdminExamResults() {
                         const expected = getExpectedAnswer(q, f, i18n.language)
                         const grade = fieldGrades[f]
                         const reviewed = grade === 1 || grade === 0
-                        const bankDecision = getEffectiveFieldDecision(q, f, decisionsMap[q.id]?.[f])
-                        const nextDecision = bankDecision === 'correct' ? 'incorrect' : 'correct'
 
                         return (
                           <div
@@ -484,10 +441,10 @@ export default function AdminExamResults() {
                                 </p>
                               </div>
 
-                              {/* Expected answer (answer bank) */}
+                              {/* Example from the question bank (judge reference) */}
                               <div>
                                 <p className="text-[11px] font-medium uppercase tracking-wide mb-0.5" style={{ color: 'var(--text-muted)' }}>
-                                  {t('admin.results.expectedAnswer')}
+                                  {t('admin.results.exampleFromBank')}
                                 </p>
                                 <p className="rounded-lg px-3 py-2" style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)' }}>
                                   {expected || (
@@ -497,22 +454,8 @@ export default function AdminExamResults() {
                               </div>
                             </div>
 
-                            {/* Bank vs exam vs final decision */}
+                            {/* Points for this answer field */}
                             <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-                              <span>
-                                {t('admin.results.bankAnswerLabel')}:{' '}
-                                <strong style={{ color: bankDecision === 'correct' ? '#059669' : '#dc2626' }}>
-                                  {bankDecision === 'correct' ? t('admin.results.correctLabel') : t('admin.results.incorrectLabel')}
-                                </strong>
-                              </span>
-                              <span>
-                                {t('admin.results.finalDecisionLabel')}:{' '}
-                                <strong style={{ color: 'var(--text-primary)' }}>
-                                  {reviewed
-                                    ? (grade === 1 ? t('admin.results.correctLabel') : t('admin.results.incorrectLabel'))
-                                    : t('admin.results.notReviewedYet')}
-                                </strong>
-                              </span>
                               <span>
                                 {t('admin.results.pointsAwarded')}: <strong style={{ color: 'var(--text-primary)' }}>{grade === 1 ? 1 : 0}</strong>
                               </span>
@@ -530,7 +473,7 @@ export default function AdminExamResults() {
                                     : 'border-gray-300 hover:border-red-400'
                                 }`}
                               >
-                                ✗ {t('admin.results.markAsIncorrect')}
+                                ✗ {t('admin.results.incorrectLabel')}
                               </button>
                               <button
                                 type="button"
@@ -542,18 +485,8 @@ export default function AdminExamResults() {
                                     : 'border-gray-300 hover:border-green-400'
                                 }`}
                               >
-                                ✓ {t('admin.results.markAsCorrect')}
+                                ✓ {t('admin.results.correctLabel')}
                               </button>
-
-                              {expected && (
-                                <button
-                                  type="button"
-                                  onClick={() => setDecisionModal({ questionDocumentId: q.documentId, fieldIndex: f, decision: nextDecision })}
-                                  className="ml-auto text-xs font-medium text-blue-600 hover:underline"
-                                >
-                                  {t('admin.results.changeBankDecision')}
-                                </button>
-                              )}
                             </div>
                           </div>
                         )
@@ -590,54 +523,6 @@ export default function AdminExamResults() {
           </button>
         </div>
 
-        {/* Change answer-bank decision — confirmation modal */}
-        {decisionModal && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="recalc-confirm-title"
-          >
-            <div className="w-full max-w-md rounded-2xl shadow-2xl p-6" style={{ backgroundColor: 'var(--bg-card)' }}>
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                  <CheckCircleIcon className="w-5 h-5 text-amber-600" />
-                </div>
-                <h2 id="recalc-confirm-title" className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>
-                  {t('admin.results.recalcConfirmTitle')}
-                </h2>
-              </div>
-
-              <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
-                {t('admin.results.recalcConfirmBody')}
-              </p>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setDecisionModal(null)}
-                  className="flex-1 py-2.5 rounded-xl border text-sm font-medium"
-                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-secondary)' }}
-                >
-                  {t('common.cancel')}
-                </button>
-                <button
-                  onClick={() =>
-                    changeDecisionMutation.mutate({
-                      examDocumentId: selectedAttempt.exam?.documentId,
-                      questionDocumentId: decisionModal.questionDocumentId,
-                      fieldIndex: decisionModal.fieldIndex,
-                      decision: decisionModal.decision,
-                    })
-                  }
-                  disabled={changeDecisionMutation.isPending}
-                  className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {changeDecisionMutation.isPending ? t('admin.results.saving') : t('admin.results.yesUpdateExam')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     )
   }
@@ -780,7 +665,6 @@ export default function AdminExamResults() {
               setSelectedAttempt(attempt)
               setManualGrades(attempt.manualGrades || {})
               setReviewNotice(null)
-              setDecisionModal(null)
             }}
           />
         ))

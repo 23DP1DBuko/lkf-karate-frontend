@@ -7,22 +7,22 @@ import {
   getQuestionMaxPoints,
   getQuestionPoints,
   computeReviewTotals,
-  getBankDecision,
-  getEffectiveFieldDecision,
   getExpectedAnswer,
+  buildAnswerFieldsFromQuestion,
   setFieldGrade,
 } from '../utils/grading'
 
+// Open-text fields hold judge-facing EXAMPLE text only — no decisions.
 const openText6 = {
   id: 1,
   type: 'open_text',
-  answerFieldsLv: Array.from({ length: 6 }, (_, i) => ({ expected: `A${i}`, correct: true })),
+  answerFieldsLv: Array.from({ length: 6 }, (_, i) => ({ expected: `A${i}` })),
 }
 
 const openText11 = {
   id: 2,
   type: 'open_text',
-  answerFieldsLv: Array.from({ length: 11 }, (_, i) => ({ expected: `B${i}`, correct: true })),
+  answerFieldsLv: Array.from({ length: 11 }, (_, i) => ({ expected: `B${i}` })),
 }
 
 const yesNo = { id: 3, type: 'yes_no', correctAnswer: 'true' }
@@ -104,6 +104,16 @@ describe('scoring', () => {
     expect(getQuestionPoints(openText6, [], tooMany)).toBe(6)
   })
 
+  it('ignores the example text — only the saved decisions count', () => {
+    const grades = { 1: { 0: 1, 1: 0 } }
+    expect(getQuestionPoints(openText6, ['a', 'b'], grades)).toBe(1)
+    const reworded = {
+      ...openText6,
+      answerFieldsLv: Array.from({ length: 6 }, (_, i) => ({ expected: `NEW ${i}` })),
+    }
+    expect(getQuestionPoints(reworded, ['a', 'b'], grades)).toBe(1)
+  })
+
   it('auto-grades yes/no and multiple choice as before', () => {
     expect(getQuestionPoints(yesNo, 'true', {})).toBe(1)
     expect(getQuestionPoints(yesNo, 'false', {})).toBe(0)
@@ -134,27 +144,26 @@ describe('computeReviewTotals', () => {
   })
 })
 
-describe('bank decisions', () => {
-  it('reads the correct flag', () => {
-    expect(getBankDecision(openText6, 0)).toBe(true)
-    const q = { type: 'open_text', answerFieldsLv: [{ expected: 'x', correct: false }] }
-    expect(getBankDecision(q, 0)).toBe(false)
-  })
-
-  it('exam override wins over the bank', () => {
-    expect(getEffectiveFieldDecision(openText6, 0, 'incorrect')).toBe('incorrect')
-    expect(getEffectiveFieldDecision(openText6, 0, undefined)).toBe('correct')
-  })
-
-  it('returns the expected answer with language fallback', () => {
+describe('example answers', () => {
+  it('returns the example with language fallback', () => {
     const q = {
       type: 'open_text',
-      answerFieldsLv: [{ expected: 'LV', correct: true }],
-      answerFieldsEn: [{ expected: 'EN', correct: true }],
+      answerFieldsLv: [{ expected: 'LV' }],
+      answerFieldsEn: [{ expected: 'EN' }],
     }
     expect(getExpectedAnswer(q, 0, 'lv')).toBe('LV')
     expect(getExpectedAnswer(q, 0, 'en')).toBe('EN')
     expect(getExpectedAnswer(q, 0, 'ru')).toBe('LV')
+  })
+
+  it('buildAnswerFieldsFromQuestion never produces a correctness flag', () => {
+    const rows = buildAnswerFieldsFromQuestion({
+      type: 'open_text',
+      answerFieldsLv: [{ expected: 'x', correct: true }],
+      answerFieldsEn: [{ expected: 'x', correct: false }],
+    })
+    expect(rows).toEqual([{ expectedLv: 'x', expectedRu: '', expectedEn: 'x' }])
+    expect('correct' in rows[0]).toBe(false)
   })
 })
 
