@@ -1,3 +1,4 @@
+import React from 'react'
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
@@ -129,5 +130,89 @@ describe('OpenTextQuestion', () => {
     )
     const field = screen.getByLabelText('Answer 1')
     expect(field.id).toBe('my-q-field-0')
+  })
+
+  it('moves focus to the next field when Enter is pressed', async () => {
+    const user = userEvent.setup()
+    render(
+      <OpenTextQuestion
+        questionText="Question"
+        fieldCount={3}
+        value={['a', '', '']}
+        getFieldLabel={fieldLabel}
+      />
+    )
+    const first = screen.getByLabelText('Answer 1')
+    const second = screen.getByLabelText('Answer 2')
+    first.focus()
+    await user.keyboard('{Enter}')
+    expect(second).toHaveFocus()
+  })
+
+  it('calls onSubmit when Enter is pressed on the last field (submit enabled)', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <OpenTextQuestion
+        questionText="Question"
+        fieldCount={2}
+        value={['x', 'y']}
+        getFieldLabel={fieldLabel}
+        onSubmit={onSubmit}
+      />
+    )
+    const last = screen.getByLabelText('Answer 2')
+    last.focus()
+    await user.keyboard('{Enter}')
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps all six fields filled when the student types into every field of a 6-field question', async () => {
+    const user = userEvent.setup()
+    // Controlled harness — mirrors ExamPage's setAnswers behaviour.
+    function Harness() {
+      const [value, setValue] = React.useState([])
+      return (
+        <OpenTextQuestion
+          questionText="Question"
+          fieldCount={6}
+          value={value}
+          onChange={setValue}
+          getFieldLabel={fieldLabel}
+        />
+      )
+    }
+    render(<Harness />)
+
+    const fields = screen.getAllByRole('textbox')
+    expect(fields).toHaveLength(6)
+    for (let i = 0; i < 6; i++) {
+      await user.type(fields[i], `answer-${i + 1}`)
+    }
+
+    // Every input retains its own text — field numbers stay associated.
+    const after = screen.getAllByRole('textbox')
+    expect(after.map(f => f.value)).toEqual([
+      'answer-1', 'answer-2', 'answer-3', 'answer-4', 'answer-5', 'answer-6',
+    ])
+  })
+
+  it('does not submit via Enter on the last field when submission is disabled', async () => {
+    const user = userEvent.setup()
+    const onSubmit = vi.fn()
+    render(
+      <OpenTextQuestion
+        questionText="Question"
+        fieldCount={2}
+        value={['', '']}
+        getFieldLabel={fieldLabel}
+        onSubmit={onSubmit}
+        canSubmit={false}
+      />
+    )
+    const last = screen.getByLabelText('Answer 2')
+    last.focus()
+    await user.keyboard('{Enter}')
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 })

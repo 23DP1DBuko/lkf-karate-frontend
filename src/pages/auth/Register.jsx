@@ -62,6 +62,7 @@ export default function Register() {
   })
   const [errors, setErrors] = useState({})
   const [showPassword, setShowPassword] = useState(false)
+  const [agreed, setAgreed] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const passInputClasses = `w-full border transition-all outline-none rounded-xl pl-10 pr-11 py-3 text-sm ${
@@ -81,6 +82,10 @@ export default function Register() {
     const validationErrors = validate(form, t)
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors)
+      return
+    }
+    if (!agreed) {
+      setErrors({ consent: t('auth.consentRequired') })
       return
     }
     setErrors({})
@@ -153,6 +158,32 @@ export default function Register() {
           {errors.password && <p className={`text-xs mt-1.5 ${isDark ? 'text-red-400' : 'text-red-500'}`}>{errors.password}</p>}
           <p className={`text-xs mt-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{t('profile.passwordHint')}</p>
         </div>
+
+        <div className="flex items-start gap-2.5">
+          <input
+            id="consent"
+            type="checkbox"
+            checked={agreed}
+            onChange={e => setAgreed(e.target.checked)}
+            aria-describedby={errors.consent ? 'consent-error' : undefined}
+            className="mt-0.5 w-4 h-4 accent-indigo-600 shrink-0"
+          />
+          <label htmlFor="consent" className={`text-xs leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            {t('auth.consentPrefix')}{' '}
+            <Link to="/terms" className="font-medium underline underline-offset-2 hover:opacity-80">
+              {t('auth.consentTerms')}
+            </Link>
+            {t('auth.consentAnd')}{' '}
+            <Link to="/privacy" className="font-medium underline underline-offset-2 hover:opacity-80">
+              {t('auth.consentPrivacy')}
+            </Link>
+          </label>
+        </div>
+        {errors.consent && (
+          <p id="consent-error" className={`text-xs mt-1 ${isDark ? 'text-red-400' : 'text-red-500'}`}>
+            {errors.consent}
+          </p>
+        )}
 
         <button type="submit" disabled={loading}
           className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-medium text-sm py-3 px-4 rounded-xl shadow-lg shadow-indigo-600/20 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">

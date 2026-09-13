@@ -444,8 +444,29 @@ function QuestionCard({ question, onCorrect }) {
 // ─── Block renderers ──────────────────────────────────────────────────────────
 
 function TableBlock({ block }) {
-  const { headers = [], rows = [], caption } = block.content || {}
-  if (!headers.length && !rows.length) return null
+  const { headers = [], rows = [], caption, text } = block.content || {}
+  const hasGrid = headers.length > 0 && rows.length > 0
+  if (!hasGrid && !text) return null
+  // Imported tables whose detected grid was unusable keep a judge-editable
+  // plain-text version — render that instead of dropping the content.
+  if (!hasGrid) {
+    return (
+      <div
+        className="my-6 rounded-xl border overflow-hidden"
+        style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-card)' }}
+      >
+        <pre
+          className="px-4 py-3 text-sm whitespace-pre-wrap font-mono"
+          style={{ color: 'var(--text-secondary)' }}
+        >{text}</pre>
+        {caption && (
+          <div className="px-3 py-2 border-t" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{caption}</p>
+          </div>
+        )}
+      </div>
+    )
+  }
   return (
     <div
       className="my-6 overflow-x-auto rounded-xl border"
@@ -506,7 +527,23 @@ function ListBlock({ block }) {
 function ImageFigure({ block }) {
   const file = getBlockFile(block)
   const src = resolveImageSrc(block)
-  if (!src) return null
+  if (!src) {
+    // No rendered figure could be attached (e.g. a vector-only illustration).
+    // Show the judge's description rather than silently dropping the block.
+    const description = block.caption || block.alt
+    if (!description) return null
+    return (
+      <figure className="my-8">
+        <div
+          className="flex flex-col items-center justify-center gap-1.5 rounded-xl border border-dashed px-6 py-8 text-center"
+          style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}
+        >
+          <span className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>Image</span>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{description}</p>
+        </div>
+      </figure>
+    )
+  }
 
   if (file?.mime?.startsWith('video/')) {
     return (

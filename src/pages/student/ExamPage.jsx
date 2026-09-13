@@ -134,7 +134,9 @@ export default function ExamPage() {
         setQuestions(res.data.questions || [])
         setAnswers(res.data.answers || {})
         didHydrateAnswers.current = true
-        setTimeLeft(res.data.remainingSeconds || res.data.duration * 60)
+        // NOTE: nullish coalescing — 0 is a valid remaining time (resumed after
+        // expiry) and must NOT fall back to the full duration.
+        setTimeLeft(res.data.remainingSeconds ?? res.data.duration * 60)
         setLoading(false)
 
         examRef.current = {

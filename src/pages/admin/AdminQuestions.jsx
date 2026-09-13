@@ -1,6 +1,13 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
+import { useEffect, useState } from 'react'
 import api, { getLocalizedField } from '../../api/strapi'
+import Pagination from '../../components/Pagination'
+import useScrollToForm from '../../hooks/useScrollToForm'
+import {
+  ADMIN_PAGE_SIZE,
+  buildQuestionListParams,
+  buildNextQuestionOrderParams,
+} from '../../utils/adminListParams'
 import MediaUpload from '../../components/MediaUpload'
 import FileDropzone from '../../components/FileDropzone'
 import IconButton from '../../components/IconButton'
@@ -9,47 +16,13 @@ import { PencilIcon, TrashIcon, ArrowUpTrayIcon, MagnifyingGlassIcon, XMarkIcon,
 import { useTranslation } from 'react-i18next'
 import { SkeletonTable } from '../../components/Skeleton'
 import { buildAnswerFieldsFromQuestion } from '../../utils/grading'
+import YouTubeEmbed from '../../components/YouTubeEmbed'
+import { getYouTubeEmbedUrl } from '../../utils/youtube'
 
 // Maximum number of configurable answer fields for an open-text question.
 const MAX_ANSWER_FIELDS = 50
 
-async function fetchAllQuestions(params = {}) {
-  let page = 1
-  let all = []
-
-  while (true) {
-    const res = await api.get('/questions', {
-      params: {
-        ...params,
-        'pagination[page]': page,
-        'pagination[pageSize]': 100,
-      },
-    })
-
-    const items = res.data.data || []
-    all = [...all, ...items]
-
-    const { pagination } = res.data.meta
-    if (page >= pagination.pageCount) break
-    page++
-  }
-
-  return all
-}
-
 // ─── Helpers for aka/ao video slots ──────────────────────────────────────────
-
-function getYouTubeEmbedUrl(url) {
-  if (!url) return null
-  try {
-    const u = new URL(url)
-    if (u.hostname.includes('youtu.be')) return `https://www.youtube.com/embed${u.pathname}`
-    const v = u.searchParams.get('v')
-    return v ? `https://www.youtube.com/embed/${v}` : null
-  } catch {
-    return null
-  }
-}
 
 // One video slot: YouTube URL input + local drag & drop upload.
 // The stored value is a URL string — a YouTube link or a Strapi upload path.
@@ -95,14 +68,7 @@ function VideoSlot({ label, value, onChange, placeholder, tone, hint }) {
       {value && (
         <div className="relative rounded-lg overflow-hidden">
           {embed ? (
-            <div className="w-full aspect-video overflow-hidden bg-black">
-              <iframe
-                className="w-full h-full"
-                src={embed}
-                title={`${label} preview`}
-                allowFullScreen
-              />
-            </div>
+            <YouTubeEmbed url={value} title={`${label} preview`} />
           ) : isFile ? (
             <video controls preload="metadata" src={mediaUrl(value)} className="w-full max-h-44 bg-black" />
           ) : null}
@@ -157,17 +123,55 @@ export default function AdminQuestions() {
   const [deleteModal, setDeleteModal] = useState(false)
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
+  const [page, setPage] = useState(1)
 
-  const { data: questions, isLoading } = useQuery({
-    queryKey: ['admin-questions'],
-    queryFn: () =>
-      fetchAllQuestions({
-        'populate[0]': 'course',
-        'populate[1]': 'media',
-        'populate[2]': 'chapter',
-        sort: 'createdAt:desc',
-      }),
+  // Scroll the edit form into view and focus its first field when an item is
+  // selected. Keyed on the documentId so switching items rescrolls.
+  const formRef = useScrollToForm(editingQuestion?.documentId)
+
+  // Server-side pagination: the course/type filters and the search text must be
+  // part of every request, otherwise page 2+ would show unfiltered results.
+  const listParams = buildQuestionListParams({
+    page,
+    pageSize: ADMIN_PAGE_SIZE,
+    course: filterCourse,
+    type: filterType,
+    search: searchQuery,
   })
+
+  const { data: questionsResponse, isLoading } = useQuery({
+    queryKey: ['admin-questions', page, filterCourse, filterType, searchQuery.trim()],
+    queryFn: () => api.get('/questions', { params: listParams }).then(r => r.data),
+    // Keep the previous page visible while the next one loads.
+    placeholderData: keepPreviousData,
+  })
+
+  const questions = questionsResponse?.data || []
+  const totalQuestions = questionsResponse?.meta?.pagination?.total ?? 0
+  const totalPages = questionsResponse?.meta?.pagination?.pageCount ?? 1
+
+  // The paged query above only reports the *filtered* count, so ask for the
+  // overall total separately — it feeds the "X of Y questions" summary.
+  const { data: totalCount } = useQuery({
+    queryKey: ['admin-questions-total'],
+    queryFn: () =>
+      api
+        .get('/questions', { params: { 'pagination[page]': 1, 'pagination[pageSize]': 1 } })
+        .then(r => r.data.meta.pagination.total),
+  })
+
+  const filtersActive =
+    !!searchQuery.trim() || filterCourse !== 'all' || filterType !== 'all'
+
+  // Any filter or search change returns the admin to the first page.
+  useEffect(() => {
+    setPage(1)
+  }, [filterCourse, filterType, searchQuery])
+
+  // After a delete empties the last page, step back instead of showing a blank list.
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages)
+  }, [page, totalPages])
 
   const { data: courses } = useQuery({
     queryKey: ['courses-list'],
@@ -247,7 +251,7 @@ export default function AdminQuestions() {
     setShowForm(true)
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
 
     // Open-text questions need at least one configured answer field.
@@ -260,6 +264,19 @@ export default function AdminQuestions() {
       return
     }
     setAnswerFieldsError('')
+
+    // Auto-calculate the next order for a new question: max order in the course
+    // + 1. Looked up directly so it never depends on the visible page.
+    let nextOrder = 1
+    if (!editingQuestion && form.course) {
+      try {
+        const res = await api.get('/questions', { params: buildNextQuestionOrderParams(form.course) })
+        const maxOrder = res.data?.data?.[0]?.order
+        nextOrder = Number.isFinite(maxOrder) ? maxOrder + 1 : 1
+      } catch (err) {
+        console.error('Order lookup failed:', err)
+      }
+    }
 
     const options = form.type === 'yes_no'
       ? ['true', 'false']
@@ -291,21 +308,14 @@ export default function AdminQuestions() {
       course: form.course,
       media: form.media ? form.media.id : null,
       chapter: form.chapter || null,
-      order: (() => {
-        if (editingQuestion) return form.order ? Number(form.order) : null
-        // Auto-calculate: max order in this course + 1
-        const courseQuestions = questions?.filter(q => q.course?.documentId === form.course) || []
-        return courseQuestions.length > 0
-          ? Math.max(...courseQuestions.map(q => q.order || 0)) + 1
-          : 1
-      })(),
+      order: editingQuestion ? (form.order ? Number(form.order) : null) : nextOrder,
     }
-    // Open-text answer fields: keep the three language arrays in sync (same
-    // count and same per-field decision; only the expected text differs).
+    // Open-text example answers: judge-only reference text, kept in sync across
+    // the three languages. Correctness is decided later, per student answer.
     if (form.type === 'open_text') {
-      data.answerFieldsLv = form.answerFields.map(f => ({ expected: f.expectedLv || '', correct: f.correct }))
-      data.answerFieldsRu = form.answerFields.map(f => ({ expected: f.expectedRu || '', correct: f.correct }))
-      data.answerFieldsEn = form.answerFields.map(f => ({ expected: f.expectedEn || '', correct: f.correct }))
+      data.answerFieldsLv = form.answerFields.map(f => ({ expected: f.expectedLv || '' }))
+      data.answerFieldsRu = form.answerFields.map(f => ({ expected: f.expectedRu || '' }))
+      data.answerFieldsEn = form.answerFields.map(f => ({ expected: f.expectedEn || '' }))
     }
 
     if (editingQuestion) {
@@ -323,7 +333,7 @@ export default function AdminQuestions() {
     setAnswerFieldsError('')
     setForm(prev => ({
       ...prev,
-      answerFields: [...prev.answerFields, { expectedLv: '', expectedRu: '', expectedEn: '', correct: true }],
+      answerFields: [...prev.answerFields, { expectedLv: '', expectedRu: '', expectedEn: '' }],
     }))
   }
 
@@ -340,6 +350,44 @@ export default function AdminQuestions() {
       ...prev,
       answerFields: prev.answerFields.map((f, i) => (i === index ? { ...f, ...patch } : f)),
     }))
+  }
+
+  // Set the number of answer fields directly (number stepper). Growing
+  // appends empty fields; shrinking removes the tail — with a confirmation
+  // when it would drop configured expected answers. Invalid counts surface
+  // a validation message instead of mutating state.
+  const setAnswerCount = (count) => {
+    if (!Number.isInteger(count) || count < 1) {
+      setAnswerFieldsError(t('admin.questions.minOneField'))
+      return
+    }
+    if (count > MAX_ANSWER_FIELDS) {
+      setAnswerFieldsError(t('admin.questions.maxAnswerFields', { count: MAX_ANSWER_FIELDS }))
+      return
+    }
+    setAnswerFieldsError('')
+
+    setForm(prev => {
+      const current = prev.answerFields
+      if (count === current.length) return prev
+      if (count > current.length) {
+        const added = Array.from(
+          { length: count - current.length },
+          () => ({ expectedLv: '', expectedRu: '', expectedEn: '' }),
+        )
+        return { ...prev, answerFields: [...current, ...added] }
+      }
+      const removed = current.slice(count)
+      const hasContent = removed.some(
+        f => String(f.expectedLv ?? '').trim() ||
+          String(f.expectedRu ?? '').trim() ||
+          String(f.expectedEn ?? '').trim(),
+      )
+      if (hasContent && !window.confirm(t('admin.questions.answerCountShrinkConfirm', { count }))) {
+        return prev
+      }
+      return { ...prev, answerFields: current.slice(0, count) }
+    })
   }
 
   const swapAkaAo = (dropKey) => {
@@ -397,18 +445,6 @@ export default function AdminQuestions() {
     }
   }
 
-  const filtered = questions?.filter(q => {
-    if (filterCourse !== 'all' && q.course?.documentId !== filterCourse) return false
-    if (filterType !== 'all' && q.type !== filterType) return false
-    const query = searchQuery.trim().toLowerCase()
-    if (query) {
-      const haystack = [q.text, q.textLv, q.textRu, q.textEn, q.optionsLv, q.optionsRu, q.optionsEn, q.correctAnswer]
-        .filter(Boolean).join(' ').toLowerCase()
-      if (!haystack.includes(query)) return false
-    }
-    return true
-  })
-
   if (isLoading) return <SkeletonTable rows={5} cols={4} />
 
   return (
@@ -416,7 +452,11 @@ export default function AdminQuestions() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">{t('admin.questions.title')}</h1>
-          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('admin.questions.count', { filtered: filtered?.length || 0, total: questions?.length || 0 })}</p>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {filtersActive
+              ? t('admin.questions.count', { filtered: totalQuestions, total: totalCount ?? totalQuestions })
+              : t('admin.questions.total', { count: totalQuestions })}
+          </p>
         </div>
         <div className="flex gap-2">
           <button
@@ -436,7 +476,7 @@ export default function AdminQuestions() {
       </div>
 
       {showForm && (
-        <div className="rounded-xl shadow p-5 sm:p-6 mb-6" style={{ backgroundColor: 'var(--bg-card)' }}>
+        <div ref={formRef} className="rounded-xl shadow p-5 sm:p-6 mb-6" style={{ backgroundColor: 'var(--bg-card)' }}>
           <h2 className="text-lg font-semibold mb-4">
             {editingQuestion ? t('admin.questions.edit') : t('admin.questions.create')}
           </h2>
@@ -543,7 +583,7 @@ export default function AdminQuestions() {
                     correctAnswers: [],
                     // Switching to open-text starts with one answer field.
                     answerFields: nextType === 'open_text' && prev.answerFields.length === 0
-                      ? [{ expectedLv: '', expectedRu: '', expectedEn: '', correct: true }]
+                      ? [{ expectedLv: '', expectedRu: '', expectedEn: '' }]
                       : prev.answerFields,
                   }
                 })}
@@ -757,17 +797,60 @@ export default function AdminQuestions() {
                   </p>
                 </div>
 
+                <div className="rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-3">
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    {t('admin.questions.exampleAnswersNote')}
+                  </p>
+                </div>
+
                 {/* Number of answers + field editor */}
                 <div className="rounded-xl border p-4" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}>
                   <div className="flex items-center justify-between gap-3 mb-1">
-                    <label className="block text-sm font-medium">
+                    <label className="block text-sm font-medium" htmlFor="open-text-answer-count">
                       {t('admin.questions.answerFieldsLabel')}
                     </label>
-                    <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-                      {form.answerFields.length}
-                    </span>
+                    {/* Number-of-answers stepper: set the field count directly */}
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setAnswerCount(form.answerFields.length - 1)}
+                        disabled={form.answerFields.length <= 1}
+                        aria-label={t('admin.questions.answerCountDecrease')}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border transition disabled:opacity-40 enabled:hover:border-blue-400"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text-primary)', backgroundColor: 'var(--bg-card)' }}
+                      >
+                        <MinusIcon className="w-4 h-4" />
+                      </button>
+                      <input
+                        id="open-text-answer-count"
+                        type="number"
+                        min={1}
+                        max={MAX_ANSWER_FIELDS}
+                        value={form.answerFields.length}
+                        onChange={e => {
+                          if (e.target.value === '') return
+                          setAnswerCount(Number(e.target.value))
+                        }}
+                        aria-describedby="open-text-answer-count-hint"
+                        className="h-8 w-14 rounded-lg border text-center text-sm font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text-primary)', backgroundColor: 'var(--input-bg)' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setAnswerCount(form.answerFields.length + 1)}
+                        disabled={form.answerFields.length >= MAX_ANSWER_FIELDS}
+                        aria-label={t('admin.questions.answerCountIncrease')}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border transition disabled:opacity-40 enabled:hover:border-blue-400"
+                        style={{ borderColor: 'var(--border)', color: 'var(--text-primary)', backgroundColor: 'var(--bg-card)' }}
+                      >
+                        <PlusIcon className="w-4 h-4" />
+                      </button>
+                      <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        / {MAX_ANSWER_FIELDS}
+                      </span>
+                    </div>
                   </div>
-                  <p className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
+                  <p id="open-text-answer-count-hint" className="text-xs mb-3" style={{ color: 'var(--text-muted)' }}>
                     {t('admin.questions.answerFieldsHint')}
                   </p>
 
@@ -786,7 +869,7 @@ export default function AdminQuestions() {
                       >
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                            {t('admin.questions.answerFieldN', { n: index + 1 })}
+                            {t('admin.questions.answerFieldExampleN', { n: index + 1 })}
                           </p>
                           <button
                             type="button"
@@ -799,12 +882,12 @@ export default function AdminQuestions() {
                           </button>
                         </div>
 
-                        {/* Expected answers per language */}
+                        {/* Example answers per language (judges only) */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           {[
-                            { key: 'expectedLv', label: t('admin.questions.lvText'), placeholder: t('admin.questions.expectedAnswerPlaceholder') },
-                            { key: 'expectedRu', label: t('admin.questions.ruText'), placeholder: t('admin.questions.expectedAnswerPlaceholder') },
-                            { key: 'expectedEn', label: t('admin.questions.enText'), placeholder: t('admin.questions.expectedAnswerPlaceholder') },
+                            { key: 'expectedLv', label: t('admin.questions.exampleLv'), placeholder: t('admin.questions.expectedAnswerPlaceholder') },
+                            { key: 'expectedRu', label: t('admin.questions.exampleRu'), placeholder: t('admin.questions.expectedAnswerPlaceholder') },
+                            { key: 'expectedEn', label: t('admin.questions.exampleEn'), placeholder: t('admin.questions.expectedAnswerPlaceholder') },
                           ].map(lang => (
                             <div key={lang.key} className="flex flex-col gap-1">
                               <label className="text-[11px] font-medium uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
@@ -824,36 +907,6 @@ export default function AdminQuestions() {
                         <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
                           {t('admin.questions.expectedAnswerHint')}
                         </p>
-
-                        {/* Answer-bank decision: Correct / Incorrect */}
-                        <fieldset>
-                          <legend className="text-[11px] font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>
-                            {t('admin.questions.bankDecisionLabel')}
-                          </legend>
-                          <div className="flex gap-2">
-                            {[
-                              { value: true, label: t('admin.questions.decisionCorrect') },
-                              { value: false, label: t('admin.questions.decisionIncorrect') },
-                            ].map(opt => (
-                              <button
-                                key={String(opt.value)}
-                                type="button"
-                                onClick={() => updateAnswerField(index, { correct: opt.value })}
-                                aria-pressed={field.correct === opt.value}
-                                className={`flex-1 sm:flex-none sm:px-4 py-2 rounded-lg border-2 text-sm font-semibold transition ${
-                                  field.correct === opt.value
-                                    ? opt.value
-                                      ? 'bg-green-500 text-white border-green-500'
-                                      : 'bg-red-500 text-white border-red-500'
-                                    : 'border-gray-300 hover:border-green-400 dark:hover:border-gray-500'
-                                }`}
-                                style={{ borderColor: field.correct === opt.value ? undefined : 'var(--border)' }}
-                              >
-                                {opt.value ? '✓ ' : '✗ '}{opt.label}
-                              </button>
-                            ))}
-                          </div>
-                        </fieldset>
                       </div>
                     ))}
                   </div>
@@ -1019,7 +1072,7 @@ export default function AdminQuestions() {
             </tr>
           </thead>
           <tbody>
-            {filtered?.length === 0 && (
+            {totalQuestions === 0 && (
               <tr className="border-t" style={{ borderColor: 'var(--border)' }}>
                 <td colSpan={5} className="px-4 py-10 text-center">
                   <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -1037,7 +1090,7 @@ export default function AdminQuestions() {
                 </td>
               </tr>
             )}
-            {filtered?.map(question => (
+            {questions.map(question => (
               <tr key={question.id} className="border-t transition hover:opacity-80"
                 style={{ borderColor: 'var(--border)' }}>
                 <td className="px-4 py-3 max-w-xs">
@@ -1077,6 +1130,14 @@ export default function AdminQuestions() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        total={totalQuestions}
+        pageSize={ADMIN_PAGE_SIZE}
+        onPageChange={setPage}
+      />
 
       {/* Delete All Modal */}
       {deleteModal && (

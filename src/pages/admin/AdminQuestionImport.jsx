@@ -15,9 +15,10 @@
 //      against the DB and flag conflicts (same text differs / type differs)
 //   4. Preview → editable questions, per-language conflict resolution
 //   5. Import → create/update/skip; never overwrite an existing correctAnswer
-//   6. If any question still lacks an answer → hand off to the answer-key quiz
-//      (scoped to course + questionSetKey; later translation-only imports do
-//      NOT reopen the quiz).
+//   6. If any question still lacks an answer → create/reuse a persistent
+//      "review exam" (reviewType = 'import_review') and hand off to the
+//      answer-key review, which saves every answer to the database so the
+//      review survives navigation and refreshes.
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -54,6 +55,11 @@ import {
   buildQuestionStats,
   attachQuestionHashes,
 } from '../../utils/questionImport'
+import {
+  fetchQuestionsToReview,
+  upsertReviewExam,
+  reviewQuizPath,
+} from '../../utils/reviewImport'
 
 const FORMAT_META = {
   word: { label: 'Word', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
@@ -72,6 +78,12 @@ const ACTION_META = {
 const LANGS = ['en', 'lv', 'ru']
 const langKey = (lang) => `text${lang.charAt(0).toUpperCase()}${lang.slice(1)}`
 
+// This importer produces True/False (yes_no) questions only — Word files carry
+// colour-coded answers, PDFs are yes/no. The old per-file question-type
+// selector was removed so the admin has one less choice to make.
+const QUESTION_TYPE = 'yes_no'
+const QUESTION_OPTIONS = ['true', 'false']
+
 async function loadPdfjs() {
   const pdfjsLib = await import('pdfjs-dist')
   pdfjsLib.GlobalWorkerOptions.workerSrc =
@@ -83,11 +95,11 @@ export default function AdminQuestionImport() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
 
-  // Step 1 — question set identity
+  // Step 1 — course + question set identity. The category is DERIVED from the
+  // selected course (never chosen separately).
   const [courseId, setCourseId] = useState('')
   const [year, setYear] = useState('')
-  const [category, setCategory] = useState('')
-  const [type, setType] = useState('yes_no')
+  const [language, setLanguage] = useState('lv')
 
   // Step 2 — uploaded files with per-file detection
   const [files, setFiles] = useState([])
@@ -105,7 +117,8 @@ export default function AdminQuestionImport() {
   const [importing, setImporting] = useState(false)
   const [results, setResults] = useState(null)
 
-  const [needsQuiz, setNeedsQuiz] = useState(0) // unanswered questions in the set after import
+  const [reviewExam, setReviewExam] = useState(null) // persistent review exam (Option A)
+  const [unansweredCount, setUnansweredCount] = useState(0)
 
   const { data: courses } = useQuery({
     queryKey: ['courses-list'],
@@ -113,13 +126,15 @@ export default function AdminQuestionImport() {
       api.get('/courses?sort=titleLv:asc&pagination[page]=1&pagination[pageSize]=200').then((r) => r.data.data),
   })
 
+  const selectedCourse = courses?.find((c) => c.documentId === courseId) || null
+  const category = selectedCourse?.category || ''
   const questionSetKey = buildQuestionSetKey({ category, year })
 
   // ── File inspection ──────────────────────────────────────────────────────
   const inspectFile = async (file) => {
     const name = (file.name || '').toLowerCase()
     if (/\.docx?$/.test(name)) {
-      return { format: 'word', language: detectLanguageFromFilename(file.name) || 'lv' }
+      return { format: 'word', language: detectLanguageFromFilename(file.name) || language }
     }
     if (/\.pdf$/.test(name)) {
       const pdfjsLib = await loadPdfjs()
@@ -127,7 +142,7 @@ export default function AdminQuestionImport() {
       if (isMulti) return { format: 'pdf-multi', language: null }
       const text = await extractPdfText(pdfjsLib, file, 3)
       const det = detectSingleLanguagePdf(text, file.name)
-      return { format: 'pdf-single', language: det.language || 'lv' }
+      return { format: 'pdf-single', language: det.language || language }
     }
     return { format: 'unknown', language: null, error: t('admin.importSet.unsupportedFile') || 'Unsupported file type — use .docx or .pdf' }
   }
@@ -137,7 +152,8 @@ export default function AdminQuestionImport() {
     if (!arr.length) return
     setError('')
     setResults(null)
-    setNeedsQuiz(0)
+    setUnansweredCount(0)
+    setReviewExam(null)
 
     const entries = arr.map((file, i) => ({
       id: `${file.name}-${Date.now()}-${i}`,
@@ -189,7 +205,8 @@ export default function AdminQuestionImport() {
     if (!courseId || !questionSetKey || !validFiles.length) return
     setError('')
     setResults(null)
-    setNeedsQuiz(0)
+    setUnansweredCount(0)
+    setReviewExam(null)
     setParsing(true)
     setParseProgress(0)
     setResolutions({})
@@ -225,17 +242,13 @@ export default function AdminQuestionImport() {
         setParseProgress(done / total)
       }
 
-      const merged = mergeSessionQuestions(allParsed).map((q) => {
-        // Apply the admin-selected question type + options to every question.
-        const options = type === 'yes_no' ? ['true', 'false'] : []
-        return {
-          ...q,
-          type,
-          optionsEn: options,
-          optionsLv: options,
-          optionsRu: options,
-        }
-      })
+      const merged = mergeSessionQuestions(allParsed).map((q) => ({
+        ...q,
+        type: QUESTION_TYPE,
+        optionsEn: QUESTION_OPTIONS,
+        optionsLv: QUESTION_OPTIONS,
+        optionsRu: QUESTION_OPTIONS,
+      }))
 
       if (merged.length === 0 && !error) {
         setError(t('admin.importSet.noQuestions') || 'No questions detected in the uploaded files.')
@@ -286,12 +299,12 @@ export default function AdminQuestionImport() {
 
   // ── Import ───────────────────────────────────────────────────────────────
   const buildCreateData = (q) => {
-    const options = type === 'yes_no' ? ['true', 'false'] : []
+    const options = QUESTION_OPTIONS
     return attachQuestionHashes({
       textEn: q.textEn || null,
       textLv: q.textLv || null,
       textRu: q.textRu || null,
-      type: q.type || 'yes_no',
+      type: q.type || QUESTION_TYPE,
       optionsEn: options,
       optionsLv: options,
       optionsRu: options,
@@ -384,35 +397,50 @@ export default function AdminQuestionImport() {
       }
     }
 
+    // Persist a review exam for every imported question that still has no
+    // answer, so the review survives navigation/refresh (Option A). The exam
+    // is discoverable from Admin → Exams and is hidden from students.
+    try {
+      const toReview = await fetchQuestionsToReview({ courseId, questionSetKey })
+      if (toReview.length > 0) {
+        const exam = await upsertReviewExam({
+          courseId,
+          courseTitle:
+            getLocalizedField(selectedCourse, i18n.language, 'title') ||
+            selectedCourse?.titleLv ||
+            '',
+          questionSetKey,
+          questionDocumentIds: toReview.map((q) => q.documentId),
+        })
+        setReviewExam(exam)
+      } else {
+        setReviewExam(null)
+      }
+      setUnansweredCount(toReview.length)
+    } catch (err) {
+      console.error('Review exam setup failed:', err)
+      setReviewExam(null)
+      setUnansweredCount(0)
+    }
+
     setResults(out)
     setImporting(false)
-
-    // After import, count how many questions of the set still miss an answer.
-    try {
-      const res = await api.get('/questions', {
-        params: {
-          'filters[course][documentId][$eq]': courseId,
-          'filters[questionSetKey][$eq]': questionSetKey,
-          'filters[answerStatus][$eq]': 'missing',
-          'pagination[pageSize]': 1,
-        },
-      })
-      setNeedsQuiz(res.data?.meta?.pagination?.total || 0)
-    } catch {
-      setNeedsQuiz(parsed.some((q) => q.correctAnswer == null) ? parsed.length : 0)
-    }
   }
 
-  const openAnswerKey = () => {
+  const openReview = () => {
     navigate(
-      `/admin/import-quiz?courseId=${encodeURIComponent(courseId)}&questionSetKey=${encodeURIComponent(questionSetKey)}`,
+      reviewQuizPath({
+        examId: reviewExam?.documentId,
+        courseId,
+        questionSetKey,
+      }),
     )
   }
 
   const reset = () => {
     setFiles([]); setParsed([]); setExisting([]); setResults(null)
-    setResolutions({}); setError(''); setNeedsQuiz(0)
-    setCourseId(''); setYear(''); setCategory(''); setType('yes_no')
+    setResolutions({}); setError(''); setUnansweredCount(0); setReviewExam(null)
+    setCourseId(''); setYear(''); setLanguage('lv')
   }
 
   const canAnalyze = Boolean(courseId && questionSetKey && validFiles.length && allInspected && !parsing)
@@ -434,10 +462,11 @@ export default function AdminQuestionImport() {
           <h2 className="font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
             1. {t('admin.importSet.setStep') || 'Course & question set'}
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <select
+              aria-label={t('admin.importSet.courseLabel') || 'Course'}
               value={courseId}
-              onChange={(e) => { setCourseId(e.target.value); setResults(null) }}
+              onChange={(e) => { setCourseId(e.target.value); setResults(null); setReviewExam(null) }}
               className="border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
             >
@@ -449,48 +478,36 @@ export default function AdminQuestionImport() {
               ))}
             </select>
 
+            <select
+              aria-label={t('admin.importSet.languageLabel') || 'Language'}
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
+            >
+              {['lv', 'en', 'ru'].map((l) => (
+                <option key={l} value={l}>{LANG_LABELS[l] || l}</option>
+              ))}
+            </select>
+
             <input
               type="number"
+              aria-label={t('admin.importSet.yearPlaceholder') || 'Year'}
               value={year}
               onChange={(e) => { setYear(e.target.value); setResults(null) }}
               placeholder={t('admin.importSet.yearPlaceholder') || 'Year — e.g. 2024'}
               className="border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
             />
-
-            <select
-              value={category}
-              onChange={(e) => { setCategory(e.target.value); setResults(null) }}
-              className="border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-            >
-              <option value="">{t('admin.importSet.selectCategory') || 'Category'}</option>
-              {['kata', 'kumite', 'secretary', 'seminar'].map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              className="border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              style={{ backgroundColor: 'var(--input-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-            >
-              <option value="yes_no">True / False (yes_no)</option>
-              <option value="single_choice">Single Choice</option>
-              <option value="multiple_choice">Multiple Choice</option>
-              <option value="open_text">Open Text</option>
-            </select>
           </div>
 
           <div className="mt-3 p-3 rounded-lg text-xs" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-            <span style={{ color: 'var(--text-muted)' }}>
-              {t('admin.importSet.setKeyLabel') || 'Question set key'}:
-            </span>{' '}
-            <code className="font-mono font-semibold text-blue-600">{questionSetKey || '—'}</code>
+            <p style={{ color: 'var(--text-muted)' }}>
+              {t('admin.importSet.categoryFromCourse', { category: category || '—' })}
+            </p>
             <p className="mt-1" style={{ color: 'var(--text-muted)' }}>
-              {t('admin.importSet.setKeyHint') ||
-                'Built from category + year. Different years are separate sets (kumite-2024 ≠ kumite-2026).'}
+              <span>{t('admin.importSet.setKeyLabel') || 'Question set key'}:</span>{' '}
+              <code className="font-mono font-semibold text-blue-600">{questionSetKey || '—'}</code>
             </p>
           </div>
         </div>
@@ -584,7 +601,7 @@ export default function AdminQuestionImport() {
             ) : (
               <>
                 <ArrowPathIcon className="w-5 h-5" />
-                {t('admin.importSet.analyze') || 'Analyze files'}
+                {t('admin.importSet.startImport') || 'Start import'}
               </>
             )}
           </button>
@@ -728,7 +745,7 @@ export default function AdminQuestionImport() {
                         <span className="text-[10px] text-green-600 font-medium">✓ answer from Word</span>
                       )}
                       {item.action === 'create' && item.q.correctAnswer == null && (
-                        <span className="text-[10px] text-amber-600 font-medium">{t('admin.importSet.needsQuizBadge') || 'answer via quiz'}</span>
+                        <span className="text-[10px] text-amber-600 font-medium">{t('admin.importSet.needsQuizBadge') || 'needs review'}</span>
                       )}
                     </div>
                     {LANGS.map((lang) => (
@@ -809,18 +826,34 @@ export default function AdminQuestionImport() {
               </div>
             )}
 
-            {needsQuiz > 0 ? (
-              <button
-                onClick={openAnswerKey}
-                className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 mb-2 flex items-center justify-center gap-2"
-              >
-                <AcademicCapIcon className="w-5 h-5" />
-                {t('admin.importSet.openAnswerKey', { count: needsQuiz }) || `Open answer-key quiz (${needsQuiz} unanswered)`}
-                <ArrowRightIcon className="w-4 h-4" />
-              </button>
+            {unansweredCount > 0 && reviewExam ? (
+              <div className="mb-2 space-y-2">
+                <p className="text-sm rounded-lg p-3" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}>
+                  {t('admin.importSet.reviewExamCreated', { count: unansweredCount })}
+                </p>
+                <button
+                  onClick={openReview}
+                  className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold hover:bg-blue-700 flex items-center justify-center gap-2"
+                >
+                  <AcademicCapIcon className="w-5 h-5" />
+                  {t('admin.importSet.startReview', { count: unansweredCount })}
+                  <ArrowRightIcon className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => navigate('/admin/exams')}
+                  className="w-full py-2.5 rounded-xl text-sm font-medium border transition"
+                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)', backgroundColor: 'var(--bg-card)' }}
+                >
+                  {t('admin.importSet.openExamsPage')}
+                </button>
+              </div>
+            ) : unansweredCount > 0 ? (
+              <p className="mb-2 p-3 rounded-lg text-center text-sm text-amber-700 dark:text-amber-300" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                {t('admin.importSet.reviewExamError')}
+              </p>
             ) : (
               <div className="mb-2 p-3 rounded-lg text-center text-sm" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                ✅ {t('admin.importSet.answersAllSet') || 'All questions already have answers — no quiz needed.'}
+                ✅ {t('admin.importSet.answersAllSet') || 'All questions already have answers — no review needed.'}
               </div>
             )}
 

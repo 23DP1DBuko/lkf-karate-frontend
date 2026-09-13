@@ -22,6 +22,7 @@ const MIN_TABLE_COL_SPAN = 100  // min x-span between first & last column
 const MIN_FIGURE_SIZE = 40      // drawings smaller than this are noise
 const FRAME_AREA_RATIO = 0.55   // path covering >55% of the page is a frame/border
 const FIGURE_CLUSTER_GAP = 12   // merge paths closer than this (pt)
+const INTRA_WORD_GAP_RATIO = 0.16 // gap ≤ ratio × font height → letters of one word
 
 // cyrb53 – fast deterministic hash (pure JS, works in browser + node)
 function cyrb53(str, seed = 0) {
@@ -61,6 +62,42 @@ function escapeHtml(str) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+}
+
+// ─── Text post-processing ───────────────────────────────────────────────────
+// PDF extraction often breaks a word into one glyph per item, or preserves the
+// letter-spacing of the original font, e.g. "B e z   s h a g a". Judges must be
+// able to read the preview, so we repair it here rather than shipping the
+// artefact to the chapter.
+
+// A run of ≥3 single-letter tokens separated by whitespace is letter-spacing,
+// never real prose. Each extra-wide gap in the run is kept as a word break (the
+// source used the wider gap to separate words), everything else is joined.
+const LETTER_SPACING_RE = /(?<![\p{L}\p{N}])(?:\p{L}\s+){2,}\p{L}(?![\p{L}\p{N}])/gu
+
+export function collapseLetterSpacing(text) {
+  return String(text == null ? '' : text).replace(LETTER_SPACING_RE, (run) =>
+    run
+      .trim()
+      .split(/\s{2,}/)
+      .map((part) => part.replace(/\s+/g, ''))
+      .join(' '),
+  )
+}
+
+// Join wrapped lines of one paragraph without adding a space before punctuation
+// or after an opening bracket, and without stranding a hyphen at the break.
+export function joinLines(lines) {
+  let out = ''
+  for (const raw of lines) {
+    const t = String(raw == null ? '' : raw).trim()
+    if (!t) continue
+    if (!out) { out = t; continue }
+    if (/^[,.;:!?%)\]}»”'’]/.test(t)) { out += t; continue }
+    if (/-$/.test(out) && /^\p{Ll}/u.test(t)) { out = out.slice(0, -1) + t; continue }
+    out += ' ' + t
+  }
+  return out
 }
 
 function uid() {
@@ -165,15 +202,15 @@ function clusterFigurePaths(paths, pageW, pageH) {
 
 // ─── Page helpers ───────────────────────────────────────────────────────────
 
-function groupItemsByY(items) {
+export function groupItemsByY(items) {
   const sorted = [...items].sort((a, b) => b.y - a.y || a.x - b.x)
   const rows = []
   for (const it of sorted) {
     const last = rows[rows.length - 1]
     if (last && Math.abs(last.y - it.y) <= ROW_Y_TOLERANCE) {
-      last.cells.push({ x: it.x, w: it.w, text: it.text })
+      last.cells.push({ x: it.x, w: it.w, h: it.h, text: it.text })
     } else {
-      rows.push({ y: it.y, cells: [{ x: it.x, w: it.w, text: it.text }] })
+      rows.push({ y: it.y, cells: [{ x: it.x, w: it.w, h: it.h, text: it.text }] })
     }
   }
   for (const r of rows) {
@@ -181,9 +218,14 @@ function groupItemsByY(items) {
     const merged = []
     for (const c of r.cells) {
       const prev = merged[merged.length - 1]
-      if (prev && c.x - (prev.x + prev.w) < CELL_MERGE_GAP) {
-        prev.text += ' ' + c.text
+      const gap = prev ? c.x - (prev.x + prev.w) : 0
+      if (prev && gap < CELL_MERGE_GAP) {
+        // Letters of the same word sit almost flush; anything wider is a space.
+        const em = Math.max(prev.h || 0, c.h || 0)
+        const separator = em > 0 && gap <= em * INTRA_WORD_GAP_RATIO ? '' : ' '
+        prev.text += separator + c.text
         prev.w = Math.max(prev.w, c.x + c.w - prev.x)
+        prev.h = em
       } else {
         merged.push({ ...c })
       }
@@ -200,7 +242,7 @@ function pageLines(items, pageIndex) {
   for (const row of rows) {
     if (row.y < FOOTER_BAND_Y) continue // footer
     if (row.cells.length === 1 && row.cells[0].x > 470 && /^\d{1,3}$/.test(row.cells[0].text.trim())) continue
-    lines.push({ y: row.y, x: row.cells[0]?.x ?? 0, text: row.text.trim(), cells: row.cells, pageIndex })
+    lines.push({ y: row.y, x: row.cells[0]?.x ?? 0, text: collapseLetterSpacing(row.text.trim()), cells: row.cells, pageIndex })
   }
   return lines.sort((a, b) => b.y - a.y)
 }
@@ -359,6 +401,10 @@ function buildTableBlock(table) {
       headers: pad(table.rows[0]),
       rows: table.rows.map(pad),
       caption: '',
+      // Plain-text representation of the grid. The import preview lets the
+      // judge correct it, and ChapterBlocks falls back to it when the detected
+      // grid is unusable.
+      text: table.rows.map(r => r.cells.map(c => c.text).join(' | ')).join('\n'),
     },
     needsReview: ragged || table.rows.length < 3 ? true : undefined,
   }
@@ -406,12 +452,14 @@ function buildTextAndListBlocks(lines) {
       const items = []
       for (const l of para) {
         if (LIST_LINE_RE.test(l.text)) {
-          items.push(l.text)
+          items.push([l.text])
         } else if (items.length) {
-          items[items.length - 1] += ' ' + l.text
+          items[items.length - 1].push(l.text)
         }
       }
-      const clean = items.map(i => i.trim()).filter(Boolean)
+      const clean = items
+        .map(parts => collapseLetterSpacing(joinLines(parts)).trim())
+        .filter(Boolean)
       if (clean.length >= 2) {
         blocks.push({ id: uid(), type: 'list', items: clean })
         continue
@@ -420,20 +468,23 @@ function buildTextAndListBlocks(lines) {
 
     const sub = para.find(l => SUBCLAUSE_RE.test(l.text) && l.text.length < 140)
     if (sub && para.length > 1) {
-      let buf = ''
-      const flush = () => { if (buf.trim()) blocks.push({ id: uid(), type: 'text', content: `<p>${escapeHtml(buf.trim())}</p>` }) }
+      let buf = []
+      const flush = () => {
+        const text = collapseLetterSpacing(joinLines(buf)).trim()
+        if (text) blocks.push({ id: uid(), type: 'text', content: `<p>${escapeHtml(text)}</p>` })
+      }
       for (const l of para) {
         if (SUBCLAUSE_RE.test(l.text) && l.text.length < 140) {
           flush()
-          buf = l.text
+          buf = [l.text]
         } else {
-          buf += (buf ? ' ' : '') + l.text
+          buf.push(l.text)
         }
       }
       flush()
     } else {
-      const text = para.map(l => l.text).join(' ')
-      if (text.trim()) blocks.push({ id: uid(), type: 'text', content: `<p>${escapeHtml(text.trim())}</p>` })
+      const text = collapseLetterSpacing(joinLines(para.map(l => l.text))).trim()
+      if (text) blocks.push({ id: uid(), type: 'text', content: `<p>${escapeHtml(text)}</p>` })
     }
   }
   return blocks
@@ -464,7 +515,8 @@ export async function parseChapterPdf(pdfjsLib, fileOrBuffer, options = {}) {
         x: it.transform[4],
         y: it.transform[5],
         w: it.width,
-        text: it.str.replace(/\s+/g, ' ').trim(),
+        h: it.height || 0,
+        text: collapseLetterSpacing(it.str.replace(/\s+/g, ' ').trim()),
       }))
     let drawPaths = []
     let rasterImages = []

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 
 vi.mock('../context/useAuth', () => ({
@@ -83,5 +84,31 @@ describe('Register Page', () => {
   it('renders create account button', () => {
     render(<MemoryRouter><Register /></MemoryRouter>)
     expect(screen.getByRole('button', { name: /auth\.signUp/i })).toBeInTheDocument()
+  })
+
+  it('requires agreement to Terms and Privacy before registering', async () => {
+    const user = userEvent.setup()
+    render(<MemoryRouter><Register /></MemoryRouter>)
+
+    // Consent checkbox links to the legal pages.
+    expect(screen.getByRole('link', { name: /auth\.consentTerms/i })).toHaveAttribute('href', '/terms')
+    expect(screen.getByRole('link', { name: /auth\.consentPrivacy/i })).toHaveAttribute('href', '/privacy')
+
+    // Fill every required field but leave the consent box unchecked.
+    await user.type(screen.getByLabelText(/auth\.firstName/i), 'Jānis')
+    await user.type(screen.getByLabelText(/auth\.lastName/i), 'Bērziņš')
+    await user.type(screen.getByLabelText(/auth\.username/i), 'janis')
+    await user.type(screen.getByLabelText(/auth\.email/i), 'janis@example.com')
+    await user.type(screen.getByLabelText(/^auth\.password$/i), 'Password1')
+
+    await user.click(screen.getByRole('button', { name: /auth\.signUp/i }))
+    expect(await screen.findByText('auth.consentRequired')).toBeInTheDocument()
+
+    // Checking the box clears the gate and lets registration proceed.
+    await user.click(screen.getByLabelText(/auth\.consentPrefix/i))
+    await user.click(screen.getByRole('button', { name: /auth\.signUp/i }))
+    await waitFor(() => {
+      expect(screen.queryByText('auth.consentRequired')).not.toBeInTheDocument()
+    })
   })
 })

@@ -19,6 +19,8 @@
 //   instruction   — optional helper line above the fields
 //   id            — unique prefix for input ids (label htmlFor) — pass the question id
 
+import { useRef } from 'react'
+
 function normalizeValues(value, count) {
   const raw = Array.isArray(value)
     ? value
@@ -44,6 +46,7 @@ export default function OpenTextQuestion({
 }) {
   const count = Math.max(1, Number(fieldCount) || 1)
   const fields = normalizeValues(value, count)
+  const inputRefs = useRef([])
 
   const handleChange = (i, newValue) => {
     const next = [...fields]
@@ -53,6 +56,19 @@ export default function OpenTextQuestion({
 
   const anyFilled = fields.some(v => String(v ?? '').trim() !== '')
   const submitEnabled = canSubmit !== undefined ? canSubmit : anyFilled
+
+  // Enter moves to the next answer field (or submits on the last one, mirroring
+  // the submit button's enabled state) so keyboard users can work through the
+  // fields as naturally as with Tab.
+  const handleKeyDown = (i, e) => {
+    if (e.key !== 'Enter') return
+    e.preventDefault()
+    if (i < count - 1) {
+      inputRefs.current[i + 1]?.focus()
+    } else if (submitEnabled && !isSubmitting) {
+      onSubmit?.()
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -85,7 +101,9 @@ export default function OpenTextQuestion({
               id={`${id}-field-${i}`}
               type="text"
               value={fieldValue}
+              ref={el => { inputRefs.current[i] = el }}
               onChange={e => handleChange(i, e.target.value)}
+              onKeyDown={e => handleKeyDown(i, e)}
               placeholder={placeholder}
               autoComplete="off"
               className="

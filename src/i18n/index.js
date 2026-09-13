@@ -26,4 +26,13 @@ i18n
     },
   })
 
+// Keep the document language attribute in sync with the active UI language so
+// screen readers, browser translation and :lang selectors match what the user
+// actually sees (index.html ships with lang="en").
+const syncDocumentLang = (lng) => {
+  if (typeof document !== 'undefined') document.documentElement.lang = lng || 'lv'
+}
+i18n.on('languageChanged', syncDocumentLang)
+syncDocumentLang(i18n.language)
+
 export default i18n
