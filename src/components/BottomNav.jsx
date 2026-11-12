@@ -90,7 +90,7 @@ export default function BottomNav() {
                     key={link.to}
                     to={link.to}
                     onClick={(e) => { createRipple(e); setAdminOpen(false) }}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium relative overflow-hidden transition-all active:scale-95"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium relative overflow-hidden transition-[background-color,color,transform] active:scale-95"
                     style={{
                       backgroundColor: active ? '#2563eb' : 'var(--bg-secondary)',
                       color: active ? 'white' : 'var(--text-primary)',
@@ -116,7 +116,7 @@ export default function BottomNav() {
                 <button
                   key="admin"
                   onClick={(e) => { createRipple(e); setAdminOpen(prev => !prev) }}
-                  className="flex-1 flex flex-col items-center justify-center gap-0.5 relative overflow-hidden transition-all active:scale-90"
+                  className="flex-1 flex flex-col items-center justify-center gap-0.5 relative overflow-hidden transition-[background-color,color,transform] active:scale-90"
                   style={{ color: active || adminOpen ? '#2563eb' : 'var(--text-muted)' }}
                 >
                   <div className="relative">
@@ -138,7 +138,7 @@ export default function BottomNav() {
                 key={tab.to}
                 to={tab.to}
                 onClick={(e) => { createRipple(e); setAdminOpen(false) }}
-                className="flex-1 flex flex-col items-center justify-center gap-0.5 relative overflow-hidden transition-all active:scale-90"
+                className="flex-1 flex flex-col items-center justify-center gap-0.5 relative overflow-hidden transition-[background-color,color,transform] active:scale-90"
                 style={{ color: active ? '#2563eb' : 'var(--text-muted)' }}
               >
                 <Icon className="w-6 h-6" />

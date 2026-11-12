@@ -70,7 +70,7 @@ function SidebarContent({
         style={{ borderColor: 'var(--border)' }}>
         {!isCollapsed && (
           <Link to="/dashboard" onClick={isMobile ? close : undefined} className="flex items-center gap-2">
-            <span className="font-bold text-blue-700">LKF Karate</span>
+            <span className="font-bold text-heading">LKF Karate</span>
           </Link>
         )}
         {!isMobile && (
@@ -112,7 +112,7 @@ function SidebarContent({
               <>
                 <button
                   onClick={() => setAdminOpen(!adminOpen)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
                     isAdminActive ? 'text-blue-600' : ''
                   } hover:bg-blue-50 dark:hover:bg-blue-900/20`}
                   style={{ color: isAdminActive ? '#2563eb' : 'var(--text-secondary)' }}
@@ -140,7 +140,7 @@ function SidebarContent({
       {!isCollapsed && (
       <button
         onClick={() => { navigate('/profile'); if (isMobile) close() }}
-        className="w-full px-4 py-3 border-b flex items-center gap-3 text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+        className="w-full px-4 py-3 border-b flex items-center gap-3 text-left hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
         style={{ borderColor: 'var(--border)' }}
       >
         {user?.profilePicture?.url ? (
@@ -170,7 +170,7 @@ function SidebarContent({
     {isCollapsed && (
       <button
         onClick={() => { navigate('/profile'); if (isMobile) close() }}
-        className="w-full px-3 py-3 border-b flex justify-center hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+        className="w-full px-3 py-3 border-b flex justify-center hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
         style={{ borderColor: 'var(--border)' }}
         aria-label="Go to profile"
       >
@@ -214,7 +214,7 @@ function NavItem({ to, icon: Icon, label, onClick, active, collapsed }) {
         onClick={(e) => { createRipple(e); onClick?.() }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+        className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
           collapsed ? 'justify-center' : ''
         } ${
           active ? 'bg-blue-600 text-white' : 'hover:bg-blue-50 dark:hover:bg-blue-900/20'
@@ -257,7 +257,7 @@ function NavButton({ onClick, icon: Icon, label, danger, collapsed }) {
         onClick={onClick}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
           collapsed ? 'justify-center' : ''
         } ${
           danger ? 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500' : 'hover:bg-blue-50 dark:hover:bg-blue-900/20'
@@ -386,7 +386,7 @@ export default function Sidebar() {
         style={{ backgroundColor: 'var(--nav-bg)', borderColor: 'var(--nav-border)' }}
       >
         <Link to="/dashboard" className="flex items-center gap-2">
-          <span className="font-bold text-blue-700">LKF Academy</span>
+          <span className="font-bold text-heading">LKF Academy</span>
         </Link>
         <button
           onClick={() => setMobileOpen(true)}
@@ -405,7 +405,7 @@ export default function Sidebar() {
       {/* Mobile sidebar */}
       <div 
         id='mobile-sidebar'
-        className={`md:hidden fixed top-0 left-0 h-full w-72 z-50 transform transition-transform duration-300 ease-in-out ${
+        className={`md:hidden fixed top-0 left-0 h-full w-72 z-50 transform transition-transform duration-300 ease-out ${
         mobileOpen ? 'translate-x-0' : '-translate-x-full'
       }`} style={{ backgroundColor: 'var(--bg-card)' }}>
         <SidebarContent {...sidebarContentProps} isCollapsed={false} isMobile={true} />
@@ -414,7 +414,7 @@ export default function Sidebar() {
       {/* Desktop sidebar — only renders on md+ */}
       <Card
         as="aside"
-        className={`hidden md:flex flex-col flex-shrink-0 border-r sticky top-0 h-screen transition-all duration-300 ${
+        className={`hidden md:flex flex-col flex-shrink-0 border-r sticky top-0 h-screen transition-[width] duration-300 ease-out ${
           collapsed ? 'w-16' : 'w-64'
         }`}
         style={{ overflow: 'visible' }}

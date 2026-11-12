@@ -50,11 +50,9 @@ export default function CalendarCard() {
 
   return (
     <section
-      className="rounded-2xl p-6 border shadow-sm flex flex-col relative overflow-hidden transition-all duration-300 hover:shadow-md"
+      className="rounded-2xl p-6 border shadow-sm flex flex-col relative overflow-hidden transition-shadow duration-300 hover:shadow-md"
       style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
     >
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-sky-400" />
-
       {/* Header + month nav */}
       <div className="flex items-center justify-between gap-2 mb-4">
         <div className="flex items-center gap-2.5">
@@ -96,7 +94,7 @@ export default function CalendarCard() {
           </div>
         ) : isError ? (
           <div className="text-center py-8">
-            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{t('events.loadError')}</p>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('events.loadError')}</p>
             <button
               onClick={refetch}
               className="mt-2 text-sm font-medium text-blue-600 hover:underline"
@@ -116,10 +114,10 @@ export default function CalendarCard() {
       {/* Footer link to the full calendar */}
       <button
         onClick={() => navigate('/events')}
-        className="group mt-4 flex items-center justify-between w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-all border border-blue-200/60 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 dark:bg-white/[0.03] dark:border-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.06]"
+        className="group mt-4 flex items-center justify-between w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-colors border border-blue-200/60 bg-blue-50 text-blue-700 hover:bg-blue-100 hover:border-blue-300 dark:bg-white/[0.03] dark:border-white/[0.06] dark:text-slate-200 dark:hover:bg-white/[0.06]"
       >
         <span>{t('events.openCalendar')}</span>
-        <ArrowRightIcon className="w-4 h-4 text-blue-600 transition-all duration-300 group-hover:translate-x-1 dark:text-slate-300" />
+        <ArrowRightIcon className="w-4 h-4 text-blue-600 transition-transform duration-300 group-hover:translate-x-1 dark:text-slate-300" />
       </button>
 
       {selected && <EventModal event={selected} onClose={closeModal} />}

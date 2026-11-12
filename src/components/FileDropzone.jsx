@@ -2,6 +2,7 @@
 // the PDF chapter import page. Owns the drag-state feedback, keyboard access,
 // and hidden <input>; parents supply the icon, title, hint and onFiles handler.
 import { useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export default function FileDropzone({
   icon,
@@ -15,6 +16,7 @@ export default function FileDropzone({
   className = '',
   ariaLabel = 'Upload file',
 }) {
+  const { t } = useTranslation()
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef(null)
 
@@ -48,7 +50,7 @@ export default function FileDropzone({
         const files = e.dataTransfer.files
         if (files?.length) onFiles?.(files)
       }}
-      className={`flex flex-col items-center justify-center gap-3 px-6 py-8 rounded-xl border-2 border-dashed cursor-pointer select-none transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+      className={`flex flex-col items-center justify-center gap-3 px-6 py-8 rounded-xl border-2 border-dashed cursor-pointer select-none transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
         disabled ? 'opacity-60 pointer-events-none' : ''
       } ${dragging
         ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40'
@@ -58,7 +60,7 @@ export default function FileDropzone({
     >
       {/* Icon */}
       <div
-        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200 ${
+        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-[background-color,color,box-shadow,transform] duration-200 ${
           dragging
             ? 'bg-blue-500 text-white scale-110 shadow-lg shadow-blue-500/25'
             : 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400'
@@ -79,7 +81,7 @@ export default function FileDropzone({
         )}
         {showBrowseHint && !dragging && (
           <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
-            or <span className="text-blue-600 font-medium">browse files</span>
+            {t('common.or')} <span className="text-blue-600 font-medium">{t('common.browseFiles')}</span>
           </p>
         )}
       </div>

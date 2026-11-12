@@ -64,7 +64,7 @@ function ThemePill({ label, icon: Icon, isActive, onClick }) {
       type="button"
       onClick={onClick}
       className={[
-        'transition-all duration-200 rounded-lg font-medium text-xs md:text-sm py-2 px-3 flex items-center justify-center gap-2',
+        'transition-colors duration-200 rounded-lg font-medium text-xs md:text-sm py-2 px-3 flex items-center justify-center gap-2',
         isActive
           ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-sm dark:bg-gradient-to-r dark:from-blue-600 dark:to-blue-500 dark:text-white dark:border-blue-400/20 dark:shadow-blue-600/10'
           : 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-300 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/[0.1] border border-transparent',
@@ -83,7 +83,7 @@ function LanguagePill({ label, Flag, isActive, onClick }) {
       type="button"
       onClick={onClick}
       className={[
-        'transition-all duration-200 rounded-lg font-medium text-xs md:text-sm py-2 px-3 flex items-center justify-center gap-2',
+        'transition-colors duration-200 rounded-lg font-medium text-xs md:text-sm py-2 px-3 flex items-center justify-center gap-2',
         isActive
           ? 'bg-blue-50 text-blue-700 border border-blue-200 shadow-sm dark:bg-gradient-to-r dark:from-blue-600 dark:to-blue-500 dark:text-white dark:border-blue-400/20 dark:shadow-blue-600/10'
           : 'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-300 dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/[0.1] border border-transparent',

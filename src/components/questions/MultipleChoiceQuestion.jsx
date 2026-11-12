@@ -18,6 +18,7 @@
 
 
 import { CheckIcon } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 
 function OptionCard({ value, label, selected, multiSelect, onSelect }) {
   const isActive = multiSelect
@@ -39,7 +40,7 @@ function OptionCard({ value, label, selected, multiSelect, onSelect }) {
       className={`
         relative flex items-center gap-4 w-full px-5 py-4 rounded-2xl
         border-2 font-medium text-base md:text-lg text-left
-        transition-all duration-200 ease-in-out
+        transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-in-out
         focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
         active:scale-[0.98]
         ${isActive ? '' : 'hover:shadow-md hover:-translate-y-0.5 hover:border-blue-400'}
@@ -79,9 +80,12 @@ export default function MultipleChoiceQuestion({
   onSubmit,
   canSubmit,
   isSubmitting = false,
-  submitLabel = 'Submit Answer',
+  submitLabel,
   hint,
 }) {
+  const { t } = useTranslation()
+  const submitText = submitLabel ?? t('exam.submitAnswer')
+
   const handleSelect = (value) => {
     if (!onAnswer) return
     if (!multiSelect) {
@@ -150,7 +154,7 @@ export default function MultipleChoiceQuestion({
           className={`
             w-full sm:w-auto min-w-[200px] px-10 py-3.5 rounded-2xl
             text-base font-semibold tracking-wide
-            transition-all duration-200 ease-in-out
+            transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-in-out
             focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
             active:scale-[0.98]
             ${submitEnabled && !isSubmitting ? 'hover:bg-blue-700 hover:shadow-xl' : ''}
@@ -165,7 +169,7 @@ export default function MultipleChoiceQuestion({
               Submitting…
             </span>
           ) : (
-            submitLabel
+            submitText
           )}
         </button>
       </div>

@@ -34,10 +34,10 @@ export default function Rules() {
       <a href="#main-content" className="skip-link" onClick={() => document.getElementById('main-content')?.focus()}>Skip to main content</a>
 
       <LandingHeader isDark={isDark}>
-        <Link to="/rules" aria-current="page" className={`px-4 py-2 text-sm font-medium rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+        <Link to="/rules" aria-current="page" className={`px-4 py-2 text-sm font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
           isDark ? 'text-white bg-white/[0.08]' : 'text-blue-700 bg-blue-50/60'
         }`}>{t('landing.rules')}</Link>
-        <Link to="/login" className={`px-5 py-2 text-sm font-semibold rounded-xl transition-all shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+        <Link to="/login" className={`px-5 py-2 text-sm font-semibold rounded-xl transition-colors shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
           isDark
             ? 'bg-white text-slate-900 hover:bg-slate-100 shadow-blue-500/10'
             : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/20'
@@ -64,7 +64,7 @@ export default function Rules() {
                 <button
                   key={i}
                   onClick={() => setSelected(pdf)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+                  className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
                     active
                       ? isDark
                         ? 'bg-blue-500/80 text-white border-blue-400/50 backdrop-blur-sm shadow-md shadow-blue-500/10'
@@ -134,7 +134,7 @@ export default function Rules() {
               href={selected.url}
               target="_blank"
               rel="noopener noreferrer"
-              className={`inline-flex px-6 py-3 rounded-xl font-semibold shadow-lg transition-all hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+              className={`inline-flex px-6 py-3 rounded-xl font-semibold shadow-lg transition-[transform,box-shadow] hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
                 isDark
                 ? 'bg-white text-slate-900 shadow-blue-500/10'
                 : 'bg-blue-600 text-white shadow-blue-500/20'

@@ -4,7 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import api from '../../api/strapi'
 import { mediaUrl } from '../../api/media'
 import { useTranslation } from 'react-i18next'
-import { getQuestionText } from '../../api/strapi'
+import { getQuestionText, getLocalizedArray } from '../../api/strapi'
 import { BoltIcon } from '@heroicons/react/24/outline'
 import AkaAoQuestion from '../../components/questions/AkaAoQuestion'
 
@@ -171,7 +171,7 @@ export default function QuickQuiz() {
                 <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
                   {t('exam.selectAll')}
                 </p>
-                {q.options?.map(option => {
+                {getLocalizedArray(q, i18n.language, 'options').map(option => {
                   const selected = Array.isArray(answers[q.id]) && answers[q.id].includes(option)
                   const toggle = () => {
                     const current = Array.isArray(answers[q.id]) ? answers[q.id] : []
@@ -209,7 +209,7 @@ export default function QuickQuiz() {
 
             {q.type === 'single_choice' && (
               <div className="space-y-2">
-                {q.options?.map(option => (
+                {getLocalizedArray(q, i18n.language, 'options').map(option => (
                   <label
                     key={option}
                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${

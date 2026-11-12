@@ -13,6 +13,7 @@
 
 
 import { CheckIcon } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 
 function OptionCard({ value, label, selected, onSelect }) {
   const isActive = selected === value
@@ -32,7 +33,7 @@ function OptionCard({ value, label, selected, onSelect }) {
       className={`
         relative flex-1 flex items-center justify-center gap-3 px-6 py-5 rounded-2xl
         border-2 font-semibold text-base md:text-lg
-        transition-all duration-200 ease-in-out
+        transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-in-out
         focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
         active:scale-[0.98]
         ${isActive ? '' : 'hover:shadow-md hover:-translate-y-0.5 hover:border-blue-400'}
@@ -54,10 +55,13 @@ export default function YesNoQuestion({
   onSubmit,
   canSubmit,
   isSubmitting = false,
-  submitLabel = 'Submit Answer',
+  submitLabel,
   yesLabel = 'Yes',
   noLabel = 'No',
 }) {
+  const { t } = useTranslation()
+  const submitText = submitLabel ?? t('exam.submitAnswer')
+
   const handleSelect = (value) => {
     if (onAnswer) onAnswer(value)
   }
@@ -102,7 +106,7 @@ export default function YesNoQuestion({
           className={`
             w-full sm:w-auto min-w-[200px] px-10 py-3.5 rounded-2xl
             text-base font-semibold tracking-wide
-            transition-all duration-200 ease-in-out
+            transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-in-out
             focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
             active:scale-[0.98]
             ${submitEnabled && !isSubmitting ? 'hover:bg-blue-700 hover:shadow-xl' : ''}
@@ -117,7 +121,7 @@ export default function YesNoQuestion({
               Submitting…
             </span>
           ) : (
-            submitLabel
+            submitText
           )}
         </button>
       </div>

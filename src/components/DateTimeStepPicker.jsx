@@ -80,7 +80,7 @@ export default function DateTimeStepPicker({
             <button
               type="button"
               onClick={() => setStep('date')}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-200 ${
                 effectiveStep === 'date'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'hover:opacity-70'
@@ -93,7 +93,7 @@ export default function DateTimeStepPicker({
               type="button"
               onClick={() => setStep('time')}
               disabled={!parsed.date || (mode === 'dateOnly')}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all duration-200 ${
+              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors duration-200 ${
                 effectiveStep === 'time'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'hover:opacity-70'
@@ -112,7 +112,7 @@ export default function DateTimeStepPicker({
             type="date"
             value={parsed.date}
             onChange={(e) => emit(e.target.value, parsed.hour, parsed.minute)}
-            className="w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+            className="w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
             style={{
               backgroundColor: 'var(--input-bg, var(--bg-secondary))',
               borderColor: 'var(--border)',
@@ -126,7 +126,7 @@ export default function DateTimeStepPicker({
             <select
               value={parsed.hour}
               onChange={(e) => emit(parsed.date, e.target.value, parsed.minute)}
-              className="rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+              className="rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
               style={{
                 backgroundColor: 'var(--input-bg, var(--bg-secondary))',
                 borderColor: 'var(--border)',
@@ -141,7 +141,7 @@ export default function DateTimeStepPicker({
             <select
               value={parsed.minute}
               onChange={(e) => emit(parsed.date, parsed.hour, e.target.value)}
-              className="rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+              className="rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
               style={{
                 backgroundColor: 'var(--input-bg, var(--bg-secondary))',
                 borderColor: 'var(--border)',

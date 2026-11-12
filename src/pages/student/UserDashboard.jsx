@@ -16,11 +16,12 @@ import {
 import { ArrowRightIcon } from '@heroicons/react/20/solid'
 import { useNavigate } from 'react-router-dom'
 import { SkeletonCard } from '../../components/Skeleton'
+import ErrorState from '../../components/ErrorState'
 import CalendarCard from '../../components/CalendarCard'
 import { mediaUrl } from '../../api/media'
 import { useState } from 'react'
 
-const cardClass = 'rounded-2xl p-6 border shadow-sm flex flex-col justify-between transition-all duration-300 hover:shadow-md'
+const cardClass = 'rounded-2xl p-6 border shadow-sm flex flex-col justify-between transition-shadow duration-300 hover:shadow-md'
 const cardStyle = { backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }
 const cardHeader = 'flex items-center gap-2.5 mb-4'
 const cardIconWrap = 'w-9 h-9 rounded-xl flex items-center justify-center'
@@ -38,7 +39,7 @@ export default function UserDashboard() {
     (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
   const [showExamModal, setShowExamModal] = useState(false)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['dashboard', user?.id],
     queryFn: () => api.get('/dashboard').then(r => r.data),
     enabled: !!user?.id,
@@ -57,7 +58,21 @@ export default function UserDashboard() {
     )
   }
 
-  const greeting = data?.greeting || t(getGreetingKey())
+  if (isError) {
+    return (
+      <ErrorState
+        error={error}
+        onRetry={refetch}
+        title={t('common.loadErrorTitle')}
+        message={t('common.loadErrorBody')}
+        fullPage
+      />
+    )
+  }
+
+  // The /dashboard payload ships an English-only greeting, so the localized key
+  // wins here. Keep the server value as a last resort only.
+  const greeting = t(getGreetingKey()) || data?.greeting
   const stats = data?.stats || {}
   const lastResults = data?.lastResults || []
   const upcomingExam = data?.upcomingExam || null
@@ -121,7 +136,6 @@ function WelcomeCard({ user, greeting }) {
   return (
     <section className={`${cardClass} relative overflow-hidden`} style={cardStyle}>
       {/* Color accent bar */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 via-blue-500 to-sky-400" />
       <div className="flex items-center gap-5">
         {/* Gradient ring — avatar image, falls back to initials */}
         <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-600 to-sky-500 p-[2px] flex-shrink-0 shadow-lg shadow-blue-600/20">
@@ -158,6 +172,7 @@ function WelcomeCard({ user, greeting }) {
 function ProgressCard({ stats }) {
   const { t } = useTranslation()
   const { quizCount = 0, examCount = 0, studyHours = 0, completedExams = 0 } = stats || {}
+  const hasActivity = quizCount + examCount + studyHours + completedExams > 0
   const items = [
     { key: 'quizzes', label: t('dashboard.quizzes'), value: quizCount, icon: CheckCircleIcon, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-500/15' },
     { key: 'examsTaken', label: t('dashboard.examsTaken'), value: examCount, icon: AcademicCapIcon, color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-100 dark:bg-blue-500/15' },
@@ -166,12 +181,11 @@ function ProgressCard({ stats }) {
   ]
   return (
     <section className={`${cardClass} relative overflow-hidden`} style={cardStyle}>
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-600 to-sky-400" />
       <header className={cardHeader}>
         <div className={`${cardIconWrap} bg-blue-100 dark:bg-blue-500/15`}>
           <ChartBarIcon className={`${cardIcon} text-blue-600 dark:text-blue-400`} />
         </div>
-        <h2 className={cardTitle}>{t('dashboard.recentResults', 'Progress overview')}</h2>
+        <h2 className={cardTitle}>{t('dashboard.progressOverview', 'Progress overview')}</h2>
       </header>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
         {items.map(item => (
@@ -179,18 +193,23 @@ function ProgressCard({ stats }) {
             key={item.key}
 
           >
-            <div className="flex items-center gap-1.5 mb-1.5">
-              <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${item.bg}`}>
+            <div className="flex items-start gap-1.5 mb-1.5">
+              <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 ${item.bg}`}>
                 <item.icon className={`w-3.5 h-3.5 ${item.color}`} />
               </div>
-              <dt className="text-[11px] text-slate-600 dark:text-slate-400 truncate">{item.label}</dt>
+              <dt className="min-w-0 text-[11px] leading-tight text-slate-600 dark:text-slate-400">{item.label}</dt>
             </div>
-            <dd className="text-2xl md:text-3xl font-bold tracking-tight text-slate-800 dark:text-white">{item.value}</dd>
+            {hasActivity ? (
+              <dd className="text-2xl md:text-3xl font-bold tracking-tight text-slate-800 dark:text-white">{item.value}</dd>
+            ) : (
+              <dd className="text-xl md:text-2xl font-semibold text-slate-300 dark:text-slate-600">—</dd>
+            )}
           </div>
         ))}
       </div>
-
-      
+      {!hasActivity && (
+        <p className="mt-4 text-xs text-slate-500 dark:text-slate-400">{t('dashboard.noActivityHint')}</p>
+      )}
     </section>
   )
 }
@@ -204,7 +223,6 @@ function RecentResultsCard({ results, isDark }) {
   if (items.length === 0) {
     return (
       <section className={`${cardClass} relative overflow-hidden`} style={cardStyle}>
-        <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500" />
         <header className={cardHeader}>
           <div className={`${cardIconWrap} bg-emerald-100 dark:bg-emerald-500/15`}>
             <ClockIcon className={`${cardIcon} text-emerald-600 dark:text-emerald-400`} />
@@ -218,7 +236,6 @@ function RecentResultsCard({ results, isDark }) {
 
   return (
     <section className={`${cardClass} relative overflow-hidden`} style={cardStyle}>
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 to-teal-500" />
       <header className={cardHeader}>
         <div className={`${cardIconWrap} bg-emerald-100 dark:bg-emerald-500/15`}>
           <ClockIcon className={`${cardIcon} text-emerald-600 dark:text-emerald-400`} />
@@ -234,7 +251,7 @@ function RecentResultsCard({ results, isDark }) {
             : pillMuted
           return (
             <li key={a.id} onClick={() => navigate('/results')}
-              className={`flex items-center justify-between rounded-xl px-3.5 py-3 cursor-pointer transition-all border ${
+              className={`flex items-center justify-between rounded-xl px-3.5 py-3 cursor-pointer transition-colors border ${
                 isDark
                   ? 'bg-white/[0.03] hover:bg-white/[0.06] border-white/[0.06] hover:border-emerald-500/30'
                   : 'bg-emerald-50/50 hover:bg-emerald-100/80 border-emerald-100/60 hover:border-emerald-300'
@@ -268,6 +285,7 @@ function ExamsOverviewCard({ stats, isDark }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { examCount = 0, completedExams = 0, quizCount = 0 } = stats || {}
+  const hasActivity = examCount + completedExams + quizCount > 0
   const passRate = examCount > 0 ? Math.round((completedExams / examCount) * 100) : 0
 
   const statItems = [
@@ -299,7 +317,6 @@ function ExamsOverviewCard({ stats, isDark }) {
 
   return (
     <section className={`${cardClass} relative overflow-hidden`} style={cardStyle}>
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-sky-400" />
       <header className={cardHeader}>
         <div className={`${cardIconWrap} bg-blue-100 dark:bg-blue-500/15`}>
           <ArrowTrendingUpIcon className={`${cardIcon} text-blue-600 dark:text-blue-400`} />
@@ -315,8 +332,12 @@ function ExamsOverviewCard({ stats, isDark }) {
             className={`flex flex-col items-center gap-1.5 rounded-xl px-3 py-3 ${item.bg}`}
           >
             <item.icon className={`w-4 h-4 ${item.color}`} />
-            <dd className={`text-lg font-bold tracking-tight ${isDark ? 'text-white' : 'text-slate-800'}`}>
-              {item.value}
+            <dd className={`text-lg font-bold tracking-tight ${
+              hasActivity
+                ? isDark ? 'text-white' : 'text-slate-800'
+                : isDark ? 'text-slate-600' : 'text-slate-300'
+            }`}>
+              {hasActivity ? item.value : '—'}
             </dd>
             <dt className={`text-[10px] leading-tight text-center ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               {item.label}
@@ -334,7 +355,7 @@ function ExamsOverviewCard({ stats, isDark }) {
           </div>
           <div className={`h-2 rounded-full overflow-hidden ${isDark ? 'bg-slate-700/50' : 'bg-slate-200'}`}>
             <div
-              className={`h-full rounded-full transition-all duration-700 ease-out ${
+              className={`h-full rounded-full transition-[width] duration-700 ease-out ${
                 passRate >= 80
                   ? 'bg-emerald-500'
                   : passRate >= 50
@@ -350,14 +371,14 @@ function ExamsOverviewCard({ stats, isDark }) {
       {/* CTA */}
       <button
         onClick={() => navigate('/courses')}
-        className={`group mt-auto flex items-center justify-between w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-all border ${
+        className={`group mt-auto flex items-center justify-between w-full rounded-xl px-4 py-2.5 text-sm font-medium transition-colors border ${
           isDark
             ? 'bg-white/[0.03] border-white/[0.06] hover:bg-white/[0.06] hover:border-blue-500/30 text-slate-200'
             : 'bg-blue-50 border-blue-200/60 hover:bg-blue-100 hover:border-blue-300 text-blue-700'
         }`}
       >
         <span>{t('dashboard.goToCourses')}</span>
-        <ArrowRightIcon className={`w-4 h-4 transition-all duration-300 group-hover:translate-x-1 ${
+        <ArrowRightIcon className={`w-4 h-4 transition-transform duration-300 group-hover:translate-x-1 ${
           isDark ? 'text-slate-400 group-hover:text-blue-400' : 'text-blue-400 group-hover:text-blue-600'
         }`} />
       </button>
@@ -370,7 +391,6 @@ function ExamTriggerCard({ exam, onClick }) {
   const { t } = useTranslation()
   return (
     <button onClick={onClick} className={`${cardClass} w-full text-left group cursor-pointer relative overflow-hidden`} style={cardStyle}>
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-400 to-orange-500" />
       <div className="flex items-center justify-between mb-3">
         <div className={cardHeader}>
           <div className={`${cardIconWrap} bg-amber-100 dark:bg-amber-500/15`}>
@@ -378,7 +398,7 @@ function ExamTriggerCard({ exam, onClick }) {
           </div>
           <h2 className={cardTitle}>{t('dashboard.upcomingExam', 'Upcoming exam')}</h2>
         </div>
-        <ChevronRightIcon className="w-5 h-5 text-slate-400 group-hover:text-amber-500 group-hover:translate-x-1 transition-all duration-300" />
+        <ChevronRightIcon className="w-5 h-5 text-slate-400 group-hover:text-amber-500 group-hover:translate-x-1 transition-[color,transform] duration-300" />
       </div>
       {exam ? (
         <>
@@ -445,7 +465,7 @@ function ExamModal({ exam, onClose, isDark }) {
         <p className={`text-sm ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{t('dashboard.examInfoHint', 'This exam has not started yet. Come back once it opens to begin your attempt.')}</p>
         <div className="mt-6 flex justify-end">
           <button onClick={onClose}
-            className={`px-5 py-2 text-sm font-medium rounded-xl transition-all border ${
+            className={`px-5 py-2 text-sm font-medium rounded-xl transition-colors border ${
               isDark
                 ? 'text-slate-200 bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.08]'
                 : 'text-slate-700 bg-white border-slate-200 hover:bg-slate-50'

@@ -67,7 +67,7 @@ export default function ContinueExamBanner() {
             </p>
           </div>
 
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             You have an unfinished attempt for{' '}
             <span className="font-medium" style={{ color: 'var(--text-primary)' }}>
               {examTitle}

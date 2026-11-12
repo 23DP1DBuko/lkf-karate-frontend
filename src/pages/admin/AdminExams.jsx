@@ -3,6 +3,7 @@ import { useState, useRef } from 'react'
 import useFocusTrap from '../../hooks/useFocusTrap'
 import api, { getLocalizedField } from '../../api/strapi'
 import IconButton from '../../components/IconButton'
+import StatusChip from '../../components/StatusChip'
 import { PencilIcon, TrashIcon, MagnifyingGlassIcon, XMarkIcon, EyeIcon } from '@heroicons/react/24/outline'
 import { useNavigate } from 'react-router-dom'
 import DateTimeStepPicker from '../../components/DateTimeStepPicker'
@@ -234,9 +235,9 @@ export default function AdminExams() {
 
   const getExamStatus = (exam) => {
     const map = {
-      scheduled: { label: t('admin.exams.statusScheduled'), color: 'bg-yellow-100 text-yellow-700' },
-      open: { label: t('admin.exams.statusOpen'), color: 'bg-green-100 text-green-700' },
-      closed: { label: t('admin.exams.statusClosed'), color: 'bg-gray-100 text-gray-500' },
+      scheduled: { label: t('admin.exams.statusScheduled'), tone: 'warning' },
+      open: { label: t('admin.exams.statusOpen'), tone: 'success' },
+      closed: { label: t('admin.exams.statusClosed'), tone: 'neutral' },
     }
     return map[getStatusValue(exam)] || map.open
   }
@@ -263,7 +264,7 @@ export default function AdminExams() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">{t('admin.exams.title')}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-heading">{t('admin.exams.title')}</h1>
           <p className="text-gray-500">{t('admin.exams.total', { count: exams?.length || 0 })}</p>
         </div>
         <button
@@ -578,9 +579,7 @@ export default function AdminExams() {
                   <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{exam.duration}m</td>
                   <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-muted)' }}>{exam.passingScore}%</td>
                   <td className="px-4 py-3">
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${status.color}`}>
-                      {status.label}
-                    </span>
+                    <StatusChip tone={status.tone} label={status.label} />
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1 justify-end">

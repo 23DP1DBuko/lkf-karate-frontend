@@ -290,7 +290,7 @@ export default function AdminSeminars() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">{t('admin.seminars.title')}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-heading">{t('admin.seminars.title')}</h1>
           <p className="text-gray-500">
             {filtersActive
               ? t('admin.seminars.count', { filtered: filtered.length, total: items?.length || 0 })

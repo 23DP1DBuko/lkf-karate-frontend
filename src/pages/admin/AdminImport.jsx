@@ -188,7 +188,7 @@ export default function AdminImport() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-2">{t('admin.import.title') || 'Import Questions'}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-heading mb-2">{t('admin.import.title') || 'Import Questions'}</h1>
       <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
         {t('admin.import.description') || 'Import yes/no questions from .docx. Green = true, Red = false.'}
       </p>

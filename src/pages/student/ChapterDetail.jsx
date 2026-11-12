@@ -9,6 +9,8 @@ import { mediaUrl } from '../../api/media'
 import { useTranslation } from 'react-i18next'
 import { getLocalizedField, getLocalizedArray } from '../../api/strapi'
 import ChapterBlocks from '../../components/ChapterBlocks'
+import { SkeletonCard } from '../../components/Skeleton'
+import ErrorState from '../../components/ErrorState'
 import {
   CheckIcon,
   CheckCircleIcon,
@@ -23,7 +25,7 @@ function RichText({ content }) {
   if (typeof content === 'string') {
     return (
       <div
-        className="prose prose-slate max-w-none"
+        className="prose prose-slate max-w-[62ch]"
         style={{ color: 'var(--text-primary)' }}
         dangerouslySetInnerHTML={{ __html: content }}
       />
@@ -32,7 +34,7 @@ function RichText({ content }) {
 
   // Slate/Strapi rich-text JSON fallback
   return (
-    <div className="prose prose-slate max-w-none" style={{ color: 'var(--text-primary)' }}>
+    <div className="prose prose-slate max-w-[62ch]" style={{ color: 'var(--text-primary)' }}>
       {content.map((block, i) => {
         if (block.type === 'paragraph') return (
           <p key={i} className="mb-4 leading-relaxed">
@@ -72,7 +74,13 @@ export default function ChapterDetail() {
   const markedOnScrollRef = useRef(false)
   const { i18n, t } = useTranslation()
 
-  const { data: chapter, isLoading } = useQuery({
+  const {
+    data: chapter,
+    isLoading,
+    isError: chapterError,
+    error: chapterErrorObj,
+    refetch: refetchChapter,
+  } = useQuery({
     queryKey: ['chapter', chapterDocumentId],
     queryFn: () =>
       api.get(`/chapters/${chapterDocumentId}?populate=*`).then(r => r.data.data),
@@ -170,10 +178,45 @@ export default function ChapterDetail() {
 
   if (isLoading)
     return (
-      <div className="flex items-center justify-center py-20">
-        <p style={{ color: 'var(--text-secondary)' }}>Loading chapter...</p>
+      <div className="space-y-4">
+        <SkeletonCard />
+        <SkeletonCard />
+        <SkeletonCard />
       </div>
     )
+
+  if (chapterError) {
+    return (
+      <ErrorState
+        error={chapterErrorObj}
+        onRetry={refetchChapter}
+        title={t('common.loadErrorTitle')}
+        message={t('common.loadErrorBody')}
+        fullPage
+      />
+    )
+  }
+
+  if (!chapter) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center max-w-md px-6">
+          <h2 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-body)' }}>
+            {t('chapter.notFoundTitle')}
+          </h2>
+          <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>
+            {t('chapter.notFoundBody')}
+          </p>
+          <Link
+            to={`/courses/${documentId}`}
+            className="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition"
+          >
+            {t('chapter.backToCourse2')}
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   const hasBlocks = blocks.length > 0
   const hasLegacyContent =
@@ -185,7 +228,7 @@ export default function ChapterDetail() {
         to={`/courses/${documentId}`}
         className="text-blue-600 hover:underline text-sm mb-4 block"
       >
-        ← Back to Course
+        {t('chapter.backToCourse')}
       </Link>
 
       {/* ── Sticky wayfinding header ── */}
@@ -199,7 +242,7 @@ export default function ChapterDetail() {
               <p className="text-xs font-medium mb-0.5" style={{ color: 'var(--text-muted)' }}>
                 {t('chapter.chapterXOfY', { current: currentIndex + 1, total: allChapters.length })}
               </p>
-              <h1 className="text-lg font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+              <h1 className="text-2xl font-bold truncate" style={{ color: 'var(--text-primary)' }}>
                 {getLocalizedField(chapter, i18n.language, 'title') || chapter?.titleLv}
               </h1>
             </div>
@@ -373,7 +416,7 @@ export default function ChapterDetail() {
             style={{ backgroundColor: 'var(--border)' }}
           >
             <div
-              className="h-2 rounded-full bg-blue-600 transition-all duration-500"
+              className="h-2 rounded-full bg-blue-600 transition-[width] duration-500"
               style={{ width: `${(correctCount / totalQuestions) * 100}%` }}
             />
           </div>
@@ -390,25 +433,20 @@ export default function ChapterDetail() {
       {totalQuestions === 0 && <div ref={contentEndRef} aria-hidden="true" className="h-px w-full" />}
 
       {/* ── Navigation ── */}
-      <div className="flex justify-end mb-8">
-        {nextChapter ? (
+      {/* Return navigation lives in the single "Back to Course" link under the sticky
+          header; this block only advances the reader. */}
+      {nextChapter && (
+        <div className="flex justify-end mb-8">
           <button
             onClick={() =>
               navigate(`/courses/${documentId}/chapters/${nextChapter.documentId}`)
             }
             className="px-6 py-3 rounded-xl font-semibold transition bg-green-600 text-white hover:bg-green-700"
           >
-            Next Chapter → {getLocalizedField(nextChapter, i18n.language, 'title') || nextChapter.titleLv}
+            {t('chapter.nextChapter')} {getLocalizedField(nextChapter, i18n.language, 'title') || nextChapter.titleLv}
           </button>
-        ) : (
-          <Link
-            to={`/courses/${documentId}`}
-            className="px-6 py-3 rounded-xl font-semibold bg-blue-600 text-white hover:bg-blue-700"
-          >
-            ✓ Back to Course
-          </Link>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

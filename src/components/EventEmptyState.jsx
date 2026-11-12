@@ -21,7 +21,7 @@ export default function EventEmptyState({ compact = false }) {
       <p className={`font-semibold ${compact ? 'text-sm' : 'text-base'}`} style={{ color: 'var(--text-primary)' }}>
         {t('events.emptyTitle')}
       </p>
-      <p className="text-sm mt-1 max-w-sm" style={{ color: 'var(--text-muted)' }}>
+      <p className="text-sm mt-1 max-w-sm" style={{ color: 'var(--text-secondary)' }}>
         {t('events.emptySubtitle')}
       </p>
     </div>

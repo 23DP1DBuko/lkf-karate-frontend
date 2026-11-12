@@ -21,6 +21,7 @@
     "signIn": "Ieiet",
     "signUp": "Reģistrēties",
     "email": "E-pasts",
+    "emailPlaceholder": "janis@example.com",
     "password": "Parole",
     "username": "Lietotājvārds",
     "firstName": "Vārds",
@@ -31,6 +32,11 @@
     "createAccount": "Izveidot kontu",
     "signingIn": "Ieiet...",
     "creatingAccount": "Izveido kontu...",
+    "consentAgree": "Es piekrītu",
+    "consentTerms": "lietošanas noteikumiem",
+    "consentAnd": "un",
+    "consentPrivacy": "privātuma politikai",
+    "consentRequired": "Lai reģistrētos, jāpiekrīt lietošanas noteikumiem un privātuma politikai.",
     "invalidCredentials": "Nepareizs e-pasts vai parole",
     "registrationFailed": "Reģistrācija neizdevās. E-pasts var jau būt izmantots.",
     "firstNameRequired": "Vārds ir obligāts",
@@ -75,6 +81,8 @@
     "chapters": "Pabeigtās nodaļas",
     "exams": "Pabeigtie eksāmeni",
     "recentResults": "Jaunākie rezultāti",
+    "progressOverview": "Progresa pārskats",
+    "noActivityHint": "Pabeidz testu vai eksāmenu, lai šeit redzētu savu progresu.",
     "upcomingExam": "Gaidošais eksāmens",
     "achievements": "Sasniegumi",
     "calendar": "Kalendārs",
@@ -182,6 +190,7 @@
     }
   },
   "course": {
+    "opensOn": "Atveras {{date}}",
     "backToCourses": "← Atpakaļ uz kursiem",
     "chapters": "Nodaļas",
     "exams": "Eksāmeni",
@@ -207,6 +216,8 @@
     "nextChapter": "Nākamā nodaļa →",
     "answerFirst": "Vispirms atbildi uz visiem jautājumiem",
     "backToCourse2": "Atpakaļ uz kursu",
+    "notFoundTitle": "Šī nodaļa nav pieejama",
+    "notFoundBody": "Tā var būt dzēsta vai saite ir novecojusi.",
     "correct": "Pareizi!",
     "wrong": "Nepareizi, mēģini vēlreiz",
     "yes": "Jā",
@@ -215,6 +226,7 @@
     "chapterIndex": "Nodaļu saraksts"
   },
   "exam": {
+    "submitAnswer": "Iesniegt atbildi",
     "inProgress": "Eksāmens notiek",
     "starting": "Sāk eksāmenu...",
     "submitting": "Iesniedz...",
@@ -241,12 +253,24 @@
     "ritualPassingScore": "Slieksnis",
     "begin": "Sākt eksāmenu",
     "resume": "Turpināt eksāmenu",
-    "notNow": "Ne tagad"
+    "notNow": "Ne tagad",
+    "questionOf": "Jautājums {{current}} no {{total}}",
+    "previous": "Iepriekšējais",
+    "next": "Tālāk",
+    "savingProgress": "Saglabā...",
+    "savedProgress": "✓ Saglabāts",
+    "saveFailed": "✗ Saglabāšana neizdevās",
+    "timeRemaining": "Atlikušais laiks",
+    "timeUpSubmitting": "Laiks beidzies! Iesniedzam atbildes...",
+    "timeUpSubmitNow": "Laiks beidzies! Lūdzu, iesniedziet atbildes.",
+    "submitFailed": "Neizdevās iesniegt eksāmenu"
   },
   "results": {
     "title": "Mani rezultāti",
     "subtitle": "Tava eksāmenu vēsture",
     "noExams": "Vēl nav kārtotu eksāmenu. Ej mācīties!",
+    "emptyTitle": "Vēl nav mēģinājumu",
+    "emptyBody": "Pabeidziet eksāmenu vai ātro viktorīnu, un rezultāts parādīsies šeit.",
     "inProgress": "Notiek",
     "passed": "Nokārtots",
     "failed": "Nenokārtots",
@@ -380,7 +404,7 @@
     "recommendedMobile": "(ieteicams mobilajā ierīcē)",
     "pdfDesktopHint": "PDF skatīšana vislabākā ir datorā. Mobilajā ierīcē, lūdzu, lejupielādējiet failu.",
     "openDownloadPdf": "Atvērt / Lejupielādēt PDF",
-    "backToHome": "← Atpakaļ uz sākumu",
+    "backToHome": "Atpakaļ uz sākumu",
     "competitionsTitle": "Gaidošās sacensības",
     "footer": "© 2026 LKF Karatē LMS · Latvijas Karatē federācija",
     "features": {
@@ -926,6 +950,8 @@
     }
   },
   "common": {
+    "or": "vai",
+    "browseFiles": "pārlūkot failus",
     "loading": "Ielādē...",
     "error": "Kaut kas nogāja greizi",
     "save": "Saglabāt",
@@ -944,7 +970,178 @@
     "total": "kopā",
     "retry": "Mēģināt vēlreiz",
     "clearFilters": "Notīrīt filtrus",
-    "clearSearch": "Notīrīt meklēšanu"
+    "clearSearch": "Notīrīt meklēšanu",
+    "loadErrorTitle": "Neizdevās ielādēt lapu",
+    "loadErrorBody": "Pārbaudiet savienojumu un mēģiniet vēlreiz.",
+    "skipToContent": "Pāriet uz galveno saturu",
+    "goToCourses": "Doties uz kursiem"
+  },
+  "legal": {
+    "privacy": {
+      "title": "Privātuma politika",
+      "effective": "Spēkā no 2026. gada 1. janvāra",
+      "sections": [
+        {
+          "heading": "1. Vispārīgie noteikumi",
+          "paragraphs": [
+            "Šī privātuma politika nosaka, kā Latvijas Karatē federācija (LKF) apkopo, izmanto un aizsargā Jūsu personisko informāciju, ko sniedzat, izmantojot LKF Academy platformu."
+          ]
+        },
+        {
+          "heading": "2. Apkopotā informācija",
+          "paragraphs": [
+            "Mēs varam apkopot šādu informāciju:"
+          ],
+          "bullets": [
+            "Vārds un uzvārds",
+            "E-pasta adrese",
+            "Karatē klubs un rangs",
+            "Eksāmenu rezultāti un mācību progresi",
+            "Konta reģistrācijas dati"
+          ]
+        },
+        {
+          "heading": "3. Informācijas izmantošana",
+          "paragraphs": [
+            "Apkopoto informāciju izmantojam, lai:"
+          ],
+          "bullets": [
+            "Nodrošinātu piekļuvi mācību materiāliem un eksāmeniem",
+            "Pārvaldītu lietotāju kontus un autentifikāciju",
+            "Sazinātos ar Jums par platformas atjauninājumiem",
+            "Uzlabotu platformas funkcionalitāti"
+          ]
+        },
+        {
+          "heading": "4. Datu glabāšana un aizsardzība",
+          "paragraphs": [
+            "Mēs īstenojam atbilstošus drošības pasākumus, lai aizsargātu Jūsu personisko informāciju pret neatļautu piekļuvi, izmaiņām, izpaušanu vai iznīcināšanu. Jūsu dati tiek glabāti tikai tik ilgi, cik nepieciešams sniegto pakalpojumu nodrošināšanai."
+          ]
+        },
+        {
+          "heading": "5. Jūsu tiesības",
+          "paragraphs": [
+            "Jums ir tiesības:"
+          ],
+          "bullets": [
+            "Piekļūt saviem personas datiem",
+            "Labot neprecīzus datus",
+            "Pieprasīt savu datu dzēšanu",
+            "Ierobežot datu apstrādi",
+            "Saņemt savus datus pārnesamā formātā"
+          ]
+        },
+        {
+          "heading": "6. Kontaktinformācija",
+          "paragraphs": [
+            "Ja Jums ir jautājumi par šo privātuma politiku, lūdzu, sazinieties ar mums pa e-pastu:"
+          ],
+          "contact": "info@karate.lv"
+        }
+      ]
+    },
+    "terms": {
+      "title": "Lietošanas noteikumi",
+      "effective": "Spēkā no 2026. gada 1. janvāra",
+      "sections": [
+        {
+          "heading": "1. Noteikumu pieņemšana",
+          "paragraphs": [
+            "Izmantojot LKF Academy platformu, Jūs piekrītat šiem lietošanas noteikumiem. Ja Jūs nepiekrītat kādam no noteikumiem, lūdzu, neizmantojiet platformu."
+          ]
+        },
+        {
+          "heading": "2. Lietotāja pienākumi",
+          "bullets": [
+            "Nodrošināt patiesu un precīzu reģistrācijas informāciju",
+            "Saglabāt sava konta drošību un konfidencialitāti",
+            "Neizmantot platformu nelikumīgiem mērķiem",
+            "Neeksportēt vai neizplatīt mācību materiālus bez atļaujas"
+          ]
+        },
+        {
+          "heading": "3. Intelektuālais īpašums",
+          "paragraphs": [
+            "Viss platformas saturs, ieskaitot mācību materiālus, testus un eksāmenus, ir LKF īpašums un ir aizsargāts ar autortiesību likumiem. Satura kopēšana, izplatīšana vai modificēšana bez rakstiskas atļaujas ir aizliegta."
+          ]
+        },
+        {
+          "heading": "4. Eksāmenu kārtība",
+          "paragraphs": [
+            "Eksāmenu rezultātus apstiprina administrators. Krāpšanās vai negodīga rīcība eksāmenu laikā var izraisīt konta bloķēšanu un visu rezultātu anulēšanu."
+          ]
+        },
+        {
+          "heading": "5. Atbildības ierobežojums",
+          "paragraphs": [
+            "LKF nav atbildīga par tiešiem vai netiešiem zaudējumiem, kas radušies, izmantojot platformu, ieskaitot bet neaprobežojoties ar datu zudumu vai pakalpojuma pārtraukumiem."
+          ]
+        },
+        {
+          "heading": "6. Noteikumu izmaiņas",
+          "paragraphs": [
+            "Mēs paturam tiesības jebkurā laikā mainīt šos noteikumus. Par būtiskām izmaiņām Jūs tiksiet informēti pa e-pastu vai platformas paziņojumos."
+          ]
+        }
+      ]
+    },
+    "gdpr": {
+      "title": "GDPR atbilstība",
+      "effective": "Vispārīgā datu aizsardzības regula (VDAR / GDPR)",
+      "sections": [
+        {
+          "heading": "1. Datu pārzinis",
+          "paragraphs": [
+            "Latvijas Karatē federācija (LKF) ir Jūsu personas datu pārzinis saskaņā ar Vispārīgo datu aizsardzības regulu (ES) 2016/679."
+          ]
+        },
+        {
+          "heading": "2. Datu apstrādes pamatojums",
+          "paragraphs": [
+            "Mēs apstrādājam Jūsu personas datus, pamatojoties uz:"
+          ],
+          "bullets": [
+            { "bold": "Līguma izpildi", "text": "lai nodrošinātu piekļuvi mācību platformai" },
+            { "bold": "Juridisko pienākumu", "text": "lai izpildītu normatīvo aktu prasības" },
+            { "bold": "Piekrišanu", "text": "kad esat devis nepārprotamu piekrišanu" },
+            { "bold": "Leģitīmās intereses", "text": "lai uzlabotu platformas drošību un funkcionalitāti" }
+          ]
+        },
+        {
+          "heading": "3. Datu saņēmēji",
+          "paragraphs": [
+            "Jūsu dati netiek nodoti trešajām personām, izņemot gadījumus, kas noteikti ar likumu. Dati tiek glabāti drošos serveros Eiropas Savienībā."
+          ]
+        },
+        {
+          "heading": "4. Datu glabāšanas termiņš",
+          "paragraphs": [
+            "Jūsu personas dati tiek glabāti tik ilgi, kamēr Jums ir aktīvs konts platformā. Pēc konta dzēšanas dati tiek dzēsti 30 dienu laikā, izņemot gadījumus, kad tos nepieciešams saglabāt saskaņā ar normatīvajiem aktiem."
+          ]
+        },
+        {
+          "heading": "5. Jūsu tiesības saskaņā ar GDPR",
+          "bullets": [
+            { "bold": "Tiesības piekļūt", "text": "pieprasīt informāciju par savu datu apstrādi" },
+            { "bold": "Tiesības labot", "text": "labot neprecīzus vai nepilnīgus datus" },
+            { "bold": "Tiesības dzēst", "note": "(\"tiesības tikt aizmirstam\")", "text": "pieprasīt datu dzēšanu" },
+            { "bold": "Tiesības ierobežot", "text": "ierobežot datu apstrādi" },
+            { "bold": "Tiesības uz datu pārnesamību", "text": "saņemt datus strukturētā formātā" },
+            { "bold": "Tiesības iebilst", "text": "iebilst pret datu apstrādi tiešā mārketinga nolūkos" }
+          ]
+        },
+        {
+          "heading": "6. Kontaktinformācija un sūdzības",
+          "paragraphs": [
+            "Ja uzskatāt, ka Jūsu dati tiek apstrādāti neatbilstoši, Jums ir tiesības iesniegt sūdzību:"
+          ],
+          "bullets": [
+            { "label": "Mums pa e-pastu:", "value": "info@karate.lv" },
+            { "label": "Datu valsts inspekcijai:", "value": "www.dvi.gov.lv" }
+          ]
+        }
+      ]
+    }
   },
   "ranks": {
     "levelNational": "Nacionālais",

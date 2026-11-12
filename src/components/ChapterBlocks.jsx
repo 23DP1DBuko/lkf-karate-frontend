@@ -159,7 +159,7 @@ function QuestionCard({ question, onCorrect }) {
   const isSelectedSingle = (val) => selected === val && feedback === 'wrong'
 
   return (
-    <div className={`rounded-xl border-2 p-5 transition-all ${
+    <div className={`rounded-xl border-2 p-5 transition-colors ${
       feedback === 'correct'
         ? 'border-green-400 bg-green-50 dark:bg-green-900/20'
         : feedback === 'wrong'
@@ -493,7 +493,7 @@ function TableBlock({ block }) {
 function ListBlock({ block }) {
   return (
     <ul
-      className="list-disc pl-6 my-5 space-y-2 text-[15px] leading-relaxed"
+      className="list-disc pl-6 my-5 space-y-2 text-[15px] leading-relaxed max-w-[62ch]"
       style={{ color: 'var(--text-primary)' }}
     >
       {(block.items || []).map((item, i) => (
@@ -547,14 +547,8 @@ function ImageFigure({ block }) {
 
 function NoteBlock({ block }) {
   return (
-    <div
-      className="my-6 rounded-lg px-4 py-3 border"
-      style={{
-        backgroundColor: 'rgba(59,130,246,0.06)',
-        borderColor: 'rgba(59,130,246,0.15)',
-      }}
-    >
-      <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{block.content}</p>
+    <div className="my-6 max-w-[62ch] text-[15px] rounded-lg px-4 py-3 border bg-blue-500/10 border-blue-500/30 dark:bg-blue-500/15 dark:border-blue-400/35">
+      <p className="text-sm leading-relaxed" style={{ color: 'var(--text-body)' }}>{block.content}</p>
     </div>
   )
 }
@@ -654,7 +648,7 @@ export default function ChapterBlocks({ blocks, language, onCorrect }) {
     out.push(
       <div
         key={`prose-${out.length}`}
-        className="prose prose-slate max-w-none text-[15px]"
+        className="prose prose-slate max-w-[62ch] text-[15px]"
         style={{ color: 'var(--text-primary)' }}
         dangerouslySetInnerHTML={{ __html: proseBuf.join('\n') }}
       />

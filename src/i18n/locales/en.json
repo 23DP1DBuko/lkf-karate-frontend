@@ -21,6 +21,7 @@
     "signIn": "Sign In",
     "signUp": "Register",
     "email": "Email",
+    "emailPlaceholder": "janis@example.com",
     "password": "Password",
     "username": "Username",
     "firstName": "First Name",
@@ -31,6 +32,11 @@
     "createAccount": "Create Account",
     "signingIn": "Signing in...",
     "creatingAccount": "Creating account...",
+    "consentAgree": "I agree to the",
+    "consentTerms": "Terms of Service",
+    "consentAnd": "and",
+    "consentPrivacy": "Privacy Policy",
+    "consentRequired": "You must accept the Terms of Service and Privacy Policy to register.",
     "invalidCredentials": "Invalid email or password",
     "registrationFailed": "Registration failed. Email may already be in use.",
     "firstNameRequired": "First name is required",
@@ -75,6 +81,8 @@
     "chapters": "Chapters done",
     "exams": "Exams completed",
     "recentResults": "Recent results",
+    "progressOverview": "Progress overview",
+    "noActivityHint": "Complete a quiz or an exam to see your progress here.",
     "upcomingExam": "Upcoming exam",
     "achievements": "Achievements",
     "calendar": "Calendar",
@@ -182,6 +190,7 @@
     }
   },
   "course": {
+    "opensOn": "Opens on {{date}}",
     "backToCourses": "← Back to Courses",
     "chapters": "Chapters",
     "exams": "Exams",
@@ -207,6 +216,8 @@
     "nextChapter": "Next Chapter →",
     "answerFirst": "Answer all questions first",
     "backToCourse2": "Back to Course",
+    "notFoundTitle": "This chapter isn't available",
+    "notFoundBody": "It may have been removed, or the link is out of date.",
     "correct": "Correct!",
     "wrong": "Wrong, try again",
     "yes": "Yes",
@@ -215,6 +226,7 @@
     "chapterIndex": "Chapter index"
   },
   "exam": {
+    "submitAnswer": "Submit Answer",
     "inProgress": "Exam in Progress",
     "starting": "Starting exam...",
     "submitting": "Submitting...",
@@ -241,12 +253,24 @@
     "ritualPassingScore": "Passing score",
     "begin": "Begin Exam",
     "resume": "Resume Exam",
-    "notNow": "Not now"
+    "notNow": "Not now",
+    "questionOf": "Question {{current}} of {{total}}",
+    "previous": "Previous",
+    "next": "Next",
+    "savingProgress": "Saving...",
+    "savedProgress": "✓ Saved",
+    "saveFailed": "✗ Save failed",
+    "timeRemaining": "Time remaining",
+    "timeUpSubmitting": "Time's up! Submitting your answers...",
+    "timeUpSubmitNow": "Time's up! Please submit now.",
+    "submitFailed": "Failed to submit exam"
   },
   "results": {
     "title": "My Results",
     "subtitle": "Your exam history",
     "noExams": "No exams taken yet. Go take a course!",
+    "emptyTitle": "No attempts yet",
+    "emptyBody": "Finish an exam or a quick quiz and your score will appear here.",
     "inProgress": "In Progress",
     "passed": "Passed",
     "failed": "Failed",
@@ -380,7 +404,7 @@
     "recommendedMobile": "(recommended on mobile)",
     "pdfDesktopHint": "PDF viewing is best on desktop. On mobile, please download the file.",
     "openDownloadPdf": "Open / Download PDF",
-    "backToHome": "← Back to Home",
+    "backToHome": "Back to Home",
     "competitionsTitle": "Upcoming Competitions",
     "footer": "© 2026 LKF Karate LMS · Latvijas Karatē federācija",
     "features": {
@@ -926,6 +950,8 @@
     }
   },
   "common": {
+    "or": "or",
+    "browseFiles": "browse files",
     "loading": "Loading...",
     "error": "Something went wrong",
     "save": "Save",
@@ -944,7 +970,178 @@
     "total": "total",
     "retry": "Try Again",
     "clearFilters": "Clear filters",
-    "clearSearch": "Clear search"
+    "clearSearch": "Clear search",
+    "loadErrorTitle": "Couldn't load this page",
+    "loadErrorBody": "Check your connection and try again.",
+    "skipToContent": "Skip to main content",
+    "goToCourses": "Go to courses"
+  },
+  "legal": {
+    "privacy": {
+      "title": "Privacy Policy",
+      "effective": "Effective from 1 January 2026",
+      "sections": [
+        {
+          "heading": "1. General provisions",
+          "paragraphs": [
+            "This privacy policy sets out how the Latvian Karate Federation (LKF) collects, uses and protects the personal information you provide while using the LKF Academy platform."
+          ]
+        },
+        {
+          "heading": "2. Information we collect",
+          "paragraphs": [
+            "We may collect the following information:"
+          ],
+          "bullets": [
+            "First name and surname",
+            "Email address",
+            "Karate club and rank",
+            "Exam results and learning progress",
+            "Account registration data"
+          ]
+        },
+        {
+          "heading": "3. How we use information",
+          "paragraphs": [
+            "We use the collected information to:"
+          ],
+          "bullets": [
+            "Provide access to learning materials and exams",
+            "Manage user accounts and authentication",
+            "Contact you about platform updates",
+            "Improve platform functionality"
+          ]
+        },
+        {
+          "heading": "4. Data storage and protection",
+          "paragraphs": [
+            "We apply appropriate security measures to protect your personal information against unauthorised access, alteration, disclosure or destruction. Your data is stored only for as long as necessary to provide the services."
+          ]
+        },
+        {
+          "heading": "5. Your rights",
+          "paragraphs": [
+            "You have the right to:"
+          ],
+          "bullets": [
+            "Access your personal data",
+            "Correct inaccurate data",
+            "Request deletion of your data",
+            "Restrict the processing of your data",
+            "Receive your data in a portable format"
+          ]
+        },
+        {
+          "heading": "6. Contact information",
+          "paragraphs": [
+            "If you have questions about this privacy policy, please contact us by email:"
+          ],
+          "contact": "info@karate.lv"
+        }
+      ]
+    },
+    "terms": {
+      "title": "Terms of Service",
+      "effective": "Effective from 1 January 2026",
+      "sections": [
+        {
+          "heading": "1. Acceptance of the terms",
+          "paragraphs": [
+            "By using the LKF Academy platform you agree to these terms of service. If you do not agree with any of the terms, please do not use the platform."
+          ]
+        },
+        {
+          "heading": "2. User responsibilities",
+          "bullets": [
+            "Provide truthful and accurate registration information",
+            "Keep your account secure and confidential",
+            "Do not use the platform for unlawful purposes",
+            "Do not export or distribute learning materials without permission"
+          ]
+        },
+        {
+          "heading": "3. Intellectual property",
+          "paragraphs": [
+            "All platform content, including learning materials, quizzes and exams, is the property of LKF and is protected by copyright law. Copying, distributing or modifying the content without written permission is prohibited."
+          ]
+        },
+        {
+          "heading": "4. Exam procedure",
+          "paragraphs": [
+            "Exam results are confirmed by an administrator. Cheating or dishonest conduct during an exam may lead to the account being blocked and all results being annulled."
+          ]
+        },
+        {
+          "heading": "5. Limitation of liability",
+          "paragraphs": [
+            "LKF is not liable for direct or indirect losses arising from the use of the platform, including but not limited to data loss or service interruptions."
+          ]
+        },
+        {
+          "heading": "6. Changes to the terms",
+          "paragraphs": [
+            "We reserve the right to change these terms at any time. You will be informed of significant changes by email or through platform notifications."
+          ]
+        }
+      ]
+    },
+    "gdpr": {
+      "title": "GDPR compliance",
+      "effective": "General Data Protection Regulation (GDPR)",
+      "sections": [
+        {
+          "heading": "1. Data controller",
+          "paragraphs": [
+            "The Latvian Karate Federation (LKF) is the controller of your personal data in accordance with the General Data Protection Regulation (EU) 2016/679."
+          ]
+        },
+        {
+          "heading": "2. Legal basis for processing",
+          "paragraphs": [
+            "We process your personal data on the basis of:"
+          ],
+          "bullets": [
+            { "bold": "Performance of a contract", "text": "to provide access to the learning platform" },
+            { "bold": "Legal obligation", "text": "to comply with regulatory requirements" },
+            { "bold": "Consent", "text": "where you have given explicit consent" },
+            { "bold": "Legitimate interests", "text": "to improve platform security and functionality" }
+          ]
+        },
+        {
+          "heading": "3. Data recipients",
+          "paragraphs": [
+            "Your data is not transferred to third parties except where required by law. Data is stored on secure servers in the European Union."
+          ]
+        },
+        {
+          "heading": "4. Data retention period",
+          "paragraphs": [
+            "Your personal data is stored for as long as you have an active account on the platform. After account deletion the data is deleted within 30 days, except where it must be retained in accordance with regulatory requirements."
+          ]
+        },
+        {
+          "heading": "5. Your rights under the GDPR",
+          "bullets": [
+            { "bold": "Right of access", "text": "request information about the processing of your data" },
+            { "bold": "Right to rectification", "text": "correct inaccurate or incomplete data" },
+            { "bold": "Right to erasure", "note": "(\"right to be forgotten\")", "text": "request deletion of your data" },
+            { "bold": "Right to restriction", "text": "restrict the processing of your data" },
+            { "bold": "Right to data portability", "text": "receive your data in a structured format" },
+            { "bold": "Right to object", "text": "object to processing for direct marketing purposes" }
+          ]
+        },
+        {
+          "heading": "6. Contact and complaints",
+          "paragraphs": [
+            "If you believe your data is being processed unlawfully, you have the right to lodge a complaint:"
+          ],
+          "bullets": [
+            { "label": "Email us:", "value": "info@karate.lv" },
+            { "label": "Data State Inspectorate:", "value": "www.dvi.gov.lv" }
+          ]
+        }
+      ]
+    }
   },
   "ranks": {
     "levelNational": "National",

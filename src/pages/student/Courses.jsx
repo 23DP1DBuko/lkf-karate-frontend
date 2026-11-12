@@ -4,6 +4,7 @@ import { useState } from 'react'
 import api, { getLocalizedField } from '../../api/strapi'
 import { usePageTitle } from '../../hooks/usePageTitle'
 import { useTranslation } from 'react-i18next'
+import ErrorState from '../../components/ErrorState'
 import { createRipple } from '../../hooks/useRipple'
 import { MagnifyingGlassIcon, AcademicCapIcon } from '@heroicons/react/24/outline'
 
@@ -47,7 +48,7 @@ function CourseCard({ course, chapters, progress }) {
   return (
     <div
       onClick={handleCardClick}
-      className="group rounded-2xl border cursor-pointer transition-all duration-200 hover:shadow-xl hover:-translate-y-0.5 overflow-hidden flex flex-col md:flex-row"
+      className="group rounded-2xl border cursor-pointer transition-[transform,box-shadow] duration-200 hover:shadow-xl hover:-translate-y-0.5 overflow-hidden flex flex-col md:flex-row"
       style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}
       role="article"
       aria-label={`Course: ${getLocalizedField(course, i18n.language, 'title')}`}
@@ -77,7 +78,7 @@ function CourseCard({ course, chapters, progress }) {
             <>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-                  {lastVisited ? `Chapter ${nextChapter.order}` : 'Start here'}
+                  {lastVisited ? t('courses.chapterOrder', { order: nextChapter.order }) : t('courses.startHere')}
                 </span>
                 <span className="text-xs font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>
                   {seenCount}/{total}
@@ -91,14 +92,14 @@ function CourseCard({ course, chapters, progress }) {
               {/* Progress bar */}
               <div className="w-full rounded-full h-1.5 mb-4 overflow-hidden" style={{ backgroundColor: 'var(--border)' }}>
                 <div
-                  className={`h-1.5 rounded-full bg-gradient-to-r ${gradient} transition-all duration-500`}
+                  className={`h-1.5 rounded-full bg-gradient-to-r ${gradient} transition-[width] duration-500`}
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
             </>
           ) : (
             <div className="mb-4">
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                 No chapters available yet
               </p>
             </div>
@@ -115,7 +116,7 @@ function CourseCard({ course, chapters, progress }) {
                   navigate(`/courses/${course.documentId}/chapters/${nextChapter.documentId}`)
                 }, 150)
               }}
-              className={`px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r ${gradient} hover:opacity-90 transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              className={`px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-gradient-to-r ${gradient} hover:opacity-90 transition-[opacity,transform] active:scale-95 focus:outline-none focus:ring-2 focus:ring-blue-500`}
               aria-label={`Continue ${getLocalizedField(course, i18n.language, 'title')}`}
             >
               {lastVisited ? 'Continue →' : 'Start →'}
@@ -139,7 +140,7 @@ export default function Courses() {
   const { t, i18n } = useTranslation()
   usePageTitle(t('courses.title'))
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['courses'],
     queryFn: () => api.get('/courses?sort=titleLv:asc').then(r => r.data.data)
   })
@@ -172,14 +173,18 @@ export default function Courses() {
   )
 
   if (isError) return (
-    <div className="flex items-center justify-center py-20">
-      <p className="text-red-500">{t('common.error')}</p>
-    </div>
+    <ErrorState
+      error={error}
+      onRetry={refetch}
+      title={t('common.loadErrorTitle')}
+      message={t('common.loadErrorBody')}
+      fullPage
+    />
   )
 
   return (
     <div>
-      <h1 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-2">{t('courses.title')}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-heading mb-2">{t('courses.title')}</h1>
       <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>{t('courses.subtitle')}</p>
 
       {/* Search and Filter */}

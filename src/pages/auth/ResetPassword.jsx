@@ -20,7 +20,7 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  const inputClasses = `w-full border transition-all outline-none rounded-xl pl-10 text-sm ${
+  const inputClasses = `w-full border transition-colors outline-none rounded-xl pl-10 text-sm ${
     isDark
       ? 'bg-white/[0.04] border-white/[0.1] focus:border-indigo-500/80 focus:ring-1 focus:ring-indigo-500/80 text-slate-100 placeholder-slate-500'
       : 'bg-white border-slate-200 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400/40 text-slate-700 placeholder-slate-400'
@@ -112,7 +112,7 @@ export default function ResetPassword() {
         </div>
 
         <button type="submit" disabled={loading}
-          className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-medium text-sm py-3 px-4 rounded-xl shadow-lg shadow-indigo-600/20 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm py-3 px-4 rounded-xl shadow-lg shadow-blue-600/20 active:scale-[0.98] transition-[background-color,box-shadow,transform] duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
           {loading ? (
             <span className="inline-flex items-center gap-2">
               <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">

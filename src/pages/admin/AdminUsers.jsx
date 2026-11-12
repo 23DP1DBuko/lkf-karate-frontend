@@ -4,6 +4,9 @@ import api from '../../api/strapi'
 import IconButton from '../../components/IconButton'
 import RankSelect from '../../components/RankSelect'
 import UserRanks from '../../components/UserRanks'
+import StatusChip from '../../components/StatusChip'
+import { SkeletonTable } from '../../components/Skeleton'
+import ErrorState from '../../components/ErrorState'
 import { KUMITE_RANKS, KATA_RANKS } from '../../utils/refereeRanks'
 import { CheckCircleIcon, XCircleIcon, ArrowPathIcon, PencilIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
@@ -20,7 +23,7 @@ export default function AdminUsers() {
   const [editRankKumite, setEditRankKumite] = useState('')
   const [editRankKata, setEditRankKata] = useState('')
 
-  const { data: users, isLoading } = useQuery({
+  const { data: users, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin-users'],
     queryFn: () => api.get('/users?populate=role').then(r => r.data)
   })
@@ -49,16 +52,17 @@ export default function AdminUsers() {
     })
   }
 
-  const getVerificationBadge = (verification) => {
-    const map = {
-      pending: 'bg-yellow-100 text-yellow-700',
-      approved: 'bg-green-100 text-green-700',
-      rejected: 'bg-red-100 text-red-700',
-    }
-    return map[verification] || 'bg-gray-100 text-gray-500'
-  }
+  if (isLoading) return <SkeletonTable rows={5} cols={4} />
 
-  if (isLoading) return <p className="text-gray-500">{t('common.loading')}</p>
+  if (isError) return (
+    <ErrorState
+      error={error}
+      onRetry={refetch}
+      title={t('common.loadErrorTitle')}
+      message={t('common.loadErrorBody')}
+      fullPage
+    />
+  )
 
   const matchesFilters = (u) => {
     if (filterVerification !== 'all' && u.verification !== filterVerification) return false
@@ -155,7 +159,7 @@ export default function AdminUsers() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">{t('admin.users.title')}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-heading">{t('admin.users.title')}</h1>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('admin.users.total', { count: users?.length || 0 })}</p>
         </div>
       </div>
@@ -205,9 +209,7 @@ export default function AdminUsers() {
             <h2 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
               {t('admin.users.awaiting')}
             </h2>
-            <span className="bg-yellow-100 text-yellow-700 text-xs px-2 py-1 rounded-full font-medium">
-              {pending.length}
-            </span>
+            <StatusChip tone="warning" label={pending.length} />
           </div>
           <div className="space-y-3">
             {pending.map(user => (
@@ -340,9 +342,7 @@ export default function AdminUsers() {
                   <UserRanks user={user} />
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${getVerificationBadge(user.verification)}`}>
-                    {user.verification || 'unknown'}
-                  </span>
+                  <StatusChip status={user.verification} label={user.verification || 'unknown'} />
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1 justify-end">

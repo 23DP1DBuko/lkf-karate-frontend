@@ -81,7 +81,7 @@ export default function Landing() {
       <a href="#main-content" className="skip-link" onClick={() => document.getElementById('main-content')?.focus()}>Skip to main content</a>
 
       {/* Header */}
-      <header className={`fixed top-0 left-0 right-0 z-40 backdrop-blur-md border-b transition-all ${
+      <header className={`fixed top-0 left-0 right-0 z-40 backdrop-blur-md border-b transition-colors ${
         isDark ? 'bg-slate-900/40 border-white/[0.06]' : 'bg-white/70 border-slate-200/60'
       }`}>
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -95,13 +95,13 @@ export default function Landing() {
           </Link>
 
           <div className="hidden md:flex items-center gap-2">
-            <Link to="/rules" className={`px-4 py-3 text-sm font-medium rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+            <Link to="/rules" className={`px-4 py-3 text-sm font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
               isDark ? 'text-slate-300 hover:text-white hover:bg-white/[0.06]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
             }`}>{t('landing.rules')}</Link>
-            <Link to="/login" className={`px-5 py-3 text-sm font-medium rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+            <Link to="/login" className={`px-5 py-3 text-sm font-medium rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
               isDark ? 'text-slate-200 hover:text-white hover:bg-white/[0.06]' : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100/60'
             }`}>{t('landing.signIn')}</Link>
-            <Link to="/register" className={`px-5 py-3 text-sm font-semibold rounded-xl transition-all shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+            <Link to="/register" className={`px-5 py-3 text-sm font-semibold rounded-xl transition-colors shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
               isDark
                 ? 'bg-white text-slate-900 hover:bg-slate-100 shadow-blue-500/10'
                 : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/20'
@@ -157,20 +157,20 @@ export default function Landing() {
                 </div>
               </div>
 
-              <h1 className={`text-5xl md:text-7xl font-bold mb-2 tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>LKF Academy</h1>
+              <h1 className={`text-5xl md:text-7xl font-bold mb-2 leading-[1.1] tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>LKF Academy</h1>
               <p className={`text-xs md:text-sm font-medium tracking-widest uppercase mb-4 ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>Latvijas Karatē federācija</p>
               <p className={`text-lg md:text-xl mb-3 max-w-2xl font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{t('landing.subtitle')}</p>
               <p className={`text-base md:text-lg mb-10 max-w-2xl ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t('landing.description')}</p>
 
               <div className="flex gap-4 justify-start flex-wrap">
-                <Link to="/register" className={`px-8 py-3.5 rounded-xl font-semibold text-base shadow-2xl transition-all duration-300 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+                <Link to="/register" className={`px-8 py-3.5 rounded-xl font-semibold text-base shadow-2xl transition-[transform,box-shadow] duration-300 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
                   isDark
                     ? 'bg-white text-slate-900 shadow-blue-500/20 hover:shadow-blue-400/30'
                     : 'bg-blue-600 text-white shadow-blue-500/20 hover:shadow-blue-400/30'
                 }`}>
                   {t('landing.getStarted')}
                 </Link>
-                <Link to="/login" className={`px-8 py-3.5 rounded-xl font-semibold text-base border transition-all duration-300 active:scale-95 backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+                <Link to="/login" className={`px-8 py-3.5 rounded-xl font-semibold text-base border transition-[transform,background-color,border-color] duration-300 active:scale-95 backdrop-blur-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
                   isDark
                     ? 'border-white/[0.15] text-slate-200 hover:bg-white/[0.06] hover:border-white/[0.25]'
                     : 'border-slate-300/50 text-slate-600 hover:bg-slate-100/60 hover:border-slate-400'
@@ -205,9 +205,9 @@ export default function Landing() {
 
         {/* Features Section */}
         <section id="features-section" className="relative max-w-6xl mx-auto px-4 pb-16 scroll-mt-24">
-          <div className="text-center mb-12">
+          <div className="text-left mb-12">
             <h2 className={`text-2xl md:text-3xl font-bold mb-3 ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{t('landing.featuresTitle')}</h2>
-            <div className={`w-12 h-1 rounded-full mx-auto ${isDark ? 'bg-blue-600/50' : 'bg-blue-500/60'}`} />
+            <div className={`w-12 h-1 rounded-full ${isDark ? 'bg-blue-600/50' : 'bg-blue-500/60'}`} />
           </div>
 
           {/* Featured card — full width, larger treatment */}
@@ -276,13 +276,13 @@ export default function Landing() {
           >
             <div className="absolute -top-20 -right-20 w-60 h-60 rounded-full bg-blue-600/5 blur-3xl" />
             <div className="absolute -bottom-10 -left-10 w-40 h-40 rounded-full bg-amber-500/10 blur-3xl" />
-            <div className="relative z-10 text-center">
+            <div className="relative z-10 text-left">
               <h2 className={`text-2xl md:text-3xl font-bold mb-3 ${isDark ? 'text-slate-100' : 'text-slate-800'}`}>{t('landing.ctaTitle')}</h2>
-              <p className={`mb-8 max-w-lg mx-auto ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t('landing.ctaDesc')}</p>
-              <Link to="/register" className={`inline-flex px-8 py-3.5 rounded-xl font-semibold shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
+              <p className={`mb-8 max-w-lg ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>{t('landing.ctaDesc')}</p>
+              <Link to="/register" className={`inline-flex px-8 py-3.5 rounded-xl font-semibold shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-[transform,box-shadow] duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-900 ${
                 isDark
-                  ? 'bg-white text-slate-900'
-                  : 'bg-blue-600 text-white'
+                  ? 'bg-white text-slate-900 hover:bg-slate-100 shadow-blue-500/10'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 shadow-blue-500/20'
               }`}>
                 {t('landing.createAccount')}
               </Link>

@@ -7,13 +7,40 @@
    would render dark: colors (e.g. white titles) on light backgrounds. */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Route the primary action shades through accent tokens (roadmap 1.3).
+   bg-blue-600 / hover:bg-blue-700 / bg-blue-800 now compile to var(--accent*),
+   so auth, admin and student buttons cannot drift to different primaries again.
+   The values are unchanged (blue-600 is #2563eb), so this is pure indirection. */
+@theme {
+  --color-blue-600: var(--accent);
+  --color-blue-700: var(--accent-hover);
+  --color-blue-800: var(--accent-active);
+  /* Motion: one entrance curve for the app. Declared here (not in :root) so the
+     `ease-out` utility and the keyframe animations below resolve the same value. */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Theme tokens ─────────────────────────────────────────────────────────────
+   One block owns the app's colours. Light values live in :root; .dark overrides the
+   same names, so components read tokens and never a raw palette value.
+   Text tokens are sized for contrast against the surfaces they sit on
+   (#fff / #f3f4f6 light, #1e293b card / #0f172a page dark):
+     --text-heading    ≥ 3:1 (large titles)      6.7:1 light · 8.1:1 dark
+     --text-body       ≥ 4.5:1                  17.7:1 light · 13.4:1 dark
+     --text-secondary  ≥ 4.5:1                   7.6:1 light · 5.7:1 dark
+     --text-muted      ≥ 4.5:1                   5.2:1 light · 5.2:1 dark
+     --border          decorative, carries no text
+     --accent          primary action fill; white on it is 5.2:1
+   Use --text-body / --text-secondary for prose, --text-muted only for metadata. */
 :root {
   --bg-primary: #f3f4f6;
   --bg-secondary: #e5e7eb;
   --bg-card: #ffffff;
-  --text-primary: #111827;
+  --text-heading: #1d4ed8;
+  --text-body: #111827;
+  --text-primary: var(--text-body);   /* legacy alias kept for existing reads */
   --text-secondary: #4b5563;
-  --text-muted: #6b7280;
+  --text-muted: #5f6773;
   --border: #e5e7eb;
   --input-bg: #ffffff;
   --nav-bg: #ffffff;
@@ -22,6 +49,10 @@
   --hero-text: #ffffff;
   --hero-text-secondary: #bfdbfe;
   --icon-color: #2563eb;
+  /* Primary action colour — the single source of truth for primary buttons. */
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-active: #1e40af;
   color-scheme: light;
 }
 
@@ -29,9 +60,11 @@
   --bg-primary: #0f172a;
   --bg-secondary: #1e293b;
   --bg-card: #1e293b;
-  --text-primary: #f1f5f9;
+  --text-heading: #93c5fd;
+  --text-body: #f1f5f9;
+  --text-primary: var(--text-body);   /* legacy alias kept for existing reads */
   --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --text-muted: #8b9bb0;
   --border: #334155;
   --input-bg: #1e293b;
   --nav-bg: #1e293b;
@@ -42,6 +75,16 @@
   --icon-color: #60a5fa;
   color-scheme: dark;
 }
+
+/* ── Primary action states ──
+   Every element painted with the accent utility gets the same hover, active,
+   focus-visible and disabled treatment, so auth, admin and student buttons behave
+   alike. Secondary/ghost/destructive buttons never use bg-blue-600 and are untouched. */
+.bg-blue-600:not(:disabled, [aria-disabled='true']):hover { background-color: var(--accent-hover); }
+.bg-blue-600:not(:disabled, [aria-disabled='true']):active { background-color: var(--accent-active); }
+.bg-blue-600:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.bg-blue-600:disabled,
+.bg-blue-600[aria-disabled='true'] { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Light-mode text contrast fixes ── */
 .text-slate-400 { color: #5b6b7d !important; }  /* bump to pass WCAG AA 4.5:1 on #f1f5f9 */
@@ -82,14 +125,26 @@ body {
 .dark label { color: var(--text-primary) !important; }
 .dark h1,.dark h2,.dark h3,.dark h4 { color: var(--text-primary); }
 .dark p { color: var(--text-secondary); }
+
+/* Heading token for page/section titles. Declared after the .dark h1–h4 rule above so
+   it wins there too (equal specificity, later in the sheet). */
+h1.text-heading,
+h2.text-heading,
+h3.text-heading,
+h4.text-heading,
+.text-heading { color: var(--text-heading); }
+
+/* Body copy token, for prose that must not fall back to muted metadata colour. */
+.text-body { color: var(--text-body); }
 .dark input:disabled { background-color: var(--bg-secondary) !important; color: var(--text-muted) !important; }
 
-/* Cards */
-.dark .rounded-xl.shadow,
-.dark .rounded-xl.shadow-md,
-.dark .rounded-xl.shadow-lg,
-.dark .rounded-2xl.shadow,
-.dark .rounded-2xl.border { background-color: var(--bg-card) !important; }
+/* Cards — :not(.bg-blue-600) keeps this from repainting primary buttons, which also
+   carry rounded-xl/shadow-lg; without it an accent button turns into a slate card. */
+.dark .rounded-xl.shadow:not(.bg-blue-600),
+.dark .rounded-xl.shadow-md:not(.bg-blue-600),
+.dark .rounded-xl.shadow-lg:not(.bg-blue-600),
+.dark .rounded-2xl.shadow:not(.bg-blue-600),
+.dark .rounded-2xl.border:not(.bg-blue-600) { background-color: var(--bg-card) !important; }
 
 /* Tables */
 .dark table { background-color: var(--bg-card); color: var(--text-primary); }
@@ -104,6 +159,59 @@ input, textarea, select {
 }
 input::placeholder, textarea::placeholder { color: var(--text-muted); }
 .dark select option { background-color: var(--bg-card); color: var(--text-primary); }
+
+/* ── Browser-native surfaces ──────────────────────────────────────────────────
+   Selection, scrollbars, caret and focus rings read the tokens, so the custom
+   theme isn't interrupted by default browser chrome. */
+::selection {
+  background-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--text-body);
+}
+
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover { background-color: var(--text-muted); }
+
+input, textarea, [contenteditable='true'], .ProseMirror { caret-color: var(--accent); }
+
+/* Focus ring for links/buttons. Kept in the base layer so a component that supplies
+   its own ring (input focus:ring-2) keeps it instead of doubling up. */
+@layer base {
+  :where(a, button, summary, [role='button']):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* Native date/time pickers stay dark inside the dark theme. */
+.dark input[type='date'],
+.dark input[type='time'],
+.dark input[type='datetime-local'] { color-scheme: dark; }
+
+/* Native select: the OS control is replaced with the app's own field surface. The
+   chevron is an inline SVG tinted to the muted token, one per theme. */
+select.select-field {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%235f6773' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7.5 10 12.5 15 7.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.6rem center;
+  background-size: 1.1em 1.1em;
+  padding-right: 2.25rem;
+  background-color: var(--input-bg);
+  border: 1px solid var(--border);
+  color: var(--text-body);
+}
+.dark select.select-field {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%238b9bb0' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7.5 10 12.5 15 7.5'/%3E%3C/svg%3E");
+}
 
 /* Nav */
 nav { background-color: var(--nav-bg) !important; border-color: var(--nav-border) !important; }
@@ -143,7 +251,7 @@ nav { background-color: var(--nav-bg) !important; border-color: var(--nav-border
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
-.animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+.animate-fade-in { animation: fadeIn 0.2s var(--ease-out) forwards; }
 
 /* Hero entrance */
 @keyframes hero-fade-in {
@@ -151,7 +259,7 @@ nav { background-color: var(--nav-bg) !important; border-color: var(--nav-border
   to   { opacity: 1; transform: translateY(0); }
 }
 .animate-hero-fade-in {
-  animation: hero-fade-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: hero-fade-in 0.8s var(--ease-out) both;
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-hero-fade-in {

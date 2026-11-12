@@ -295,7 +295,7 @@ export default function AdminChapters() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">{t('admin.chapters.title')}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-heading">{t('admin.chapters.title')}</h1>
           <p className="text-gray-500">{t('admin.chapters.total', { count: chapters?.length || 0 })}</p>
         </div>
         <button

@@ -23,6 +23,7 @@
 //   showSubmit    — render the submit button (default true)
 
 import { CheckIcon } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 import { mediaUrl } from '../../api/media'
 
 function getYouTubeEmbedUrl(url) {
@@ -93,7 +94,7 @@ function AnswerButton({ tone, label, selected, onSelect, disabled }) {
       className={`
         flex-1 inline-flex items-center justify-center gap-2 px-6 py-4 rounded-2xl
         border-2 font-bold text-lg tracking-wide
-        transition-all duration-200 ease-in-out
+        transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-in-out
         focus:outline-none focus:ring-2 focus:ring-offset-2
         active:scale-[0.98]
         ${isActive ? '' : 'hover:shadow-md hover:-translate-y-0.5'}
@@ -115,12 +116,15 @@ export default function AkaAoQuestion({
   onSubmit,
   canSubmit,
   isSubmitting = false,
-  submitLabel = 'Submit Answer',
+  submitLabel,
   akaLabel = 'AKA',
   aoLabel = 'AO',
   showHeading = true,
   showSubmit = true,
 }) {
+  const { t } = useTranslation()
+  const submitText = submitLabel ?? t('exam.submitAnswer')
+
   const twoVideos = Boolean(videoAoUrl && videoAkaUrl)
   const singleVideo = !twoVideos && Boolean(videoAkaUrl)
   const hasSelection = selectedValue === 'aka' || selectedValue === 'ao'
@@ -159,7 +163,7 @@ export default function AkaAoQuestion({
                 aria-pressed={isActive}
                 className={`
                   relative rounded-2xl overflow-hidden border-2 text-left
-                  transition-all duration-200 ease-in-out
+                  transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-in-out
                   focus:outline-none focus:ring-2 focus:ring-offset-2
                   active:scale-[0.98]
                   ${isActive ? 'shadow-lg' : 'hover:shadow-md hover:-translate-y-0.5'}
@@ -204,7 +208,7 @@ export default function AkaAoQuestion({
       ) : (
         /* ── No video configured yet — keep the question answerable ────── */
         <div className="rounded-2xl border-2 border-dashed p-8 text-center" style={{ borderColor: 'var(--border)' }}>
-          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             No video attached to this question yet.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mt-6">
@@ -230,7 +234,7 @@ export default function AkaAoQuestion({
           className={`
             w-full sm:w-auto min-w-[200px] px-10 py-3.5 rounded-2xl
             text-base font-semibold tracking-wide
-            transition-all duration-200 ease-in-out
+            transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-in-out
             focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
             active:scale-[0.98]
             ${submitEnabled && !isSubmitting ? 'hover:bg-blue-700 hover:shadow-xl' : ''}
@@ -245,7 +249,7 @@ export default function AkaAoQuestion({
               Submitting…
             </span>
           ) : (
-            submitLabel
+            submitText
           )}
         </button>
       </div>

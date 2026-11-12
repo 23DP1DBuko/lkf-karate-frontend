@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom'
 import api, { getLocalizedField } from '../../api/strapi'
 import { useTranslation } from 'react-i18next'
 import FileDropzone from '../../components/FileDropzone'
+import StatusChip from '../../components/StatusChip'
 import {
   DocumentArrowUpIcon,
   CheckCircleIcon,
@@ -27,10 +28,10 @@ import {
 } from '../../utils/questionImport'
 
 const ACTION_META = {
-  create: { label: 'New', cls: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' },
-  skip: { label: 'Skip (identical)', cls: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300' },
-  update: { label: 'Update translation', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
-  conflict: { label: 'Conflict — review', cls: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300' },
+  create: { label: 'New', tone: 'success' },
+  skip: { label: 'Skip (identical)', tone: 'neutral' },
+  update: { label: 'Update translation', tone: 'info' },
+  conflict: { label: 'Conflict — review', tone: 'danger' },
 }
 
 export default function AdminPdfImport() {
@@ -204,7 +205,7 @@ export default function AdminPdfImport() {
 
   return (
     <div className="max-w-4xl">
-      <h1 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-2">{t('admin.pdfImport.title')}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-heading mb-2">{t('admin.pdfImport.title')}</h1>
       <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
         {t('admin.pdfImport.description')}
       </p>
@@ -235,7 +236,7 @@ export default function AdminPdfImport() {
                 {t('admin.pdfImport.parsing')}
               </div>
               <div className="w-full rounded-full h-1.5 overflow-hidden" style={{ backgroundColor: 'var(--border)' }}>
-                <div className="h-1.5 rounded-full bg-blue-500 transition-all duration-200" style={{ width: `${Math.round(parseProgress * 100)}%` }} />
+                <div className="h-1.5 rounded-full bg-blue-500 transition-[width] duration-200" style={{ width: `${Math.round(parseProgress * 100)}%` }} />
               </div>
             </div>
           )}
@@ -360,9 +361,7 @@ export default function AdminPdfImport() {
                     const n = plan.filter(p => p.action === key).length
                     if (!n) return null
                     return (
-                      <span key={key} className={`inline-flex items-center gap-1 px-2 py-1 rounded-full font-medium ${meta.cls}`}>
-                        {n} {meta.label}
-                      </span>
+                      <StatusChip key={key} tone={meta.tone} label={`${n} ${meta.label}`} size="sm" />
                     )
                   })}
                 </div>

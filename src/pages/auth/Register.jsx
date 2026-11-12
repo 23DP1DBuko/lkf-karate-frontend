@@ -19,11 +19,12 @@ function validate(form, t) {
   else if (form.password.length < 8) errors.password = t('profile.passwordMinLength')
   else if (!/[A-Z]/.test(form.password)) errors.password = t('profile.passwordUppercase')
   else if (!/[0-9]/.test(form.password)) errors.password = t('profile.passwordNumber')
+  if (!form.consent) errors.consent = t('auth.consentRequired')
   return errors
 }
 
 function Field({ id, label, type = 'text', value, onChange, error, icon: Icon, placeholder, isDark }) {
-  const fieldClasses = `w-full border transition-all outline-none rounded-xl pl-10 pr-4 py-3 text-sm ${
+  const fieldClasses = `w-full border transition-colors outline-none rounded-xl pl-10 pr-4 py-3 text-sm ${
     isDark
       ? 'bg-white/[0.04] placeholder-slate-500 text-slate-100'
       : 'bg-white placeholder-slate-400 text-slate-700'
@@ -58,13 +59,13 @@ export default function Register() {
   const isDark = theme === 'dark' ||
     (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
   const [form, setForm] = useState({
-    firstName: '', lastName: '', username: '', email: '', password: ''
+    firstName: '', lastName: '', username: '', email: '', password: '', consent: false
   })
   const [errors, setErrors] = useState({})
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const passInputClasses = `w-full border transition-all outline-none rounded-xl pl-10 pr-11 py-3 text-sm ${
+  const passInputClasses = `w-full border transition-colors outline-none rounded-xl pl-10 pr-11 py-3 text-sm ${
     isDark
       ? 'bg-white/[0.04] placeholder-slate-500 text-slate-100'
       : 'bg-white placeholder-slate-400 text-slate-700'
@@ -132,7 +133,7 @@ export default function Register() {
 
         <Field id="email" label={t('auth.email')} type="email" value={form.email}
           onChange={e => setForm({ ...form, email: e.target.value })} error={errors.email}
-          icon={EnvelopeIcon} placeholder="janis@example.com" isDark={isDark} />
+          icon={EnvelopeIcon} placeholder={t('auth.emailPlaceholder')} isDark={isDark} />
 
         <div>
           <label className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-slate-300' : 'text-slate-600'}`} htmlFor="password">{t('auth.password')}</label>
@@ -154,8 +155,32 @@ export default function Register() {
           <p className={`text-xs mt-1.5 ${isDark ? 'text-slate-500' : 'text-slate-400'}`}>{t('profile.passwordHint')}</p>
         </div>
 
+        <div>
+          <label htmlFor="consent" className={`flex items-start gap-2.5 text-xs cursor-pointer ${
+            isDark ? 'text-slate-400' : 'text-slate-500'
+          }`}>
+            <input id="consent" type="checkbox" checked={form.consent}
+              onChange={e => {
+                setForm({ ...form, consent: e.target.checked })
+                if (e.target.checked) setErrors(prev => ({ ...prev, consent: undefined }))
+              }}
+              className="mt-0.5 h-4 w-4 shrink-0 rounded accent-indigo-500 cursor-pointer" />
+            <span>
+              {t('auth.consentAgree')}{' '}
+              <Link to="/terms" className={`font-medium underline underline-offset-2 ${
+                isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-600 hover:text-indigo-700'
+              }`}>{t('auth.consentTerms')}</Link>{' '}
+              {t('auth.consentAnd')}{' '}
+              <Link to="/privacy" className={`font-medium underline underline-offset-2 ${
+                isDark ? 'text-indigo-400 hover:text-indigo-300' : 'text-indigo-600 hover:text-indigo-700'
+              }`}>{t('auth.consentPrivacy')}</Link>
+            </span>
+          </label>
+          {errors.consent && <p className={`text-xs mt-1.5 ${isDark ? 'text-red-400' : 'text-red-500'}`}>{errors.consent}</p>}
+        </div>
+
         <button type="submit" disabled={loading}
-          className="w-full bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white font-medium text-sm py-3 px-4 rounded-xl shadow-lg shadow-indigo-600/20 active:scale-[0.98] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm py-3 px-4 rounded-xl shadow-lg shadow-blue-600/20 active:scale-[0.98] transition-[background-color,box-shadow,transform] duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
           {loading ? (
             <span className="inline-flex items-center gap-2">
               <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">

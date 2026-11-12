@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
 import api, { getQuestionText } from '../../api/strapi'
 import { useTranslation } from 'react-i18next'
 import { SkeletonList } from '../../components/Skeleton'
+import ErrorState from '../../components/ErrorState'
 import {
   CheckCircleIcon,
   ClipboardDocumentListIcon,
@@ -104,7 +105,7 @@ export default function Results() {
   const rawJustSubmitted = location.state?.justSubmitted || null
   const justSubmittedAttemptId = location.state?.justSubmittedAttemptId || null
 
-  const { data: attempts, isLoading } = useQuery({
+  const { data: attempts, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['attempts', user?.id],
     queryFn: () =>
       api
@@ -175,6 +176,18 @@ export default function Results() {
     )
   }
 
+  if (isError) {
+    return (
+      <ErrorState
+        error={error}
+        onRetry={refetch}
+        title={t('common.loadErrorTitle')}
+        message={t('common.loadErrorBody')}
+        fullPage
+      />
+    )
+  }
+
   // Detail page
   if (activeAttempt) {
     const timeSpent = formatTimeSpent(activeAttempt.timeSpentSeconds)
@@ -203,7 +216,7 @@ export default function Results() {
               {t('results.detailedReview') || 'Detailed review'}
             </h2>
             {timeSpent && (
-              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                 {t('results.timeSpent') || 'Time spent'}: {timeSpent}
               </p>
             )}
@@ -333,7 +346,7 @@ export default function Results() {
   // List page
   return (
     <div>
-      <h1 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-2">
+      <h1 className="text-2xl sm:text-3xl font-bold text-heading mb-2">
         {t('results.title') || 'Results'}
       </h1>
       <p className="mb-8" style={{ color: 'var(--text-secondary)' }}>
@@ -353,9 +366,18 @@ export default function Results() {
             <div className="mb-4 inline-flex items-center justify-center">
               <ClipboardDocumentListIcon className="w-14 h-14 sm:w-16 sm:h-16" style={{ color: 'var(--text-muted)' }} />
             </div>
-            <p style={{ color: 'var(--text-muted)' }}>
-              {t('results.noExams') || 'No attempts yet.'}
+            <h2 className="text-lg font-semibold mb-2" style={{ color: 'var(--text-body)' }}>
+              {t('results.emptyTitle')}
+            </h2>
+            <p className="mb-5" style={{ color: 'var(--text-secondary)' }}>
+              {t('results.emptyBody')}
             </p>
+            <Link
+              to="/courses"
+              className="inline-flex items-center px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition"
+            >
+              {t('common.goToCourses')}
+            </Link>
           </div>
         )}
 
@@ -374,7 +396,7 @@ export default function Results() {
       )}
 
       <div className="space-y-4">
-        {submittedListAttempts.map(attempt => {
+        {[...inProgressAttempts, ...submittedListAttempts].map(attempt => {
           const released =
             attempt.submittedAt && canShowScoreAndReview(attempt)
 

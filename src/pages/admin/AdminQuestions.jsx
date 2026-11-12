@@ -8,6 +8,7 @@ import { mediaUrl } from '../../api/media'
 import { PencilIcon, TrashIcon, ArrowUpTrayIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
 import { SkeletonTable } from '../../components/Skeleton'
+import ErrorState from '../../components/ErrorState'
 
 async function fetchAllQuestions(params = {}) {
   let page = 1
@@ -152,7 +153,7 @@ export default function AdminQuestions() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
 
-  const { data: questions, isLoading } = useQuery({
+  const { data: questions, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin-questions'],
     queryFn: () =>
       fetchAllQuestions({
@@ -355,11 +356,21 @@ export default function AdminQuestions() {
 
   if (isLoading) return <SkeletonTable rows={5} cols={4} />
 
+  if (isError) return (
+    <ErrorState
+      error={error}
+      onRetry={refetch}
+      title={t('common.loadErrorTitle')}
+      message={t('common.loadErrorBody')}
+      fullPage
+    />
+  )
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">{t('admin.questions.title')}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-heading">{t('admin.questions.title')}</h1>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('admin.questions.count', { filtered: filtered?.length || 0, total: questions?.length || 0 })}</p>
         </div>
         <div className="flex gap-2">

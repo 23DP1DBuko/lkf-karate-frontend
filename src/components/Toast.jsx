@@ -62,7 +62,7 @@ export default function Toast({ message, type = 'info', onClose, duration = 5000
       className={`
         fixed top-5 right-5 z-50 max-w-sm w-full
         flex items-start gap-3 px-4 py-3.5 rounded-xl border shadow-lg
-        transition-all duration-200 ease-out
+        transition-[opacity,transform] duration-200 ease-out
         ${s.bg} ${s.border} ${s.text}
         ${visible ? 'translate-y-0 opacity-100' : '-translate-y-3 opacity-0'}
       `}

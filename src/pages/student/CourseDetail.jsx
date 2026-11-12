@@ -6,6 +6,7 @@ import { usePageTitle } from '../../hooks/usePageTitle'
 import { useTranslation } from 'react-i18next'
 import { SkeletonCard } from '../../components/Skeleton'
 import ErrorState from '../../components/ErrorState'
+import { formatDateTime } from '../../utils/dates'
 import { useExamAttempt } from '../../context/useExamAttempt'
 import { useAuth } from '../../context/useAuth'
 import { AcademicCapIcon, VideoCameraIcon, XMarkIcon, EyeIcon } from '@heroicons/react/24/outline'
@@ -74,14 +75,14 @@ export default function CourseDetail() {
     const closeAt = exam.closeAt ? new Date(exam.closeAt) : null
 
     if (openAt && now < openAt) {
-      return { state: 'upcoming', label: `Opens on ${openAt.toLocaleString()}` }
+      return { state: 'upcoming', label: t('course.opensOn', { date: formatDateTime(openAt, i18n.language) }) }
     }
 
     if (closeAt && now > closeAt) {
-      return { state: 'closed', label: 'Closed' }
+      return { state: 'closed', label: t('course.closed') }
     }
 
-    return { state: 'open', label: 'Start Exam' }
+    return { state: 'open', label: t('course.startExam') }
   }
 
   if (courseError) {
@@ -102,7 +103,7 @@ export default function CourseDetail() {
             {t('course.backToCourses')}
           </Link>
 
-        <h1 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-heading mb-2">
           {getLocalizedField(course, i18n.language, 'title') || course?.titleLv}
         </h1>
         <p className="text-gray-500 mb-8">
@@ -328,7 +329,7 @@ function ExamStartModal({ exam, hasActiveAttempt, onConfirm, onClose }) {
         <h2 id="exam-start-title" className="text-xl font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
           {hasActiveAttempt ? t('exam.ritualResumeTitle') : t('exam.ritualTitle')}
         </h2>
-        <p className="text-sm mb-5" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>
           {hasActiveAttempt ? t('exam.ritualResumeDesc') : t('exam.ritualDesc')}
         </p>
 

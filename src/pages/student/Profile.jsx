@@ -239,7 +239,7 @@ export default function Profile() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">{t('profile.title') || 'My Profile'}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-heading">{t('profile.title') || 'My Profile'}</h1>
 
       <div
         className="rounded-xl shadow p-5 sm:p-6"
@@ -356,7 +356,7 @@ export default function Profile() {
             </label>
             <select
               id="country"
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="select-field w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={form.country}
               onChange={e => setForm({ ...form, country: e.target.value })}
             >
@@ -372,7 +372,7 @@ export default function Profile() {
             </label>
             <select
               id="clubName"
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              className="select-field w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               value={form.clubName}
               onChange={e => setForm({ ...form, clubName: e.target.value })}
             >
@@ -540,7 +540,7 @@ export default function Profile() {
           <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
           <h2 className="text-lg font-semibold text-red-600">{t('profile.dangerZone') || 'Danger Zone'}</h2>
         </div>
-        <p className="text-sm mb-4" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
           {t('profile.deleteWarning') || 'Once you delete your account, there is no going back. Please be certain.'}
         </p>
 

@@ -62,7 +62,7 @@ export default function MobileNav({ isDark = true }) {
 
           {/* Off-canvas drawer — always in DOM for smooth transitions */}
           <div
-            className={`fixed top-0 right-0 bottom-0 h-full w-[280px] sm:w-[320px] shadow-2xl z-50 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+            className={`fixed top-0 right-0 bottom-0 h-full w-[280px] sm:w-[320px] shadow-2xl z-50 transition-transform duration-300 ease-out ${
               open ? 'translate-x-0' : 'translate-x-full'
             }`}
             style={{
@@ -105,7 +105,7 @@ export default function MobileNav({ isDark = true }) {
                   <>
                     <button
                       onClick={() => handleNav('/login')}
-                      className={`w-full text-center font-medium text-sm py-3 px-4 rounded-xl border transition-all ${
+                      className={`w-full text-center font-medium text-sm py-3 px-4 rounded-xl border transition-colors ${
                         isDark
                           ? 'border-white/[0.08] hover:bg-white/[0.02] text-slate-300'
                           : 'border-slate-200 hover:bg-slate-50 text-slate-600'
@@ -115,7 +115,7 @@ export default function MobileNav({ isDark = true }) {
                     </button>
                     <button
                       onClick={() => handleNav('/register')}
-                      className="w-full text-center text-white bg-blue-600 hover:bg-blue-700 font-medium text-sm py-3 px-4 rounded-xl shadow-lg shadow-blue-600/10 active:scale-[0.99] transition-all"
+                      className="w-full text-center text-white bg-blue-600 hover:bg-blue-700 font-medium text-sm py-3 px-4 rounded-xl shadow-lg shadow-blue-600/10 active:scale-[0.99] transition-[background-color,color,transform]"
                     >
                       {t('landing.getStarted') || 'Get Started'}
                     </button>

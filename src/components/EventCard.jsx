@@ -53,7 +53,7 @@ export default function EventCard({ event, onSelect, compact = false }) {
       type="button"
       onClick={onSelect}
       aria-label={`${t(meta.labelKey)} — ${title}`}
-      className={`group w-full text-left rounded-2xl border shadow-sm flex items-center transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+      className={`group w-full text-left rounded-2xl border shadow-sm flex items-center transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
         compact ? 'px-3 py-4 gap-2.5' : 'p-4 gap-3 md:gap-4'
       }`}
       style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)' }}

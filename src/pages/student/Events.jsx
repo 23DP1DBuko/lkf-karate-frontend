@@ -126,7 +126,7 @@ export default function Events() {
       <div className="max-w-6xl mx-auto flex flex-col gap-6">
         {/* Title + controls */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-          <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">{t('events.title')}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-heading">{t('events.title')}</h1>
 
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Month stepper */}
@@ -169,7 +169,7 @@ export default function Events() {
               <button
                 type="button"
                 onClick={() => setMenuOpen((v) => !v)}
-                className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-all hover:shadow-sm"
+                className="inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-medium transition-shadow hover:shadow-sm"
                 style={{ backgroundColor: 'var(--bg-card)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                 aria-haspopup="listbox"
                 aria-expanded={menuOpen}

@@ -220,7 +220,7 @@ export default function AdminCompetitions() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">{t('admin.competitions.title')}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-heading">{t('admin.competitions.title')}</h1>
           <p className="text-gray-500">
             {filtersActive
               ? t('admin.competitions.count', { filtered: filtered.length, total: items?.length || 0 })

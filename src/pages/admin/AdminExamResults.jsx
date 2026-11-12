@@ -3,6 +3,9 @@ import { useState, useMemo } from 'react'
 import api from '../../api/strapi'
 import IconButton from '../../components/IconButton'
 import QuestionReviewCard from '../../components/QuestionReviewCard'
+import StatusChip from '../../components/StatusChip'
+import { SkeletonTable } from '../../components/Skeleton'
+import ErrorState from '../../components/ErrorState'
 import { formatTimeSpent, isAnswerCorrect } from '../../utils/attempts'
 import { EyeIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useTranslation } from 'react-i18next'
@@ -80,15 +83,12 @@ function YearGroup({ year, attempts, onReview }) {
                         </td>
                         <td className="px-5 py-3">
                           {attempt.submittedAt ? (
-                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                              attempt.passed ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                            }`}>
-                              {attempt.passed ? t('admin.results.passed') : t('admin.results.failed')}
-                            </span>
+                            <StatusChip
+                              status={attempt.passed ? 'passed' : 'failed'}
+                              label={attempt.passed ? t('admin.results.passed') : t('admin.results.failed')}
+                            />
                           ) : (
-                            <span className="text-xs px-2 py-1 rounded-full font-medium bg-yellow-100 text-yellow-700">
-                              {t('admin.results.inProgress')}
-                            </span>
+                            <StatusChip status="pending" label={t('admin.results.inProgress')} />
                           )}
                         </td>
                         <td className="px-5 py-3 text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -126,7 +126,7 @@ export default function AdminExamResults() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [examsOnly, setExamsOnly] = useState(false)
 
-  const { data: attempts, isLoading } = useQuery({
+  const { data: attempts, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin-attempts'],
     queryFn: () => api.get('/exam-attempts/all').then(r => r.data.data),
   })
@@ -191,7 +191,17 @@ export default function AdminExamResults() {
     gradeMutation.mutate({ attemptId: attempt.id, score, passed, manualGrades: manualScores })
   }
 
-  if (isLoading) return <p className="text-gray-500">{t('common.loading')}</p>
+  if (isLoading) return <SkeletonTable rows={6} cols={5} />
+
+  if (isError) return (
+    <ErrorState
+      error={error}
+      onRetry={refetch}
+      title={t('common.loadErrorTitle')}
+      message={t('common.loadErrorBody')}
+      fullPage
+    />
+  )
 
   if (selectedAttempt) {
     const questions = selectedAttempt.questions || []
@@ -368,7 +378,7 @@ export default function AdminExamResults() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">{t('admin.results.title')}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-heading">{t('admin.results.title')}</h1>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
             {t('admin.results.count', { filtered: filteredAttempts?.length || 0, total: attempts?.length || 0 })}
           </p>

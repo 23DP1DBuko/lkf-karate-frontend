@@ -194,7 +194,7 @@ export default function LandingCompetitionsCalendar({ isDark }) {
                   aria-pressed={isSelected}
                   disabled={!has}
                   onClick={() => setPicked((prev) => (prev?.key === key ? null : { key }))}
-                  className={`relative aspect-square rounded-xl text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
+                  className={`relative aspect-square rounded-xl text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
                     has
                       ? `cursor-pointer ${isSelected
                           ? isDark

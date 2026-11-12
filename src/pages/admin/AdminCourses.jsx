@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import api, { getLocalizedField } from '../../api/strapi'
 import IconButton from '../../components/IconButton'
+import StatusChip from '../../components/StatusChip'
 import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { SkeletonTable } from '../../components/Skeleton'
 import ErrorState from '../../components/ErrorState'
@@ -144,7 +145,7 @@ export default function AdminCourses() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-blue-700">{t('admin.courses.title')}</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-heading">{t('admin.courses.title')}</h1>
           <p className="text-gray-500">{t('admin.courses.total', { count: courses?.length || 0 })}</p>
         </div>
         <button
@@ -273,9 +274,7 @@ export default function AdminCourses() {
                 <IconButton icon={PencilIcon} label={t('admin.courses.iconEdit')} onClick={() => handleEdit(course)} variant="default" size="sm" />
                 <IconButton icon={TrashIcon} label={t('admin.courses.iconDelete')} onClick={() => handleDelete(course.documentId)} variant="danger" size="sm" />
               </div>
-            </div>              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${course.publishedAt ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-              {course.publishedAt ? t('admin.courses.published') : t('admin.courses.draft')}
-            </span>
+            </div>              <StatusChip status={course.publishedAt ? 'published' : 'draft'} label={course.publishedAt ? t('admin.courses.published') : t('admin.courses.draft')} size="sm" />
           </div>
         ))}
       </div>
@@ -301,9 +300,7 @@ export default function AdminCourses() {
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${course.publishedAt ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                    {course.publishedAt ? t('admin.courses.published') : t('admin.courses.draft')}
-                  </span>
+                  <StatusChip status={course.publishedAt ? 'published' : 'draft'} label={course.publishedAt ? t('admin.courses.published') : t('admin.courses.draft')} />
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1 justify-end">

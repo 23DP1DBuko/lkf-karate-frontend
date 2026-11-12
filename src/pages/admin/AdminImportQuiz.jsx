@@ -188,7 +188,7 @@ export default function AdminImportQuiz() {
   if (questions === null) {
     return (
       <div className="max-w-3xl">
-        <h1 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-heading mb-2">
           {t('admin.importQuiz.title')}
         </h1>
         <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -220,7 +220,7 @@ export default function AdminImportQuiz() {
               ? t('admin.importQuiz.noneUnanswered')
               : t('admin.importQuiz.missingParams'))}
           </p>
-          <p className="text-sm mt-1 mb-6" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-sm mt-1 mb-6" style={{ color: 'var(--text-secondary)' }}>
             {t('admin.importQuiz.missingParamsDesc')}
           </p>
           <button
@@ -279,7 +279,7 @@ export default function AdminImportQuiz() {
       {/* Header + progress */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-heading mb-1">
             {t('admin.importQuiz.title')}
           </h1>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -372,7 +372,7 @@ export default function AdminImportQuiz() {
                       type="button"
                       onClick={() => handleAnswer(q, opt.val)}
                       aria-pressed={selected}
-                      className={`flex-1 py-2.5 rounded-lg border text-sm font-semibold transition-all ${
+                      className={`flex-1 py-2.5 rounded-lg border text-sm font-semibold transition-colors ${
                         selected
                           ? opt.val === 'true'
                             ? 'bg-green-600 text-white border-green-600 shadow-md shadow-green-600/20'

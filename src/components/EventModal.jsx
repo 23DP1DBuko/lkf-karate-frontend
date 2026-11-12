@@ -207,7 +207,7 @@ export default function EventModal({ event, onClose }) {
         <div className="mt-6 flex justify-end">
           <button
             onClick={onClose}
-            className="px-5 py-2 text-sm font-medium rounded-xl border transition-all hover:bg-slate-50 dark:hover:bg-slate-700/50"
+            className="px-5 py-2 text-sm font-medium rounded-xl border transition-colors hover:bg-slate-50 dark:hover:bg-slate-700/50"
             style={{ color: 'var(--text-primary)', borderColor: 'var(--border)', backgroundColor: 'var(--bg-secondary)' }}
           >
             {t('common.cancel')}

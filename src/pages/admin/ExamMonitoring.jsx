@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import api, { getLocalizedField } from '../../api/strapi'
 import { useTranslation } from 'react-i18next'
 import ErrorState from '../../components/ErrorState'
+import StatusChip from '../../components/StatusChip'
 import useFocusTrap from '../../hooks/useFocusTrap'
 import {
   ArrowPathIcon,
@@ -151,12 +152,12 @@ export default function ExamMonitoring() {
 
   const getStatusBadge = (status) => {
     const map = {
-      in_progress: { label: t('admin.monitoring.statusInProgress'), cls: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400' },
-      submitted: { label: t('admin.monitoring.statusSubmitted'), cls: 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-400' },
-      expired: { label: t('admin.monitoring.statusExpired'), cls: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400' },
-      abandoned: { label: t('admin.monitoring.statusAbandoned'), cls: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400' },
+      in_progress: { label: t('admin.monitoring.statusInProgress'), tone: 'info' },
+      submitted: { label: t('admin.monitoring.statusSubmitted'), tone: 'success' },
+      expired: { label: t('admin.monitoring.statusExpired'), tone: 'danger' },
+      abandoned: { label: t('admin.monitoring.statusAbandoned'), tone: 'warning' },
     }
-    return map[status] || { label: status, cls: 'bg-gray-100 text-gray-600' }
+    return map[status] || { label: status, tone: 'neutral' }
   }
 
   const isSuspicious = (a) =>
@@ -185,7 +186,7 @@ export default function ExamMonitoring() {
 
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-heading mb-1">
             {t('admin.monitoring.title')}
           </h1>
           <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
@@ -282,7 +283,7 @@ export default function ExamMonitoring() {
           <p className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>
             {t('admin.monitoring.noAttempts')}
           </p>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
             {t('admin.monitoring.noAttemptsDesc')}
           </p>
         </div>
@@ -340,9 +341,7 @@ export default function ExamMonitoring() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${status.cls}`}>
-                        {status.label}
-                      </span>
+                      <StatusChip tone={status.tone} label={status.label} />
                     </td>
                     <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>
                       {a.answeredCount} / {a.questionCount}
@@ -377,16 +376,11 @@ export default function ExamMonitoring() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-md font-medium ${
-                          a.lastKnownPage && a.lastKnownPage !== 'exam'
-                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
-                            : ''
-                        }`}
-                        style={{ color: a.lastKnownPage && a.lastKnownPage !== 'exam' ? undefined : 'var(--text-secondary)' }}
-                      >
-                        {a.lastKnownPage || '—'}
-                      </span>
+                      <StatusChip
+                        tone={a.lastKnownPage && a.lastKnownPage !== 'exam' ? 'warning' : 'neutral'}
+                        label={a.lastKnownPage || '—'}
+                        size="sm"
+                      />
                     </td>
                     <td className="px-4 py-3 text-right">
                       <span
@@ -494,7 +488,7 @@ function AttemptDetailsModal({ attempt, onClose, modalRef }) {
         >
           {t('admin.monitoring.detailsTitle')}
         </h2>
-        <p className="text-sm mb-5" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>
           {t('admin.monitoring.detailsSubtitle')}
         </p>
 

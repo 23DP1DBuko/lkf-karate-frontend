@@ -9,7 +9,7 @@ export default function AuthLayout({ children, title, subtitle }) {
   const bgColor = isDark ? '#03010A' : '#f1f5f9'
 
   return (
-    <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden px-4" style={{ backgroundColor: bgColor }}>
+    <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden px-4 py-8" style={{ backgroundColor: bgColor }}>
 
       {/* Back to home link - top left */}
       <Link

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import api from '../../api/strapi'
+import api, { getLocalizedField, getLocalizedArray } from '../../api/strapi'
 import MediaDisplay from '../../components/MediaDisplay'
 import { SkeletonCard } from '../../components/Skeleton'
 import { useExamAttempt } from '../../context/useExamAttempt'
@@ -19,7 +19,7 @@ import {
 } from '@heroicons/react/24/outline'
 
 export default function ExamPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const { documentId } = useParams()
   const navigate = useNavigate()
   const startedRef = useRef(false)
@@ -114,12 +114,12 @@ export default function ExamPage() {
       })
       clearActiveAttempt()
     } catch (err) {
-      const message = err.response?.data?.error?.message || err?.message || 'Failed to submit exam'
+      const message = err.response?.data?.error?.message || err?.message || t('exam.submitFailed')
       console.error('Failed to submit exam:', message)
       setSubmitError(message)
       setSubmitting(false)
     }
-  }, [submitting, attempt, answers, navigate, clearActiveAttempt])
+  }, [submitting, attempt, answers, navigate, clearActiveAttempt, t])
 
   useEffect(() => {
     if (startedRef.current) return
@@ -245,12 +245,12 @@ export default function ExamPage() {
         clearActiveAttempt()
       })
       .catch(err => {
-        const message = err.response?.data?.error?.message || err?.message || 'Failed to submit exam'
+        const message = err.response?.data?.error?.message || err?.message || t('exam.submitFailed')
         console.error('Failed to auto-submit exam:', message)
         setSubmitError(message)
         setSubmitting(false)
       })
-  }, [timeLeft, attempt, answers, navigate, clearActiveAttempt])
+  }, [timeLeft, attempt, answers, navigate, clearActiveAttempt, t])
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0')
@@ -341,6 +341,11 @@ export default function ExamPage() {
     const q = currentQuestion
     if (!q) return null
 
+    // The exam payload carries every language; the reader's own language wins,
+    // falling back through Lv → En rather than showing a blank (AGENTS §6).
+    const questionText = getLocalizedField(q, i18n.language, 'text')
+    const options = getLocalizedArray(q, i18n.language, 'options')
+
     const sharedAnswerProps = {
       selectedValue: answers[q.id] || null,
       onAnswer: (val) => setAnswers(prev => ({ ...prev, [q.id]: val })),
@@ -349,7 +354,7 @@ export default function ExamPage() {
     if (q.type === 'yes_no') {
       return (
         <YesNoQuestion
-          questionText={q.text}
+          questionText={questionText}
           {...sharedAnswerProps}
           onSubmit={() => {
             if (isLastQuestion) {
@@ -374,8 +379,8 @@ export default function ExamPage() {
             <MediaDisplay media={q.media} />
           )}
           <MultipleChoiceQuestion
-            questionText={q.text}
-            options={q.options || []}
+            questionText={questionText}
+            options={options}
             multiSelect
             hint={t('exam.selectAll')}
             selectedValue={Array.isArray(answers[q.id]) ? answers[q.id] : []}
@@ -402,8 +407,8 @@ export default function ExamPage() {
             <MediaDisplay media={q.media} />
           )}
           <MultipleChoiceQuestion
-            questionText={q.text}
-            options={q.options || []}
+            questionText={questionText}
+            options={options}
             {...sharedAnswerProps}
             onSubmit={() => {
               if (isLastQuestion) {
@@ -423,7 +428,7 @@ export default function ExamPage() {
     if (q.type === 'aka_ao') {
       return (
         <AkaAoQuestion
-          questionText={q.text}
+          questionText={questionText}
           videoAkaUrl={q.videoAkaUrl}
           videoAoUrl={q.videoAoUrl}
           selectedValue={answers[q.id] || null}
@@ -452,7 +457,7 @@ export default function ExamPage() {
 
         {q.type === 'open_text' && (
           <OpenTextQuestion
-            questionText={q.text}
+            questionText={questionText}
             value={answers[q.id] || ''}
             onChange={(val) => setAnswers(prev => ({ ...prev, [q.id]: val }))}
             onSubmit={() => {
@@ -478,7 +483,7 @@ export default function ExamPage() {
               {t('exam.unsupportedType')}
             </p>
             <OpenTextQuestion
-              questionText={q.text}
+              questionText={questionText}
               value={answers[q.id] || ''}
               onChange={(val) => setAnswers(prev => ({ ...prev, [q.id]: val }))}
               onSubmit={() => {
@@ -511,12 +516,8 @@ export default function ExamPage() {
         style={{ color: 'var(--text-secondary)' }}
       >
         <ChevronLeftIcon className="w-4 h-4" />
-        Previous
+        {t('exam.previous')}
       </button>
-
-      <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-        {currentIndex + 1} / {totalQuestions}
-      </span>
 
       {isLastQuestion && (
         <button
@@ -558,7 +559,7 @@ export default function ExamPage() {
             disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none
             active:scale-[0.98]"
         >
-          Next
+          {t('exam.next')}
           <ChevronRightIcon className="w-4 h-4" />
         </button>
       )}
@@ -572,30 +573,49 @@ export default function ExamPage() {
         totalQuestions={totalQuestions}
         hasImage={hasImage}
         imageSrc={currentImageSrc}
-        imageAlt={currentQuestion?.text || ''}
-        canGoBack={!isFirstQuestion}
-        onBack={goPrev}
+        imageAlt={getLocalizedField(currentQuestion, i18n.language, 'text')}
       >
-        {/* Save status indicator */}
-        <div className="flex items-center gap-3 mb-6">
-          <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>
-            {t('exam.inProgress')}
-          </h1>
-          {saveStatus === 'saving' && (
-            <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              Saving...
-            </span>
-          )}
-          {saveStatus === 'saved' && (
-            <span className="text-xs text-green-600 font-medium">✓ Saved</span>
-          )}
-          {saveStatus === 'error' && (
-            <span className="text-xs text-red-500 font-medium">✗ Save failed</span>
-          )}
+        {/* Exam chrome — sticky header: exam status on the left, countdown on the right.
+            The timer used to sit at the bottom of the content, under the question, and
+            was easy to miss while answering (roadmap 3.4). */}
+        <div
+          className="sticky top-0 z-20 -mx-6 md:-mx-12 px-6 md:px-12 py-3 mb-6 flex items-center justify-between gap-3 border-b backdrop-blur"
+          style={{ backgroundColor: 'var(--bg-primary)', borderColor: 'var(--border)' }}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <h1 className="text-lg font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+              {t('exam.inProgress')}
+            </h1>
+            {saveStatus === 'saving' && (
+              <span className="text-xs text-amber-600 font-medium flex items-center gap-1 flex-shrink-0">
+                <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                {t('exam.savingProgress')}
+              </span>
+            )}
+            {saveStatus === 'saved' && (
+              <span className="text-xs text-green-600 font-medium flex-shrink-0">{t('exam.savedProgress')}</span>
+            )}
+            {saveStatus === 'error' && (
+              <span className="text-xs text-red-500 font-medium flex-shrink-0">{t('exam.saveFailed')}</span>
+            )}
+          </div>
+          <span
+            role="timer"
+            aria-label={t('exam.timeRemaining')}
+            className={`inline-flex items-center gap-1.5 text-base font-mono font-semibold flex-shrink-0 ${timeLeft !== null && timeLeft < 60 ? 'text-red-500' : ''}`}
+            style={{ color: timeLeft !== null && timeLeft < 60 ? undefined : 'var(--text-secondary)' }}
+          >
+            <ClockIcon className="w-4 h-4" />
+            {formatTime(timeLeft ?? 0)}
+          </span>
         </div>
 
-        {/* Question progress dots */}
+        {/* Question progress dots.
+            Decision (roadmap 3.4): a dot reflects one thing only — whether an answer
+            has been recorded. Blue marks the current question, green an answered one,
+            an outline an unanswered one. It never reveals correctness: grading happens
+            server-side and answers must not be confirmed mid-exam (AGENTS §5.4), so the
+            dot must stay an answered/unanswered signal. Keep it that way. */}
         <QuestionProgressDots
           totalQuestions={totalQuestions}
           currentIndex={currentIndex}
@@ -604,8 +624,12 @@ export default function ExamPage() {
           onJump={(i) => setCurrentIndex(i)}
         />
 
-        {/* Question sub-component slot */}
-        {renderQuestionSlot()}
+        {/* Question slot — reserved height so a short question (yes/no) and a tall one
+            (video, media) occupy the same region and the footer controls do not jump
+            when navigating (roadmap 3.4). */}
+        <div className="min-h-[22rem]">
+          {renderQuestionSlot()}
+        </div>
 
         {/* Submit error banner — only on the last question */}
         {isLastQuestion && submitError && (
@@ -619,31 +643,26 @@ export default function ExamPage() {
           </div>
         )}
 
-        {/* Timer + Navigation */}
-        <div className="mt-8 flex items-center justify-between" style={{ color: 'var(--text-secondary)' }}>
-          <div>
-            {timedOut && !submitError ? (
+        {/* Time-out notice — the countdown itself now lives in the sticky header */}
+        {timedOut && (
+          <div className="mt-6">
+            {!submitError ? (
               <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 font-semibold text-sm">
                 <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
-                Time's up! Submitting your answers...
-              </span>
-            ) : timedOut ? (
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 font-semibold text-sm">
-                <ClockIcon className="w-4 h-4" />
-                Time's up! Please submit now.
+                {t('exam.timeUpSubmitting')}
               </span>
             ) : (
-              <span className={`inline-flex items-center gap-1.5 text-base font-mono font-semibold ${timeLeft < 60 ? 'text-red-500' : ''}`}>
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 font-semibold text-sm">
                 <ClockIcon className="w-4 h-4" />
-                {formatTime(timeLeft)}
+                {t('exam.timeUpSubmitNow')}
               </span>
             )}
           </div>
-        </div>
+        )}
 
-        {navBar}
+        <div className="mt-8">{navBar}</div>
       </ExamQuestionView>
     </div>
   )

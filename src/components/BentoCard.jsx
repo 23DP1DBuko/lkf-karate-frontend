@@ -4,7 +4,7 @@ export default function BentoCard({ icon: Icon, title, description, className = 
   return (
     <motion.div
       whileHover={{ y: -4 }}
-      className={`group relative rounded-2xl border transition-all duration-300 ${
+      className={`group relative rounded-2xl border transition-colors duration-300 ${
         featured ? 'p-8 md:p-10' : 'p-6'
       } ${
         isDark
@@ -20,7 +20,7 @@ export default function BentoCard({ icon: Icon, title, description, className = 
 
         {/* Icon */}
         <Icon
-          className={`transition-all duration-300 group-hover:scale-110 ${
+          className={`transition-transform duration-300 group-hover:scale-110 ${
             featured ? 'w-8 h-8 mb-5' : 'w-7 h-7 mb-4'
           }`}
           style={{ color: 'var(--icon-color)' }}

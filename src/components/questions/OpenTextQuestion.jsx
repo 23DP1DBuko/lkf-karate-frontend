@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next'
+
 // OpenTextQuestion.jsx — Polished open-text question with character count and submit button
 //
 // Props:
@@ -21,11 +23,13 @@ export default function OpenTextQuestion({
   onSubmit,
   canSubmit,
   isSubmitting = false,
-  submitLabel = 'Submit Answer',
+  submitLabel,
   placeholder = 'Type your answer…',
   maxLength,
   rows = 4,
 }) {
+  const { t } = useTranslation()
+  const submitText = submitLabel ?? t('exam.submitAnswer')
   const charCount = (value || '').length
 
   const handleChange = (e) => {
@@ -56,7 +60,7 @@ export default function OpenTextQuestion({
           className="
             w-full resize-y rounded-2xl px-5 py-4
             border-2 text-base md:text-lg leading-relaxed
-            transition-all duration-200 ease-in-out
+            transition-[border-color,background-color,box-shadow] duration-200 ease-in-out
             focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 focus:border-blue-500
             placeholder:opacity-50
           "
@@ -91,7 +95,7 @@ export default function OpenTextQuestion({
           className={`
             w-full sm:w-auto min-w-[200px] px-10 py-3.5 rounded-2xl
             text-base font-semibold tracking-wide
-            transition-all duration-200 ease-in-out
+            transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-in-out
             focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
             active:scale-[0.98]
             ${
@@ -110,7 +114,7 @@ export default function OpenTextQuestion({
               Submitting…
             </span>
           ) : (
-            submitLabel
+            submitText
           )}
         </button>
       </div>

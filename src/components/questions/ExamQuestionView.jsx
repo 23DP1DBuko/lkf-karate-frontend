@@ -6,11 +6,13 @@
 //   hasImage         — whether to render the image pane
 //   imageSrc         — source URL for the image
 //   imageAlt         — alt text for the image
-//   canGoBack        — show the "← Back" link
-//   onBack           — callback when back is clicked
 //   children         — the question sub-component rendered in the content slot
+//
+// There is deliberately no back affordance here: the page footer carries the one
+// Previous/Next/Submit control, and having a second "Back" in the meta bar made
+// both look like different actions (roadmap 3.4).
 
-import { ChevronLeftIcon } from '@heroicons/react/24/outline'
+import { useTranslation } from 'react-i18next'
 
 export default function ExamQuestionView({
   currentQuestion,
@@ -18,37 +20,15 @@ export default function ExamQuestionView({
   hasImage = false,
   imageSrc,
   imageAlt = '',
-  canGoBack = false,
-  onBack,
   children,
 }) {
-  // ── Meta bar: question count + optional back link ──────────────────────
+  const { t } = useTranslation()
+
+  // ── Meta bar: question count ───────────────────────────────────────────
   const metaBar = (
     <div className="flex items-center gap-3 mb-6 min-h-[28px]">
-      {canGoBack ? (
-        <button
-          type="button"
-          onClick={onBack}
-          className="inline-flex items-center gap-1 text-sm font-medium transition-colors duration-200 hover:opacity-70"
-          style={{ color: 'var(--text-secondary)' }}
-        >
-          <ChevronLeftIcon className="w-4 h-4" />
-          Back
-        </button>
-      ) : (
-        /* invisible placeholder preserves the layout height when back is hidden */
-        <span className="inline-flex items-center gap-1 text-sm opacity-0 pointer-events-none select-none">
-          <ChevronLeftIcon className="w-4 h-4" />
-          Back
-        </span>
-      )}
-
       <span className="ml-auto text-sm font-medium tracking-wide" style={{ color: 'var(--text-muted)' }}>
-        Question{' '}
-        <span style={{ color: 'var(--text-primary)' }} className="font-semibold">
-          {currentQuestion}
-        </span>{' '}
-        of {totalQuestions}
+        {t('exam.questionOf', { current: currentQuestion, total: totalQuestions })}
       </span>
     </div>
   )

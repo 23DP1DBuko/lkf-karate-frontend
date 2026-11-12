@@ -31,20 +31,20 @@ export default function QuestionProgressDots({
         if (isCurrent) {
           // Current question — filled brand color, slightly larger
           className =
-            'w-3.5 h-3.5 rounded-full transition-all duration-200 ease-out cursor-pointer ' +
+            'w-3.5 h-3.5 rounded-full transition-transform duration-200 ease-out cursor-pointer ' +
             'ring-2 ring-offset-2 ring-blue-500/50 ' +
             'hover:scale-125 active:scale-90'
           dotStyle = { backgroundColor: '#2563eb' } // blue-600
         } else if (isAnswered) {
           // Answered — filled green
           className =
-            'w-3 h-3 rounded-full transition-all duration-200 ease-out cursor-pointer ' +
+            'w-3 h-3 rounded-full transition-transform duration-200 ease-out cursor-pointer ' +
             'hover:scale-125 active:scale-90'
           dotStyle = { backgroundColor: '#059669' } // emerald-600
         } else {
           // Unanswered — outlined with border
           className =
-            'w-3 h-3 rounded-full transition-all duration-200 ease-out cursor-pointer ' +
+            'w-3 h-3 rounded-full transition-transform duration-200 ease-out cursor-pointer ' +
             'border-2 hover:scale-125 active:scale-90'
           dotStyle = { borderColor: 'var(--border)', backgroundColor: 'transparent' }
         }

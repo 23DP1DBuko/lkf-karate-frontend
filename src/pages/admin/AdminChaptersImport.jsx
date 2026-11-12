@@ -203,7 +203,7 @@ export default function AdminChaptersImport() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl sm:text-3xl font-bold text-blue-700 mb-2">{t('admin.chaptersImport.title')}</h1>
+      <h1 className="text-2xl sm:text-3xl font-bold text-heading mb-2">{t('admin.chaptersImport.title')}</h1>
       <p className="mb-6 text-sm" style={{ color: 'var(--text-secondary)' }}>
         {t('admin.chaptersImport.description') || 'Upload a rules PDF — each'}{' '}
         <strong>INTRODUCTION / ARTICLE / APPENDIX</strong>{' '}
@@ -243,7 +243,7 @@ export default function AdminChaptersImport() {
               </div>
               <div className="w-full rounded-full h-1.5 overflow-hidden" style={{ backgroundColor: 'var(--border)' }}>
                 <div
-                  className="h-1.5 rounded-full bg-blue-500 transition-all duration-200"
+                  className="h-1.5 rounded-full bg-blue-500 transition-[width] duration-200"
                   style={{ width: `${Math.round(parseProgress * 100)}%` }}
                 />
               </div>
